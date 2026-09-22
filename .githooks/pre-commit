@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Refuse to commit anything that looks like a credential.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+#
+# This exists because .env already sat in this repo untracked-but-not-ignored, one `git add -A`
+# away from publishing a live API key.
+set -uo pipefail
+
+patterns='sk-[A-Za-z0-9_-]{20,}'
+patterns+='|sk-proj-[A-Za-z0-9_-]{20,}'
+patterns+='|AKIA[0-9A-Z]{16}'
+patterns+='|ghp_[A-Za-z0-9]{36}'
+patterns+='|github_pat_[A-Za-z0-9_]{20,}'
+patterns+='|xox[baprs]-[A-Za-z0-9-]{10,}'
+patterns+='|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+patterns+='|(OPENAI|ANTHROPIC|DEEPGRAM|ELEVENLABS)_API_KEY[[:space:]]*=[[:space:]]*["'"'"']?[A-Za-z0-9_-]{16,}'
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+# 1. never commit a real env file (templates are fine)
+bad_env=$(printf '%s\n' "$staged" | grep -E '(^|/)\.env($|\.)' | grep -vE '\.(example|sample|template)$' || true)
+if [ -n "$bad_env" ]; then
+  echo "✖ refusing to commit an environment file:" >&2
+  printf '    %s\n' $bad_env >&2
+  exit 1
+fi
+
+# 2. never commit anything that looks like a key
+hits=$(git diff --cached --no-color --unified=0 -- $staged \
+  | grep -E '^\+' \
+  | grep -InE "$patterns" || true)
+if [ -n "$hits" ]; then
+  echo "✖ possible credential in staged changes:" >&2
+  printf '%s\n' "$hits" | sed 's/^/    /' >&2
+  echo "" >&2
+  echo "  False positive? Re-run with:  git commit --no-verify" >&2
+  exit 1
+fi
+
+exit 0

@@ -17,11 +17,13 @@ Endpoints
 
 from __future__ import annotations
 
+import sys
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -47,6 +49,15 @@ app.add_middleware(
 @app.on_event("startup")
 def _warm() -> None:
     import threading
+
+    # The app has no authentication and, once the LLM/STT arms land, fronts a billable API key.
+    # Binding to anything but loopback would expose both to the network.
+    argv = " ".join(sys.argv)
+    if any(bad in argv for bad in ("--host 0.0.0.0", "--host ::", "--host 0.0.0.0/0")):
+        print(
+            "\n  !! jev-classifier is bound to a non-loopback address.\n"
+            "     This service has no auth and will proxy key-backed calls. Use --host 127.0.0.1.\n"
+        )
 
     def _load() -> None:
         get_router().preload(["english", "multilingual"])
@@ -113,7 +124,7 @@ def list_runs() -> Dict[str, Any]:
 
 
 @app.get("/api/runs/{run_id}")
-def get_run(run_id: str) -> Dict[str, Any]:
+def get_run(run_id: str = PathParam(..., pattern=r"^[A-Za-z0-9_-]{1,64}$")) -> Dict[str, Any]:
     try:
         events = runs_store.load_events(run_id)
     except FileNotFoundError:
