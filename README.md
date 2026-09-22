@@ -298,6 +298,71 @@ Two caveats: `general` is the thinnest department (44) because it has only one s
 and **9% of utterances name their own department** ("do you guys do a full detail?"), which may
 make the task slightly easier than a real switchboard. Both are reported rather than smoothed over.
 
+## Fine-tuning: the step that actually closed the gap
+
+The evaluation above is the *before*. Laya's base checkpoints are weak zero-shot — their own
+documentation says so, and 0.728 department accuracy is what that looks like. Fine-tuning on the
+synthetic set (RLCD, official trainer, 2×T4, ~25 min) is the *after*:
+
+| metric | base cascade | fine-tuned | gpt-5.4-nano | deepseek-flash |
+|---|---|---|---|---|
+| department accuracy | 0.728 | **0.951** | 0.926 | 0.975 |
+| intent accuracy | 0.617 | **0.889** | 0.802 | 0.914 |
+| joint accuracy | 0.605 | **0.889** | 0.802 | 0.914 |
+| call-level queue accuracy | 1.000 | **1.000** | 1.000 | 1.000 |
+| p50 latency | 20.2 ms | **19.8 ms** | 618 ms | 1194 ms |
+| p95 latency | 21.5 ms | **20.8 ms** | 1462 ms | 3947 ms |
+| cost per case | **$0** | **$0** | $0.002528 | $0.011215 |
+| determinism (3 repeats) | **1.00** | **1.00** | 0.94 | 0.99 |
+
+**+22 points of department accuracy and +28 joint, at the same 20 ms, for $0, deterministically.**
+It beats the nano model on both accuracy measures while being ~31× faster, and it lands 2.4 points
+behind deepseek-flash on department and 2.5 on joint — for nothing per call.
+
+The gate quality flipped with it, which matters more than the headline:
+
+| | errors | flagged for escalation | accuracy when confident |
+|---|---|---|---|
+| base | 22 | 71.6% | 0.913 |
+| **fine-tuned** | **4** | **0%** | **0.951** |
+
+Escalation is now *unnecessary* rather than merely cheap. On the frontier, **0% of cases go to an
+LLM at 0.951**, so the expensive tier has gone from load-bearing to optional — which is the whole
+argument for putting decisions at every branch point.
+
+### What the first fine-tune got wrong, and why
+
+The first attempt scored 0.963 on department and then **regressed at call level** (1.000 → 0.900):
+the "my neighbour's dog" call started routing to Service Department instead of Front Desk. The
+cause was precise — the synthetic set was *all* plausible car/dealership calls, so it contained no
+negatives, and the fine-tune lost the base model's habit of answering `general` for things that
+aren't the dealership's business. Adding an off-topic generation pass (`"Is this the pizza
+place?"`, *"I'm running late, can you pick up the kids?"*) took `general` from 44 to 94 examples,
+and call-level routing went back to **1.000**.
+
+The second fine-tune trades a little department accuracy for materially better intent accuracy and
+correct call routing: joint 0.840 → 0.889, call accuracy 0.900 → 1.000. Both models are kept in
+`results/eval_finetuned.json` and `results/eval_finetuned_v2.json`.
+
+### The remaining errors are the labels, not the model
+
+Four department misses remain, and reading them is instructive:
+
+```
+fin-09   "Do you offer leasing for business vehicles?"            expected finance, got sales
+tow-09   "My car is in a ditch and it needs recovering."          expected towing,  got body_shop
+gen-06   "What is the direct number for the parts desk?"          expected general, got parts
+gen-08   "Do you offer loaner cars while mine is in for service?" expected general, got sales
+```
+
+Only `tow-09` is a clear model error. `gen-06` is plainly a *parts* question, and `fin-09` is
+defensibly sales. The hand-labelled key is now the weak link — a consistent theme since the teacher
+gate flagged two debatable labels at the start. **A second human labeller is the next quality
+investment, not more model work.**
+
+One measurement caveat: the nano arm scored 0.901 in one run and 0.926 in another. Small deltas
+between arms are inside that variance; the 22-point gap is not.
+
 ## Measurements (Apple M5 Pro, 64 GB)
 
 Whole triage schema, batched in one forward pass:
