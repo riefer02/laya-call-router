@@ -117,6 +117,8 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true", default=True,
                     help="reuse validated rows already on disk and top up only the shortfalls")
     ap.add_argument("--no-resume", dest="resume", action="store_false")
+    ap.add_argument("--only", action="append", default=[],
+                    help="restrict to DEPT/INTENT (repeatable), e.g. --only general/other")
     ap.add_argument("--dev-fraction", type=float, default=0.1)
     ap.add_argument("--out", default="data/calls/synthetic.jsonl")
     ap.add_argument("--dev-out", default="data/calls/synthetic_dev.jsonl")
@@ -147,7 +149,14 @@ def main() -> int:
     for row in existing:
         seeded[(row["department"], row["intent"])].append(row)
 
-    pairs = [(d, i) for d, branch in D.INTENTS.items() for i in branch]
+    all_pairs = [(d, i) for d, branch in D.INTENTS.items() for i in branch]
+    pairs = all_pairs
+    if args.only:
+        wanted = {tuple(o.split("/", 1)) for o in args.only if "/" in o}
+        unknown = wanted - set(all_pairs)
+        if unknown:
+            raise SystemExit(f"unknown --only targets: {sorted(unknown)}")
+        pairs = [p for p in pairs if p in wanted]
     short = [(d, i) for d, i in pairs if len(seeded[(d, i)]) < args.per_intent]
     print(f"generating: {len(short)}/{len(pairs)} pairs below target x {args.per_intent} "
           f"({provider}:{model})")
@@ -265,7 +274,7 @@ def main() -> int:
     print(f"  dropped mismatch   {stats['mismatch']}  (label != intended target)")
     print(f"train / dev          {len(train)} / {len(dev)}")
     print(f"departments          {dict(sorted(by_dept.items()))}")
-    print(f"intents covered      {len(by_intent)}/{len(pairs)} ({len(missing_others)} residual-only missing)")
+    print(f"intents covered      {len(by_intent)}/{len(all_pairs)} ({len(missing_others)} residual-only missing)")
     print(f"min specific intent  {min((v for k, v in by_intent.items() if k[1] != 'other'), default=0)}")
     print(f"residual (other)     {sum(v for k, v in by_intent.items() if k[1] == 'other')} "
           f"across {len([k for k in by_intent if k[1] == 'other'])} departments (not gated)")

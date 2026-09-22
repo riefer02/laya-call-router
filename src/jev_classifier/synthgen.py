@@ -52,7 +52,23 @@ _WORD = re.compile(r"[a-z0-9']+")
 _WS = re.compile(r"\s+")
 
 
-def generation_prompt(department: str, intent: str, n: int, style: str, vague: bool = False) -> str:
+def generation_prompt(
+    department: str, intent: str, n: int, style: str, vague: bool = False, mode: str = "normal"
+) -> str:
+    if mode == "offtopic":
+        # The synthetic set is all "plausible calls about a car or the dealership", so it contains
+        # no negatives. Measured consequence: the fine-tuned model routes the neighbour's-dog call
+        # to Service Department, losing the base model's (weak but present) habit of answering
+        # `general` for things that are simply not the dealership's business.
+        return (
+            f"Write {n} different things a caller might say to a car dealership's phone line that "
+            "are NOT about a car, a repair, a purchase, or anything the dealership sells or does.\n\n"
+            "They must still sound like real people phoning a business by mistake or for an "
+            "unrelated reason — wrong number, a complaint about something else entirely, "
+            "a personal matter, a completely different kind of company. Do not mention cars, "
+            "repairs, dealerships or vehicle problems. "
+            f"Write them {style}. Return JSON only."
+        )
     if vague:
         # `other` is a residual class: it is what the branch falls back to when nothing specific
         # fits. Asking for "an example of other" produces utterances that clearly belong to a
@@ -86,12 +102,24 @@ def generate(
     provider: str = "deepseek",
     model: str | None = None,
     thinking: bool = True,
+    mode: str = "auto",
 ) -> tuple[List[str], Dict[str, Any]]:
-    """One generation call. Returns (utterances, call metadata)."""
-    vague = intent == "other"
+    """One generation call. Returns (utterances, call metadata).
+
+    `mode="auto"` picks: off-topic calls for the general department's residual class, the vaguer
+    prompt for other residual classes, and the normal prompt otherwise.
+    """
+    if mode == "auto":
+        if department == "general" and intent == "other":
+            mode = "offtopic"
+        elif intent == "other":
+            mode = "vague"
+        else:
+            mode = "normal"
+    vague = mode == "vague"
     call = llm.chat_json(
         GENERATION_SYSTEM,
-        generation_prompt(department, intent, n, style, vague=vague),
+        generation_prompt(department, intent, n, style, vague=vague, mode=mode),
         {
             "type": "object",
             "properties": {"utterances": {"type": "array", "items": {"type": "string"}}},

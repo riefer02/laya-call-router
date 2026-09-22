@@ -71,19 +71,40 @@ def submit_dataset(owner: str) -> None:
         text=True,
     )
     folder = STAGE / "jev-dealership-data"
-    print(f"creating/versioning dataset {owner}/{DATASET_SLUG} ...")
-    created = kaggle("datasets", "create", "-p", str(folder), "--dir-mode", "zip", check=False)
-    if created.returncode == 0:
-        print("  created")
-        return
-    if "already exists" in (created.stderr + created.stdout).lower() or "409" in created.stderr:
-        versioned = kaggle(
-            "datasets", "version", "-p", str(folder), "-m", "regenerate", "--dir-mode", "zip",
-            check=False,
+    ref = f"{owner}/{DATASET_SLUG}"
+
+    # `datasets create` reports success even when the dataset already exists, and silently does
+    # nothing — which trained a kernel on stale data once. So decide explicitly.
+    exists = kaggle("datasets", "files", ref, check=False).returncode == 0
+    if exists:
+        print(f"versioning existing dataset {ref} ...")
+        res = kaggle(
+            "datasets", "version", "-p", str(folder), "-m", "regenerated training data",
+            "--dir-mode", "zip", check=False,
         )
-        print("  versioned" if versioned.returncode == 0 else f"  version failed: {versioned.stderr[:200]}")
-        return
-    print(f"  dataset create failed: {(created.stderr or created.stdout)[:400]}")
+        print("  versioned" if res.returncode == 0 else f"  version failed: {(res.stderr or res.stdout)[:300]}")
+    else:
+        print(f"creating dataset {ref} ...")
+        res = kaggle("datasets", "create", "-p", str(folder), "--dir-mode", "zip", check=False)
+        print("  created" if res.returncode == 0 else f"  create failed: {(res.stderr or res.stdout)[:300]}")
+
+    # Verify the bytes actually landed, rather than trusting the exit code. Kaggle processes a new
+    # version asynchronously, so poll briefly before declaring a mismatch.
+    local = (folder / "synthetic.jsonl").stat().st_size
+    remote = "?"
+    for attempt in range(10):
+        listing = kaggle("datasets", "files", ref, check=False)
+        remote_line = next(
+            (l for l in (listing.stdout or "").splitlines() if "synthetic.jsonl" in l), ""
+        )
+        remote = remote_line.split()[1] if len(remote_line.split()) > 1 else "?"
+        if str(local) == remote:
+            break
+        time.sleep(15)
+    flag = "OK" if str(local) == remote else "MISMATCH"
+    print(f"  synthetic.jsonl local={local} remote={remote}  [{flag}]")
+    if flag == "MISMATCH":
+        print("  !! the dataset did not update; the kernel would train on stale data")
 
 
 def submit_kernel(owner: str) -> None:
