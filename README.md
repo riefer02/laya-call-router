@@ -169,6 +169,34 @@ record/replay event log is already a serialisable run, which is the foundation r
 need — the seam is a plain list of caller strings and a stream of events, so a real caller drops
 in without touching the cascade or the UI.
 
+## Security
+
+This is a **local development tool** with no authentication. Run it on loopback only
+(`--host 127.0.0.1`, the default in the docs); binding it to `0.0.0.0` exposes the model and,
+once the LLM/STT arms exist, a billable API key. The app prints a warning if it detects a
+non-loopback bind.
+
+**Secrets**
+
+- Keys live in `.env` at the repo root, are git-ignored, and should be `chmod 600`.
+- `.githooks/pre-commit` refuses to commit an environment file or anything matching a credential
+  pattern. Enable it once per clone:
+
+  ```bash
+  git config core.hooksPath .githooks
+  ```
+
+- The browser never sees a key. When the LLM and speech-to-text arms land, the frontend calls our
+  API and only the server talks to the provider.
+- `results/runs/*.jsonl` contain support conversations. They are git-ignored; treat them as
+  personal data in any real deployment.
+
+**Input handling**
+
+- `GET /api/runs/{run_id}` validates the id against a strict charset *and* checks the resolved
+  path stays inside `results/runs/` — a URL segment is never interpolated straight into a
+  filesystem path.
+
 ## Licence
 
 Project code is yours. Laya and its weights are Apache-2.0 by Convai Innovations; `laya-mlx` is an
