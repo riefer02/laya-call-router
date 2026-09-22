@@ -254,6 +254,50 @@ separate them on cost: the incremental work is worth **41% fewer questions and ~
 
 `results/eval.json` holds the raw per-case predictions and misses.
 
+## Training data
+
+The fine-tune is capped by its labels, so the dataset has explicit acceptance criteria and does
+not ship unless it passes (`scripts/generate_training.py` exits non-zero otherwise):
+
+| criterion | bar | result |
+|---|---|---|
+| teacher agreement on the held-out 81 | ≥ 0.92 dept, ≥ 0.85 intent | **0.975 / 0.914** |
+| every *specific* intent | ≥ 25 | **min 40** |
+| every department | ≥ 25 × its specific intents | **min 44** |
+| labels in vocabulary | 100% | **100%** (0 invalid) |
+| near-duplicates of the held-out 81 | 0 | **0** |
+| intra-corpus duplicates | 0 | **0** |
+| two-phrasing agreement | 100% of kept rows | **100%** |
+
+**1,992 examples** (1,793 train / 199 dev) across 9 departments, for **$1.47** in teacher calls.
+Teacher is `deepseek-flash`; a candidate only becomes a training example when **two
+independently-worded labelling passes agree with each other and with the intended target**.
+
+### A residual class cannot be generated into existence
+
+The first run failed its own gate, and the failure was informative. Every undersized intent was an
+`other` catch-all:
+
+```
+finance/other 2   general/other 3   detailing/other 9   body_shop/other 11
+sales/other 15    service/other 19  tires/other 20      parts/other 23
+```
+
+Asking the teacher for "an example of some other mechanical problem" produces utterances that
+clearly belong to a *specific* intent, so the independent labelling pass relabels them and the
+mismatch filter drops them — **37% of candidates** in the pilot. That is the filter working: you
+cannot manufacture positives for the class defined by *not* matching the others.
+
+Two changes followed. `other` is now prompted for by asking for the **shape that actually lands
+there** — genuinely vague, mixed, or tangential requests — and the criteria no longer gate on
+residual counts at all. `other` is learned as the branch's fallback, which is what a softmax over
+the specific options gives you for free. Gating on it would have pushed us to teach the model to
+answer `other` for things that have a better label.
+
+Two caveats: `general` is the thinnest department (44) because it has only one specific intent,
+and **9% of utterances name their own department** ("do you guys do a full detail?"), which may
+make the task slightly easier than a real switchboard. Both are reported rather than smoothed over.
+
 ## Measurements (Apple M5 Pro, 64 GB)
 
 Whole triage schema, batched in one forward pass:

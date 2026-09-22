@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from typing import Any, Dict, Iterable, List, Set
 
 from . import dealership as D
@@ -51,7 +52,22 @@ _WORD = re.compile(r"[a-z0-9']+")
 _WS = re.compile(r"\s+")
 
 
-def generation_prompt(department: str, intent: str, n: int, style: str) -> str:
+def generation_prompt(department: str, intent: str, n: int, style: str, vague: bool = False) -> str:
+    if vague:
+        # `other` is a residual class: it is what the branch falls back to when nothing specific
+        # fits. Asking for "an example of other" produces utterances that clearly belong to a
+        # specific intent, and the labelling pass rightly relabels them — measured, that is why
+        # every undersized intent in the first run was an `other`. To generate real positives you
+        # ask for the *shape* that lands there: too vague, too mixed, or off-topic to place.
+        return (
+            f"Department: {department} — {D.DEPARTMENTS.get(department, '')}\n"
+            f"Category: {intent} — {D.INTENTS.get(department, {}).get(intent, '')}\n\n"
+            f"Write {n} different things a caller might say that a {department.replace('_', ' ')} "
+            "switchboard could NOT confidently place in a specific category. Make them genuinely "
+            "unclear, too vague, mixed across several problems, or only tangentially related. "
+            "They must still be plausible phone calls about a car or the dealership. "
+            f"Write them {style}. Return JSON only."
+        )
     return (
         f"Department: {department} — {D.DEPARTMENTS.get(department, '')}\n"
         f"What the caller wants: {intent} — {D.INTENTS.get(department, {}).get(intent, '')}\n\n"
@@ -72,9 +88,10 @@ def generate(
     thinking: bool = True,
 ) -> tuple[List[str], Dict[str, Any]]:
     """One generation call. Returns (utterances, call metadata)."""
+    vague = intent == "other"
     call = llm.chat_json(
         GENERATION_SYSTEM,
-        generation_prompt(department, intent, n, style),
+        generation_prompt(department, intent, n, style, vague=vague),
         {
             "type": "object",
             "properties": {"utterances": {"type": "array", "items": {"type": "string"}}},
@@ -115,25 +132,31 @@ def jaccard(a: Set[str], b: Set[str]) -> float:
 
 class Deduper:
     """Rejects exact repeats, near-duplicates within the corpus, and anything close to the
-    held-out hand-labelled set (which must never leak into training)."""
+    held-out hand-labelled set (which must never leak into training).
+
+    Thread-safe: the generator runs many pairs concurrently against one deduper, and an
+    unguarded `seen` dict raised "dictionary changed size during iteration".
+    """
 
     def __init__(self, protected: Iterable[str] = (), threshold: float = 0.6):
         self.threshold = threshold
         self.seen: dict[str, Set[str]] = {}
         self.protected = [(t, shingles(t)) for t in protected]
+        self._lock = threading.Lock()
 
     def why_reject(self, text: str) -> str | None:
         fp = fingerprint(text)
         if not fp:
             return "empty"
-        if fp in self.seen:
-            return "exact-duplicate"
         sh = shingles(text)
-        for other, osh in self.protected:
-            if jaccard(sh, osh) >= self.threshold:
-                return f"near-duplicate-of-heldout:{other[:40]}"
-        for other, osh in self.seen.items():
-            if jaccard(sh, osh) >= self.threshold:
-                return f"near-duplicate:{other[:40]}"
-        self.seen[fp] = sh
+        with self._lock:
+            if fp in self.seen:
+                return "exact-duplicate"
+            for other, osh in self.protected:
+                if jaccard(sh, osh) >= self.threshold:
+                    return f"near-duplicate-of-heldout:{other[:40]}"
+            for other, osh in self.seen.items():
+                if jaccard(sh, osh) >= self.threshold:
+                    return f"near-duplicate:{other[:40]}"
+            self.seen[fp] = sh
         return None
