@@ -31,3 +31,6 @@ models/
 
 # OS
 .DS_Store
+
+# generated Kaggle upload folder (regenerate with training/make_kaggle_dataset.py)
+kaggle/

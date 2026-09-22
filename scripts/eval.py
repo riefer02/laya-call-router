@@ -18,6 +18,8 @@ from jev_classifier import evalharness as H
 from jev_classifier import llm
 from jev_classifier.agent import get_router
 
+import laya_mlx as laya
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ARMS = "openai:gpt-5.4-nano,deepseek:deepseek-flash"
 
@@ -45,6 +47,11 @@ def main() -> None:
     ap.add_argument("--skip-llm", action="store_true")
     ap.add_argument("--llm-arms", default=DEFAULT_ARMS)
     ap.add_argument("--hybrid-arm", default="", help="which arm the hybrid escalates to")
+    ap.add_argument(
+        "--finetuned",
+        default="",
+        help="path to a locally fine-tuned Laya checkpoint; adds a 'cascade-ft' arm",
+    )
     ap.add_argument("--out", default="results/eval.json")
     args = ap.parse_args()
 
@@ -63,12 +70,34 @@ def main() -> None:
     print("preloading checkpoints ...", flush=True)
     router.preload(["english", "multilingual"])
 
-    report: dict = {"llm_arms": refs, "routing": {}, "calls": {}}
+    ft_router = None
+    if args.finetuned:
+        path = Path(args.finetuned)
+        if not path.is_absolute():
+            path = ROOT / path
+        if not path.is_dir():
+            print(f"  --finetuned path does not exist: {path}")
+            return
+        print(f"loading fine-tuned checkpoint from {path} ...", flush=True)
+        # Swap only the English checkpoint; the router keeps routing non-English to multilingual.
+        ft_router = laya.Router(models={"english": (str(path), None)}, max_loaded=2)
+        ft_router.preload(["english", "multilingual"])
+
+    report: dict = {"llm_arms": refs, "finetuned": args.finetuned or None, "routing": {}, "calls": {}}
 
     # ---- decision level ------------------------------------------------------
     print("\nrunning cascade arm ...", flush=True)
     laya_routing = H.run_laya_routing(routing, router)
     report["routing"]["laya"] = H.score_routing(routing, laya_routing)
+
+    ft_routing = None
+    if ft_router is not None:
+        print("running fine-tuned cascade arm ...", flush=True)
+        ft_routing = H.run_laya_routing(routing, ft_router)
+        report["routing"]["cascade-ft"] = H.score_routing(routing, ft_routing)
+        ft_router_arm = "cascade-ft"
+    else:
+        ft_router_arm = None
 
     llm_routing: dict[str, list] = {}
     for ref in refs:
@@ -82,7 +111,7 @@ def main() -> None:
         score["determinism"] = H.agreement(runs)
         report["routing"][short(ref)] = score
 
-    arms = ["laya"] + [short(r) for r in refs]
+    arms = ["laya"] + (["cascade-ft"] if ft_routing is not None else []) + [short(r) for r in refs]
     rows = []
     for label, key in [
         ("department accuracy", "department_accuracy"),
@@ -113,10 +142,12 @@ def main() -> None:
     print()
     print(H.render(f"DECISION LEVEL  ({len(routing)} cases: department + intent)", rows, ["metric", *arms]))
 
-    gate = report["routing"]["laya"].get("gate") or {}
-    if gate:
+    for arm_name in [a for a in arms if a in report["routing"]]:
+        gate = report["routing"][arm_name].get("gate") or {}
+        if not gate:
+            continue
         print(
-            f"\nGATE QUALITY (cascade) — escalate when department confidence < {gate.get('threshold')}\n"
+            f"\nGATE QUALITY ({arm_name}) — escalate when department confidence < {gate.get('threshold')}\n"
             f"  errors {gate.get('errors')} · flagged {gate.get('flagged')} ({gate.get('flag_rate'):.1%})"
             f" · caught {gate.get('errors_caught')} (recall {gate.get('recall')})\n"
             f"  accuracy when confident {gate.get('accuracy_when_confident')}"
@@ -124,9 +155,12 @@ def main() -> None:
         )
 
     # ---- hybrid frontier, per llm arm ---------------------------------------
+    # Escalation is simulated on whichever cascade we would actually ship.
+    base_for_hybrid = ft_routing if ft_routing is not None else laya_routing
+    base_label = "cascade-ft" if ft_routing is not None else "laya"
     for ref in refs:
         frontier = [
-            H.simulate_hybrid(routing, laya_routing, llm_routing[ref], t, model_ref=ref)
+            H.simulate_hybrid(routing, base_for_hybrid, llm_routing[ref], t, model_ref=ref)
             for t in (0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95)
         ]
         report.setdefault("routing", {})[f"hybrid_frontier:{short(ref)}"] = frontier
@@ -143,7 +177,7 @@ def main() -> None:
         print()
         print(
             H.render(
-                f"HYBRID FRONTIER → {short(ref)}",
+                f"HYBRID FRONTIER → {short(ref)}  (escalating from {base_label})",
                 frows,
                 ["threshold", "accuracy", "% to llm", "error recall", "cost/case"],
             )
@@ -155,6 +189,10 @@ def main() -> None:
         calls, [H.run_laya_call(c, router, incremental=False, verify=False) for c in calls]
     )
     report["calls"]["laya"] = H.score_calls(calls, [H.run_laya_call(c, router) for c in calls])
+    if ft_router is not None:
+        report["calls"]["cascade-ft"] = H.score_calls(
+            calls, [H.run_laya_call(c, ft_router) for c in calls]
+        )
     if hybrid_ref:
         report["calls"][f"hybrid→{short(hybrid_ref)}"] = H.score_calls(
             calls,
