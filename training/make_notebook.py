@@ -87,16 +87,24 @@ def md(source: str) -> dict:
     return {"cell_type": "markdown", "metadata": {}, "source": source.splitlines(keepends=True)}
 
 
-CHECK_GPU = '''!nvidia-smi
-import torch
+CHECK_GPU = '''!nvidia-smi || echo "nvidia-smi unavailable"
+import os, torch
+
 n_gpu = torch.cuda.device_count()
 print(f"CUDA available: {torch.cuda.is_available()} | visible GPUs: {n_gpu}")
-assert n_gpu >= 2, (
-    f"Expected 2 GPUs, detected {n_gpu}. Set Accelerator to 'GPU T4 x2' in the right sidebar."
+assert n_gpu >= 1, (
+    "No GPU is attached to this run.\\n"
+    "  - Set Accelerator to 'GPU T4 x2' (or a single T4) in the right sidebar, and\\n"
+    "  - make sure your Kaggle account is phone-verified, which is required for accelerators.\\n"
+    "If you pushed this kernel with the CLI, also pass --accelerator."
 )
-import os
+if n_gpu < 2:
+    print("!! only 1 GPU - training will run single-process, which is slower but works")
+
+# DDP across whatever we actually got, so a single-T4 run still completes.
+NPROC = max(1, n_gpu)
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-print("both T4s ready")
+print(f"ready: {n_gpu} GPU(s), torchrun nproc_per_node={NPROC}")
 '''
 
 INSTALL = '''!pip install -q -U "laya>=0.1.6" "transformers>=4.48.0" safetensors huggingface_hub pyarrow pandas scipy accelerate
@@ -139,7 +147,7 @@ snapshot_download("convaiinnovations/laya", local_dir=MODEL_DIR)
 print("base checkpoint at", MODEL_DIR)
 
 OUTPUT_DIR = "/kaggle/working/laya-dealership-routing"
-cmd = (f"torchrun --standalone --nproc_per_node=2 /kaggle/working/train_ddp.py "
+cmd = (f"torchrun --standalone --nproc_per_node={NPROC} /kaggle/working/train_ddp.py "
        f"{MODEL_DIR} {OUTPUT_DIR} /kaggle/working/train_items.pt")
 print("running:", cmd)
 !{cmd}

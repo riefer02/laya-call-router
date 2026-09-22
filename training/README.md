@@ -15,7 +15,22 @@ acceptance criteria before it is used.
 | `make_kaggle_dataset.py` | packages the data + code as an uploadable Kaggle dataset |
 | `make_notebook.py` | generates the Kaggle notebook |
 
-## Run it (Kaggle, free 2×T4)
+## Run it
+
+### Automated (recommended)
+
+With the Kaggle CLI installed and a token at `~/.kaggle/access_token`:
+
+```bash
+uv tool install kaggle                 # once
+uv run python training/kaggle_run.py submit --watch
+```
+
+That packages the dataset, creates/versions it, pushes the kernel as a **GPU batch run**, waits,
+and downloads the model. Pushing a kernel *runs* it and consumes GPU quota — the script says so
+before it does it.
+
+### Manual
 
 **1. Package the dataset**
 
@@ -23,18 +38,24 @@ acceptance criteria before it is used.
 uv run python training/make_kaggle_dataset.py --owner YOUR_KAGGLE_USERNAME
 ```
 
-**2. Upload it** — either drag `kaggle/jev-dealership-data/` into <https://kaggle.com/datasets/new>,
-or:
+**2. Upload it** — drag `kaggle/jev-dealership-data/` into <https://kaggle.com/datasets/new>, or
+`kaggle datasets create -p kaggle/jev-dealership-data`.
 
-```bash
-pip install kaggle && kaggle datasets create -p kaggle/jev-dealership-data
-```
+**3. Open the notebook** — `notebooks/laya_finetune_dealership_kaggle.ipynb` on Kaggle, set
+**Accelerator: GPU T4 ×2** and **Internet: On**, attach the dataset via *Add Data*.
 
-**3. Open the notebook** — `notebooks/laya_finetune_dealership_kaggle.ipynb`, upload it to Kaggle,
-then set **Accelerator: GPU T4 ×2** and **Internet: On**, and attach the dataset via *Add Data*.
+**4. Run all cells.** Roughly 5–20 minutes.
 
-**4. Run all cells.** Roughly 5–20 minutes. It downloads the base checkpoint, builds items, trains,
-fits calibration temperatures, and writes `laya-dealership-routing.zip`.
+### ⚠️ Accelerators require phone verification
+
+If the notebook fails at the first cell with *"No GPU is attached to this run"*, the account is
+almost certainly not phone-verified — Kaggle requires it for GPUs, and it does **not** surface as
+an error when you push; the kernel just starts without an accelerator. Check your quota
+(`uv run python training/kaggle_run.py watch` prints the diagnosis) — if it shows hours available,
+verification is the blocker. Verify at <https://www.kaggle.com/settings>, then re-run.
+
+The notebook tolerates a single GPU (`--nproc_per_node` follows the device count), so a single T4
+works — just slower.
 
 **5. Evaluate it properly, locally**
 
