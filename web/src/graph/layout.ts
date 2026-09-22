@@ -10,7 +10,7 @@ export const ROW_H = 166;
 export const GUTTER = 168;
 export const ORIGIN_X = GUTTER + 14;
 export const ORIGIN_Y = 64;
-export const MAX_COL = 12;
+export const MAX_COL = 14;
 export const NODE_W = 190;
 export const NODE_H = 116;
 

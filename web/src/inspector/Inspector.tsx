@@ -182,6 +182,35 @@ export default function Inspector() {
           </>
         )}
 
+        {(() => {
+          const v = (r as unknown as { verification?: any })?.verification;
+          if (!v) return null;
+          return (
+            <div className="mt-3 rounded border border-slate-800 bg-slate-900/50 p-2">
+              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-slate-500">
+                tier 2 · verification
+              </div>
+              <Row label="primary">
+                {v.primary.choice}{" "}
+                <span className="text-slate-500">p {v.primary.top_probability?.toFixed(2)}</span>
+              </Row>
+              <Row label="2nd phrasing">
+                {v.paraphrase.choice}{" "}
+                <span className="text-slate-500">p {v.paraphrase.top_probability?.toFixed(2)}</span>
+              </Row>
+              <Row label="outcome">
+                {v.agrees ? (
+                  <span className="text-emerald-400">agrees — settled with confidence</span>
+                ) : (
+                  <span className="text-rose-400">
+                    differs — kept the first answer, flagged for LLM/human
+                  </span>
+                )}
+              </Row>
+            </div>
+          );
+        })()}
+
         {r && (
           <div className="mt-4 border-t border-slate-800 pt-2">
             {summary.confidence !== undefined && summary.confidence !== null && (

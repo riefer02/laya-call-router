@@ -63,6 +63,17 @@ SCENARIOS: List[Dict] = [
         ],
     },
     {
+        "id": "vague",
+        "label": "Vague complaint",
+        "blurb": "Ambiguous department — narrows the decision",
+        "turns": [
+            "Hi, something is not right with my car. There is a weird noise and the steering feels off.",
+            "It's a small SUV.",
+            "The downtown one.",
+            "Tomorrow afternoon works.",
+        ],
+    },
+    {
         "id": "out_of_scope",
         "label": "Not a car matter",
         "blurb": "Out of scope → transfer to a person",

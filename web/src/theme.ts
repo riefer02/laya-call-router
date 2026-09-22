@@ -29,6 +29,8 @@ export const STATUS_ACCENT: Record<string, string> = {
   warn: "#f59e0b",
   rejected: "#f43f5e",
   skipped: "#334155",
+  verified: "#22c55e",
+  uncertain: "#f43f5e",
 };
 
 export function confColor(c: number | undefined | null): string {

@@ -114,6 +114,37 @@ def intent_question(department: str) -> Dict:
     }
 
 
+def department_question_paraphrase() -> Dict:
+    """A second, independently-worded version of the department question.
+
+    Used to *verify* a low-confidence answer rather than to replace it. Measured: re-asking with a
+    narrowed option set does not improve accuracy — it re-rolls the answer and inflates confidence
+    (a *wrong* `body_shop` at 0.73 replacing a `service` at 0.37). Agreement between two phrasings
+    is a real signal; a second roll of the same question is not.
+    """
+    return {
+        "department": {
+            "type": "choice",
+            "instructions": "What kind of help does this caller need from the dealership?",
+            "criteria": DEPARTMENTS,
+        }
+    }
+
+
+def intent_question_paraphrase(department: str) -> Dict:
+    criteria = INTENTS.get(department, INTENTS["general"])
+    return {
+        "intent": {
+            "type": "choice",
+            "instructions": (
+                f"What does the caller need from the {department.replace('_', ' ')} department? "
+                "Pick the single closest option."
+            ),
+            "criteria": criteria,
+        }
+    }
+
+
 # --------------------------------------------------------------------------- slots
 LOCATIONS: Dict[str, str] = {
     "downtown": "the caller said downtown",
@@ -210,6 +241,13 @@ CHANGE_QUESTION: Dict = {
 }
 
 CHANGE_FLAG = 0.5
+
+# --------------------------------------------------------------------------- verification
+# A second opinion on a low-confidence *classification* question. Measured: re-asking with a
+# narrowed option set does not improve accuracy — it re-rolls the answer and inflates confidence
+# (a wrong `body_shop` at 0.73 replacing a `service` at 0.37), which is worse than not escalating
+# at all. So tier 2 verifies with a paraphrase and never overturns the primary answer.
+ESCALATION_MIN_OPTIONS = 4
 
 # A choice answer equal to one of these means "the caller has not said", so it must never be
 # pinned — it is exactly the thing a later turn is supposed to resolve.

@@ -23,6 +23,9 @@ export default function StageNode({ data, selected }: NodeProps) {
   const isUtterance = node.kind === "utterance";
   const isTerminal = node.kind === "terminal";
   const isSkipped = node.status === "skipped";
+  const isVerified = node.status === "verified";
+  const isUncertain = node.status === "uncertain";
+  const verification = (result as unknown as { verification?: { agrees: boolean; paraphrase: { choice: string; top_probability: number } } })?.verification;
 
   // top probabilities for choice questions
   let ranked: [string, number][] = [];
@@ -146,6 +149,15 @@ export default function StageNode({ data, selected }: NodeProps) {
             {typeof result?.value === "string"
               ? result.value
               : JSON.stringify(result?.value ?? "…")}
+          </div>
+        )}
+
+        {(isVerified || isUncertain) && verification && (
+          <div className="mt-1 flex items-center gap-1 font-mono text-[8.5px]">
+            <span className={isVerified ? "text-emerald-400" : "text-rose-400"}>
+              {isVerified ? "✓ 2nd phrasing agrees" : "⚠ 2nd phrasing differs"}
+            </span>
+            <span className="truncate text-slate-500">({verification.paraphrase.choice})</span>
           </div>
         )}
 

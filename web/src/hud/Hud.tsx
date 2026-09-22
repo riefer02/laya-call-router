@@ -34,6 +34,16 @@ export default function Hud() {
       <div className="ml-auto flex items-center gap-5">
         <Stat label="questions asked" value={String(decisions)} accent="#a78bfa" />
         <Stat label="skipped (already known)" value={String(skipped)} accent="#22c55e" />
+        <Stat
+          label="2nd opinions"
+          value={summary ? String(summary.escalations ?? 0) : "—"}
+          accent="#38bdf8"
+        />
+        <Stat
+          label="would call an LLM"
+          value={summary ? String(summary.llm_escalations ?? 0) : "—"}
+          accent={summary && (summary.llm_escalations ?? 0) > 0 ? "#f59e0b" : "#22c55e"}
+        />
         <Stat label="turns" value={String(turns)} />
         <Stat label="compute" value={summary ? `${summary.compute_ms.toFixed(0)} ms` : "—"} />
         <Stat
@@ -41,7 +51,6 @@ export default function Hud() {
           value={String(summary?.tokens_generated ?? 0)}
           accent="#22c55e"
         />
-        <Stat label="cost" value={`$${(summary?.cost_usd ?? 0).toFixed(4)}`} accent="#22c55e" />
         {routing && (
           <div className="flex flex-col leading-tight">
             <span className="text-[13px] font-semibold text-amber-300">{routing.queue}</span>

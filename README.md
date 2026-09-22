@@ -142,6 +142,50 @@ scores only 0.42.
 
 `scripts/bench_call.py` reproduces the table; `--out results/*.json` keeps a baseline to diff against.
 
+## Second opinions, not second guesses
+
+When a classification question is not decisive (top probability below 0.75 for `department` or
+`intent`), the switchboard asks it **again in different words** — the paraphrase lives in
+`dealership.department_question_paraphrase` — and compares the two answers.
+
+- **Agreement** settles the question: two independently-worded phrasings landing on the same
+  answer is evidence, and the fact is pinned (so later turns skip it).
+- **Disagreement** does *not* overturn the first answer. It keeps it and flags the call for an
+  LLM or a human.
+
+In the vague-complaint scenario: **2 second opinions, 0 LLM calls**, and the call routes cleanly
+to the Service Department.
+
+Verification costs one extra question and largely pays for itself, because agreeing phrasings let
+`department` and `intent` settle a turn earlier:
+
+| collision | questions | tokens | compute |
+|---|---|---|---|
+| before | 28 | 3944 | 272 ms |
+| incremental only | 16 | 1923 | 134 ms |
+| + verification | 17 | 2020 | **130 ms** |
+
+**The rejected design, and why.** The obvious tier-2 is to *narrow*: take the top three options
+from a low-confidence pass and re-ask with only those. Measured, it does not improve the decision —
+it re-rolls it and inflates confidence:
+
+| utterance | tier 1 | narrowed to | tier 2 |
+|---|---|---|---|
+| "I have a problem with my car and need to bring it in" | service 0.37 | service/body_shop/general | **body_shop 0.73** ✗ |
+
+A wrong answer made to look decisive is worse than no escalation at all, because everything
+downstream now trusts it. `scripts/probe_slots.py` keeps the evidence. Confidence is only useful
+if it tracks correctness.
+
+## Speaking before thinking
+
+Every turn emits a fixed acknowledgement — *"Let me take a look at that for you."* — **before any
+forward pass runs**. It appears in the graph as its own node and in the conversation rail as an
+extra switchboard bubble, so you can see the agent speak immediately rather than after the
+cascade. It is a template, not generation; the point is that a voice channel needs *something*
+within a few hundred milliseconds, and 30–60 ms of classification is not the only latency that
+matters.
+
 ## Measurements (Apple M5 Pro, 64 GB)
 
 Whole triage schema, batched in one forward pass:
@@ -152,8 +196,9 @@ Whole triage schema, batched in one forward pass:
 | `multilingual` (mmBERT-base, 322M) | 4.6 ms | 11.1 ms | 520 q/s |
 | `typed-decisions` (421M) | 9.2 ms | 27.8 ms | 218 q/s |
 
-A full 4-turn call costs **~134 ms of compute**, **0 generated tokens**, **$0.00**, and asks
-**16 questions instead of 28** (see the efficiency section above).
+A full 4-turn call costs **~130 ms of compute**, **0 generated tokens**, **$0.00**, asks
+**17 questions instead of 28**, and needs **0 LLM calls** (see the efficiency and second-opinion
+sections above).
 
 Quality, 18 hand-labelled tickets (`data/tickets/labelled.jsonl`, from the support-domain work):
 

@@ -88,6 +88,9 @@ export interface CallEnd {
   tokens_generated: number;
   cost_usd: number;
   routing: RouteOutcome | null;
+  escalations?: number;
+  llm_escalations?: number;
+  turn_stats?: Array<{ turn: number; questions: number; input_tokens: number; compute_ms: number }>;
 }
 
 export type RunEvent = CallStart | TurnStart | GraphNode | NodeResult | GraphEdge | CallEnd;

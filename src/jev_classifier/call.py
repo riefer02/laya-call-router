@@ -25,23 +25,25 @@ from .agent import get_router
 # Fixed column per node key so the frontend can lay out deterministically.
 COLUMNS: Dict[str, int] = {
     "caller": 0,
-    "changed": 1,
-    "department": 2,
-    "vehicle": 3,
-    "location": 4,
-    "time_preference": 5,
-    "is_safe_to_drive": 6,
-    "needs_human": 7,
-    "extract_time": 8,
-    "missing_slots": 9,
-    "intent": 10,
-    "next_action": 11,
-    "agent": 12,
-    "terminal": 13,
+    "ack": 1,
+    "changed": 2,
+    "department": 3,
+    "vehicle": 4,
+    "location": 5,
+    "time_preference": 6,
+    "is_safe_to_drive": 7,
+    "needs_human": 8,
+    "extract_time": 9,
+    "missing_slots": 10,
+    "intent": 11,
+    "next_action": 12,
+    "agent": 13,
+    "terminal": 14,
 }
 
 TITLES: Dict[str, str] = {
     "caller": "Caller",
+    "ack": "Switchboard (ack)",
     "changed": "Anything new?",
     "department": "Department",
     "vehicle": "Vehicle",
@@ -56,6 +58,14 @@ TITLES: Dict[str, str] = {
     "agent": "Switchboard",
     "terminal": "Route",
 }
+
+# Spoken the moment the caller stops talking, before any classification runs — the "speak sooner"
+# half of latency. It is a fixed phrase, not generated: Laya cannot write, and we do not want it to.
+ACK_PHRASES = [
+    "Let me take a look at that for you.",
+    "One moment while I pull that up.",
+    "Got it — let me check that.",
+]
 
 DEFAULT_THRESHOLD = 0.75
 
@@ -87,17 +97,20 @@ class CallSession:
         session_id: str = "call",
         confidence_threshold: float = DEFAULT_THRESHOLD,
         pin_threshold: float = 0.6,
+        verify_threshold: float = 0.75,
     ) -> None:
         self.scenario = scenario
         self.session_id = session_id
         self.router = router or get_router()
-        # Two different questions, two different numbers:
+        # Three different questions, three different numbers:
         #   confidence_threshold — "should a human look at this?" (entropy confidence, 0.75)
         #   pin_threshold        — "can we stop re-deciding this?" (top probability, 0.6)
+        #   verify_threshold     — "is a second opinion worth ~10 ms?" (top probability, 0.75)
         # Pinning on entropy confidence alone never settles a wide choice: intent answers at
         # p=0.72 over 7 options score only 0.42, so it was re-run every single turn.
         self.threshold = confidence_threshold
         self.pin_threshold = pin_threshold
+        self.verify_threshold = verify_threshold
 
         self.exchanges: List[Dict[str, str]] = []  # {"role": caller|agent, "text": ...}
         self.answers: Dict[str, Dict[str, Any]] = {}
@@ -113,6 +126,8 @@ class CallSession:
         self.output_tokens = 0
         self.compute_ms = 0.0
         self.turn_stats: List[Dict[str, Any]] = []
+        self.escalations = 0
+        self.llm_escalations = 0
         self._turn_q = 0
         self.finished = False
         self.routing: Optional[Dict[str, Any]] = None
@@ -218,7 +233,22 @@ class CallSession:
         yield self._node(caller_id, turn, "caller", "utterance")
         yield self._result(caller_id, turn, value=utterance, note="caller speaks")
 
-        prev_id = caller_id
+        # Acknowledge before classifying. The voice channel needs *something* within a few hundred
+        # milliseconds; this fixed phrase is emitted before any forward pass so the caller is never
+        # met with silence while the cascade runs.
+        ack_text = ACK_PHRASES[(turn - 1) % len(ACK_PHRASES)]
+        ack_id = f"t{turn}.ack"
+        yield self._node(ack_id, turn, "ack", "utterance")
+        yield self._result(
+            ack_id,
+            turn,
+            value=ack_text,
+            note="acknowledgement — spoken before any classification",
+            extra={"template_id": "ack"},
+        )
+        yield self._edge(caller_id, ack_id)
+
+        prev_id = ack_id
 
         # ---- choose what actually needs evaluating this turn --------------------
         # Turn 1 evaluates everything. Later turns evaluate the still-unresolved questions plus a
@@ -283,6 +313,10 @@ class CallSession:
                     latency_ms=ms,
                     batch_size=n,
                 )
+                if key == "department" and answer["type"] == "choice":
+                    yield from self._verify(
+                        turn, key, D.department_question_paraphrase(), answer, summary
+                    )
             elif key in self.facts:
                 fact = self.facts[key]
                 yield self._node(node_id, turn, key, "decision", primitive=fact.get("type", "choice"))
@@ -363,6 +397,13 @@ class CallSession:
             self.answers["intent"] = intent_ans
             self._pin("intent", intent_ans, turn, _summarize(intent_ans))
             yield self._edge(prev_id, intent_id, label=f"department = {department}", kind="branch")
+            yield from self._verify(
+                turn,
+                "intent",
+                D.intent_question_paraphrase(department),
+                intent_ans,
+                _summarize(intent_ans),
+            )
         prev_id = intent_id
 
         # ---- next action: deterministic policy ----------------------------------
@@ -447,11 +488,101 @@ class CallSession:
         fact = self.facts.get(key)
         return bool(fact and fact.get("pinned"))
 
+    # ------------------------------------------------------------------ verification
+    def _needs_verification(self, summary: Dict[str, Any]) -> bool:
+        """Worth a second opinion when a classification question is not decisive."""
+        if summary.get("primitive") != "choice":
+            return False
+        probs = summary.get("probabilities") or {}
+        if len(probs) < D.ESCALATION_MIN_OPTIONS:
+            return False
+        top_label, top_p = max(probs.items(), key=lambda kv: kv[1])
+        if top_label in D.UNRESOLVED_SENTINELS:
+            return False
+        return float(top_p) < self.verify_threshold
+
+    def _verify(
+        self,
+        turn: int,
+        key: str,
+        paraphrase: Dict[str, Any],
+        answer: Dict[str, Any],
+        summary: Dict[str, Any],
+    ) -> Iterator[Dict[str, Any]]:
+        """Tier 2: ask again in different words and check the two phrasings agree.
+
+        Verification only — the primary answer is never overturned by the second phrasing. Two
+        independently-worded questions agreeing is evidence; a second roll of the same question
+        is not, and was measured to *inflate* confidence on wrong answers (see
+        `dealership.department_question_paraphrase`).
+        """
+        if not paraphrase or not self._needs_verification(summary):
+            return
+        try:
+            res = self._run(paraphrase)
+        except ValueError:
+            return
+        ms = res.pop("_ms")
+        alt = res["answers"][key]
+        alt_summary = _summarize(alt)
+        self.escalations += 1
+        agrees = alt.get("choice") == answer.get("choice")
+        if not agrees:
+            self.llm_escalations += 1
+        else:
+            # Two phrasings agreeing is enough to stop re-deciding it, even below the pin bar.
+            fact = self.facts.get(key)
+            if fact is not None:
+                fact["pinned"] = True
+                fact["verified"] = True
+        route = res.get("routing") or {}
+        yield self._result(
+            f"t{turn}.{key}",
+            turn,
+            status="verified" if agrees else "uncertain",
+            summary=summary,
+            question=paraphrase[key]["instructions"],
+            options=list(paraphrase[key].get("criteria") or []),
+            model=route.get("model"),
+            routing_reason=route.get("reason", ""),
+            latency_ms=ms,
+            batch_size=1,
+            note=(
+                f"second phrasing agrees ({alt.get('choice')})"
+                if agrees
+                else (
+                    f"second phrasing disagrees ({alt.get('choice')} vs {answer.get('choice')}) "
+                    "— kept the first answer, would escalate to an LLM"
+                )
+            ),
+            extra={
+                "verification": {
+                    "tier": 2,
+                    "agrees": agrees,
+                    "primary": {
+                        "choice": answer.get("choice"),
+                        "top_probability": summary.get("top_probability"),
+                    },
+                    "paraphrase": {
+                        "choice": alt.get("choice"),
+                        "top_probability": alt_summary.get("top_probability"),
+                    },
+                    "llm_escalation": not agrees,
+                }
+            },
+        )
+
     def _slot_missing(self, slot: str) -> bool:
-        ans = self.answers.get(slot)
-        if not ans:
+        """A slot is missing unless we can rely on it.
+
+        Not merely "the answer isn't the not_stated sentinel": a low-confidence guess is not a
+        known value either. The vague-complaint scenario had the model infer `sedan` at p=0.52 for
+        a caller who had said nothing about a vehicle, and the old rule then never asked.
+        """
+        fact = self.facts.get(slot)
+        if not fact:
             return True
-        return ans.get("choice") in (None, "not_stated")
+        return not fact.get("pinned")
 
     def _response_text(self, action: str) -> str:
         template = D.RESPONSES.get(action, D.RESPONSES["ask_detail"])
@@ -463,7 +594,10 @@ class CallSession:
         return template.format(department=department, location=location, time=time_pref)
 
     def _finish(self, turn: int, prev_id: str, missing: List[str]) -> Iterator[Dict[str, Any]]:
-        outcome = D.decide(self.answers, [s for s in D.REQUIRED_SLOTS if self._slot_missing(s)])
+        # "Missing" for routing means the caller never provided it. A shaky but present answer is
+        # already visible as a low-confidence node, and should not read as an unasked question.
+        unaddressed = [s for s in D.REQUIRED_SLOTS if self._slot_missing(s) and s not in self.asked]
+        outcome = D.decide(self.answers, unaddressed)
         self.routing = outcome
         node_id = f"t{turn}.terminal"
         yield self._node(node_id, turn, "terminal", "terminal")
@@ -499,4 +633,6 @@ class CallSession:
             "cost_usd": 0.0,
             "routing": self.routing,
             "turn_stats": self.turn_stats,
+            "escalations": self.escalations,
+            "llm_escalations": self.llm_escalations,
         }
