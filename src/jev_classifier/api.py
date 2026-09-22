@@ -1,132 +1,128 @@
-"""FastAPI app: streams each cascade stage to the browser over Server-Sent Events.
+"""FastAPI app.
+
+A call is executed eagerly, recorded to `results/runs/<id>.jsonl`, and returned as a complete
+event list. The browser owns playback (play / pause / step / speed), because for a demo tool
+deterministic client-side playback beats live streaming — you can scrub, replay, and record
+cleanly without depending on inference latency.
 
 Endpoints
-  GET  /                       -> the single-page demo
-  GET  /api/personas           -> scripted example calls
-  POST /api/session            -> start a session {"message": "..."} -> {"session_id": "..."}
-  GET  /api/session/{id}/stream-> SSE: stage_start / stage_result / clarify / routing / done
-  POST /api/session/{id}/answer-> answer a clarifying question {"text": "..."}
-  POST /api/classify           -> headless: run to completion, return all events as JSON
+  GET  /                  -> the React app (web/dist when built)
+  GET  /api/health
+  GET  /api/scenarios     -> scripted caller scenarios
+  POST /api/call          -> run a scenario, record it, return every event + summary
+  GET  /api/runs          -> recorded runs
+  GET  /api/runs/{id}     -> one recorded run's events
+  POST /api/classify      -> generic support-triage, headless, no UI
 """
 
 from __future__ import annotations
 
-import json
-import os
-import threading
-import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import __version__
-from .personas import PERSONAS
-from .pipeline import DEFAULT_THRESHOLD, TriageSession
+from . import runs as runs_store
+from .agent import get_router
+from .call import DEFAULT_THRESHOLD, CallSession
+from .scenarios import SCENARIO_BY_ID, SCENARIOS
 
-WEB_DIR = Path(__file__).resolve().parents[2] / "web"
-STAGE_DELAY = float(os.environ.get("JEV_STAGE_DELAY", "0.35"))
+WEB_DIST = Path(__file__).resolve().parents[2] / "web" / "dist"
 
 app = FastAPI(title="jev-classifier", version=__version__)
-
-_sessions: Dict[str, TriageSession] = {}
-_sessions_lock = threading.Lock()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
 def _warm() -> None:
-    """Preload the checkpoints the cascade can route to, off the request path."""
-    def _load() -> None:
-        from .agent import get_router
+    import threading
 
+    def _load() -> None:
         get_router().preload(["english", "multilingual"])
 
     threading.Thread(target=_load, name="laya-preload", daemon=True).start()
 
 
-def _store(session: TriageSession) -> str:
-    with _sessions_lock:
-        _sessions[session.session_id] = session
-    return session.session_id
+# ----------------------------------------------------------------------------- scenarios
+@app.get("/api/health")
+def health() -> Dict[str, Any]:
+    return {"ok": True, "version": __version__, "runs_dir": str(runs_store.RUNS_DIR)}
 
 
-def _get(session_id: str) -> TriageSession:
-    with _sessions_lock:
-        session = _sessions.get(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="unknown session")
-    return session
+@app.get("/api/scenarios")
+def scenarios() -> Dict[str, Any]:
+    return {"scenarios": SCENARIOS}
 
 
-def _sse(event: Dict[str, Any]) -> str:
-    return f"data: {json.dumps(event)}\n\n"
-
-
-class StartRequest(BaseModel):
-    message: str
+# ----------------------------------------------------------------------------- calls
+class CallRequest(BaseModel):
+    scenario_id: Optional[str] = None
+    turns: Optional[List[str]] = None
+    label: str = "Custom call"
     threshold: float = DEFAULT_THRESHOLD
-    pace: bool = True
 
 
-class AnswerRequest(BaseModel):
-    text: str
+def _summary(session: CallSession, events: List[Dict[str, Any]]) -> Dict[str, Any]:
+    end = next((e for e in reversed(events) if e["type"] == "call_end"), {})
+    return {
+        "call_id": session.session_id,
+        "scenario": session.scenario.get("label"),
+        "turns": end.get("turns"),
+        "decisions": end.get("decisions"),
+        "compute_ms": end.get("compute_ms"),
+        "input_tokens": end.get("input_tokens"),
+        "output_tokens": end.get("output_tokens"),
+        "tokens_generated": 0,
+        "cost_usd": 0.0,
+        "routing": session.routing,
+    }
 
 
-@app.get("/api/personas")
-def personas() -> Dict[str, Any]:
-    return {"personas": PERSONAS, "stage_delay": STAGE_DELAY}
+@app.post("/api/call")
+def run_call(req: CallRequest) -> Dict[str, Any]:
+    if req.turns:
+        scenario = {"id": "custom", "label": req.label, "turns": req.turns}
+    elif req.scenario_id:
+        scenario = SCENARIO_BY_ID.get(req.scenario_id)
+        if scenario is None:
+            raise HTTPException(status_code=404, detail=f"unknown scenario {req.scenario_id!r}")
+    else:
+        raise HTTPException(status_code=400, detail="provide scenario_id or turns")
+
+    call_id = uuid.uuid4().hex[:12]
+    session = CallSession(scenario, session_id=call_id, confidence_threshold=req.threshold)
+    events = list(session.advance())
+    runs_store.save(call_id, events)
+    return {"events": events, "summary": _summary(session, events)}
 
 
-@app.post("/api/session")
-def start_session(req: StartRequest) -> Dict[str, str]:
-    if not req.message.strip():
-        raise HTTPException(status_code=400, detail="message is empty")
-    session = TriageSession(
-        req.message.strip(),
-        confidence_threshold=req.threshold,
-        session_id=uuid.uuid4().hex[:12],
-    )
-    session.pace = bool(req.pace)  # type: ignore[attr-defined]
-    return {"session_id": _store(session)}
+@app.get("/api/runs")
+def list_runs() -> Dict[str, Any]:
+    return {"runs": runs_store.list_runs()}
 
 
-def _stream(session_id: str) -> Iterator[str]:
-    session = _get(session_id)
-    pace = getattr(session, "pace", True)
+@app.get("/api/runs/{run_id}")
+def get_run(run_id: str) -> Dict[str, Any]:
     try:
-        for event in session.advance():
-            yield _sse(event)
-            if pace and event.get("type") != "done":
-                time.sleep(STAGE_DELAY)
-        yield "event: close\ndata: {}\n\n"
-    except Exception as exc:  # surface model errors to the UI instead of hanging the stream
-        yield _sse({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
+        events = runs_store.load_events(run_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="unknown run")
+    end = next((e for e in reversed(events) if e["type"] == "call_end"), {})
+    return {"events": events, "summary": {"call_id": run_id, **end}}
 
 
-@app.get("/api/session/{session_id}/stream")
-def stream(session_id: str) -> StreamingResponse:
-    return StreamingResponse(
-        _stream(session_id),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-@app.post("/api/session/{session_id}/answer")
-def answer(session_id: str, req: AnswerRequest) -> Dict[str, Any]:
-    session = _get(session_id)
-    if session.waiting is None:
-        raise HTTPException(status_code=409, detail="session is not waiting for an answer")
-    if not req.text.strip():
-        raise HTTPException(status_code=400, detail="answer is empty")
-    session.provide_answer(req.text.strip())
-    return {"ok": True}
-
-
+# ----------------------------------------------------------------------------- generic triage
 class ClassifyRequest(BaseModel):
     message: str
     threshold: float = DEFAULT_THRESHOLD
@@ -134,24 +130,29 @@ class ClassifyRequest(BaseModel):
 
 @app.post("/api/classify")
 def classify(req: ClassifyRequest) -> Dict[str, Any]:
-    """Headless run: auto-answers clarifications with the provisional choice."""
+    """Headless single-shot triage (the original support cascade), auto-answering clarifications."""
     from .pipeline import run_to_completion
 
     result = run_to_completion(req.message, confidence_threshold=req.threshold)
-    session: TriageSession = result["session"]
+    session = result["session"]
     return {
         "message": req.message,
         "routing": session.routing,
         "rejected": session.rejected,
         "events": result["events"],
-        "total_ms": result["events"][-1].get("total_ms") if result["events"] else None,
     }
 
 
+# ----------------------------------------------------------------------------- static app
+if WEB_DIST.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(WEB_DIST / "assets")), name="assets")
+
+
 @app.get("/")
-def index() -> FileResponse:
-    return FileResponse(WEB_DIR / "index.html")
-
-
-if WEB_DIR.is_dir():
-    app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+def index():
+    if (WEB_DIST / "index.html").is_file():
+        return FileResponse(WEB_DIST / "index.html")
+    return JSONResponse(
+        {"detail": "Frontend not built. Run `cd web && npm install && npm run dev`."},
+        status_code=200,
+    )

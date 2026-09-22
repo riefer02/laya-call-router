@@ -9,6 +9,10 @@ dist/
 build/
 *.egg-info/
 
+# Node / frontend
+node_modules/
+web/dist/
+
 # Project artefacts
 results/
 models/

@@ -1,179 +1,175 @@
 # jev-classifier
 
-A local, staged **support-triage cascade** built on [Laya](https://github.com/NandhaKishorM/laya) —
-a non-autoregressive *System 1* decision model that returns **typed, calibrated decisions**
-instead of generated text — running on Apple Silicon through [`laya-mlx`](https://pypi.org/project/laya-mlx/).
+A local **call-routing debugger** for a car-dealership switchboard, built on
+[Laya](https://github.com/NandhaKishorM/laya) — a non-autoregressive *System 1* decision model
+that returns **typed, calibrated decisions** instead of generated text — running on Apple Silicon
+via [`laya-mlx`](https://pypi.org/project/laya-mlx/).
 
-A support call is walked through a chain of classifiers (gate → language → department →
-sub-intent → severity → routing). Every stage shows the question asked, the probability of each
-option, the pick, and the branch taken. A low-confidence stage **asks the customer a follow-up**
-instead of guessing, and the answer is appended to the transcript so the next forward pass is
-better informed.
+A scripted caller talks to a classifier-driven switchboard. Every decision the switchboard makes
+is a Laya question, the graph shows the call flowing left to right, and clicking any box reveals
+exactly how that decision was made.
 
-**The model never generates text.** `output_tokens` is `0` on every call — the UI displays it as
-a live counter, because that is the whole point of the technology.
+**The model never generates text.** `tokens generated` stays at `0` in the HUD on every call —
+that is the point of the technology, and the reason the economics work.
 
-```
-gate ──▶ language ──▶ department ──▶ sub-intent ──▶ severity ──▶ routing
-choice    Router      choice         choice         score+noul    policy
- │                        │              │
- │                    <0.75 conf?    <0.75 conf?
- │                        └──── templated follow-up question ────┘
- └── spam / marketing ──▶ rejected, not routed
-```
+![the debugger](docs/overview.png)
 
-## Quick start
+## Run it
 
-Requires an Apple Silicon Mac and Python 3.12 (`uv` will fetch it).
+Backend (Apple Silicon, Python 3.12 — `uv` fetches it):
 
 ```bash
 uv sync
 uv run uvicorn jev_classifier.api:app --port 8765
-# open http://127.0.0.1:8765
 ```
 
-Pick a persona, or type your own support message. The right pane lights up stage by stage.
-
-Headless, without a browser:
+Frontend, one of:
 
 ```bash
-uv run jev-classify --persona outage
-uv run jev-classify --ticket "I was charged twice, refund me or I cancel"
-uv run jev-classify --list-personas
+cd web && npm install && npm run dev      # dev server on :5173, proxies /api to :8765
+cd web && npm install && npm run build    # or build; FastAPI then serves it at :8765
 ```
 
-First run downloads the checkpoints (~0.8 GB English + ~0.65 GB multilingual; `typed-decisions`
-is ~0.8 GB more and only fetched if you ask for it).
+Open <http://127.0.0.1:8765> (build) or <http://localhost:5173> (dev).
 
-## What a run looks like
+## The visual debugger
 
 ```
-▶ Gate  [choice+noul]            english · 25.3 ms
-    is_support_request: genuine_support  (conf 0.35, p 0.73)
-      → genuine_support   ▓▓▓▓▓▓▓░░░ 0.73
-        other             ▓▓░░░░░░░░ 0.21
-        spam_or_marketing ▓░░░░░░░░░ 0.05
-▶ Language  [router]             english · 0.09 ms
-▶ Department  [choice]           english · 13.5 ms
-    department: billing  (conf 0.95, p 0.99)
-▶ Sub-intent  [choice]           english · 12.0 ms
-    sub_intent: duplicate_charge  (conf 0.80, p 0.93)
-▶ Severity  [score+noul]         english · 20.2 ms
-    is_blocking: P(true)=0.82   frustration: 1.32/3
-    churn_risk: P(true)=0.72    refund_requested: P(true)=0.80
-▶ Routing
-  queue=Refund Desk  priority=HIGH  handler=human
-  flags=['churn_risk', 'refund_requested']
-
-═ done: 71 ms compute, 6 stages, 0 tokens generated
+┌ controls ────────────────────────────────────────────────────────────────────────────┐
+│ scenario ▾   ▶ Run call   ⏸ Play  ⏭ Step  ⏩ Skip  ↺ Reset   speed ─●──  ⤢ Fit  ☑ follow │
+├──────────────┬──────────────────────────────────────────────────────┬───────────────┤
+│ CONVERSATION │              D E C I S I O N   G R A P H             │   INSPECTOR   │
+│  (collapsible)                                                       │  (drill-down) │
+│  turn 1      │  turn 1  ☎ ─▶ [Department] ─▶ [Vehicle] ─▶ … ─▶ 🎧    │  question     │
+│  ☎ caller    │  turn 2  ☎ ─▶ [Department] ─▶ [Vehicle] ─▶ … ─▶ 🎧    │  every option │
+│  🎧 agent    │  turn 3  ☎ ─▶ …                                       │  + probability│
+│              │  turn 4  ☎ ─▶ … ─▶ [Next step] ─▶ 🎧 ─▶ ◆ ROUTE       │  confidence   │
+└──────────────┴──────────────────────────────────────────────────────┴───────────────┘
 ```
 
-## Design notes
+- **Rows are turns, columns are decisions.** Positions are computed from `(col, turn)` and never
+  recomputed, so nothing jumps around while the call streams in — which matters when you are
+  screen-recording.
+- **Colour says who or what**: caller (blue) · model decision (violet) · rule / regex (slate) ·
+  switchboard (green) · route out (amber). A node's badge is its primitive (`choice` / `noul`)
+  or, for the deterministic nodes, `policy` / `regex` — the UI never pretends a model decided
+  something a rule decided.
+- **Click any box** for the question, every option with its probability, the entropy confidence
+  *and* the top probability, which checkpoint answered and why it was routed there, latency,
+  how many questions shared the forward pass, and raw JSON.
+- **`follow` keeps the camera on the active decision** so you can watch the call move through the
+  pipeline; turn it off (or press `F`) to frame the whole call.
+- **Playback is client-side** — play / pause / step / speed / scrub all work without touching the
+  backend, because a call is executed eagerly, recorded, and returned as an event list. That also
+  means **every run is replayable**: `replay recording…` re-plays a past call deterministically
+  for a clean recording. Space toggles play, `→` steps.
 
-- **Clarifying questions are templated, not generated.** Laya cannot generate text, so a
-  low-confidence stage emits a fixed prompt from `schemas.CLARIFY_PROMPTS` with chips drawn from
-  its option set. The customer's reply is appended to the transcript and re-sent as the model's
-  state. That is what makes the cascade multi-step without a chatbot.
-- **Confidence is entropy-based.** Laya's `confidence` is `1 − H(p)/log k`, not the top
-  probability, so it depends on how many options a question has. A decisive 5-way choice tops out
-  around 0.9; the default follow-up threshold is therefore **0.75**, not the 0.85 used in the
-  upstream README. The UI shows *both* the entropy confidence and the top probability.
-- **Routing policy is deterministic** (`routing.py`). Everything upstream is a calibrated
-  probability; the policy that turns it into a queue is ordinary, readable business logic.
-- **Stage 6 costs nothing.** The language stage is a script/language check (microseconds), and
-  routing is pure Python — only four stages run a forward pass.
+## The call
 
-## Measurements on this machine (Apple M5 Pro, 64 GB)
+Eight departments: `service · body_shop · parts · tires · detailing · sales · finance · towing`
+(plus `general`). Each turn the switchboard re-reads the whole conversation and runs two batched
+forward passes:
 
-### Latency / throughput — whole triage schema, one forward pass
+1. **department + slots** — vehicle, location, when, unsafe-to-drive, needs-a-human
+2. **intent** (branched on the department) — then policy picks the next step
+
+Slots are `choice` questions over fixed enums, not free-text extraction, because Laya classifies
+rather than parses. The one exception is the exact appointment time, which is a deterministic
+regex rendered as a different node kind.
+
+**Where the classifier decides vs. where policy decides.** The classifier does *understanding*:
+department, intent, slot values, urgency, escalation. A deterministic policy does *control flow*:
+which slot to ask for next, when the booking is complete, which queue it lands in. That split is
+not an accident — see the measurements below.
+
+## What measuring the model changed
+
+Laya's base checkpoints are weak zero-shot and very sensitive to wording, so every question here
+was chosen from a measurement, not intuition. `scripts/probe_slots.py` and `scripts/probe_questions.py`
+are the evidence. Three findings shaped the design:
+
+1. **"Explicitly mention… otherwise `not_stated`"** — the first slot questions *invented* facts:
+   asked "What kind of vehicle?" about a sentence that never mentioned a vehicle, the model
+   answered `sedan`. Rewording to "What kind of vehicle did the caller explicitly mention? If no
+   vehicle type was mentioned, choose `not_stated`" took slot accuracy from **19/24 to 23/24**.
+2. **Do not let the agent read out the option list.** When the switchboard asked "today, tomorrow,
+   later this week, or next week?", the slot classifier started answering `today` even when the
+   caller had said nothing about timing — the agent's own question was leaking into the transcript
+   the model classifies. The spoken prompts no longer enumerate; the options are still shown as
+   chips in the UI.
+3. **Control flow is not a good classifier question.** A `next_action` question ("what should the
+   switchboard do next?") answered at **confidence 0.03** and picked `ask_detail` almost
+   regardless of input, while an earlier unconstrained version happily chose `confirm_booking`
+   with the location still unknown. It was removed and replaced with policy. The classifier stayed
+   where it is strong.
+
+A fourth finding, from the earlier support-triage build, still applies: a **hard stop must not
+fire on an argmax of a near-uniform distribution** — reject only on a confident signal.
+
+## Measurements (Apple M5 Pro, 64 GB)
+
+Whole triage schema, batched in one forward pass:
 
 | checkpoint | 1 question p50 | 6 questions p50 | throughput |
 |---|---|---|---|
-| `english` (ModernBERT-large, 421M) | **9.0 ms** | 27.7 ms | 219 q/s |
-| `multilingual` (mmBERT-base, 322M) | **4.6 ms** | 11.1 ms | 520 q/s |
+| `english` (ModernBERT-large, 421M) | 9.0 ms | 27.7 ms | 219 q/s |
+| `multilingual` (mmBERT-base, 322M) | 4.6 ms | 11.1 ms | 520 q/s |
 | `typed-decisions` (421M) | 9.2 ms | 27.8 ms | 218 q/s |
 
-For reference, the upstream project's published T4 figures are 39.5 ms and 32.8 ms for one
-question — this machine is ~4–7× faster. Peak MLX memory with all three checkpoints resident:
-**2.9 GiB**.
+A full 4-turn call costs **~250 ms of compute**, **0 generated tokens**, **$0.00**.
 
-### Quality — 18 hand-labelled tickets (`data/tickets/labelled.jsonl`)
+Quality, 18 hand-labelled tickets (`data/tickets/labelled.jsonl`, from the support-domain work):
 
 | checkpoint | department acc | churn acc | refund acc | noul ECE ↓ |
 |---|---|---|---|---|
-| `english` | 0.83 | **1.00** | 0.94 | **0.073** |
+| `english` | 0.83 | 1.00 | 0.94 | 0.073 |
 | `multilingual` | 0.61 | 0.83 | 0.94 | 0.132 |
 | `typed-decisions` | 0.83 | 0.94 | 0.89 | 0.170 |
-| *chance baseline* | *0.28* | *0.17* | *0.28* | — |
+| *chance* | *0.28* | *0.17* | *0.28* | — |
 
-Reproduce with `uv run python scripts/bench_latency.py` and `scripts/bench_quality.py`.
-
-**Honest reading of the numbers**
-
-- These are 18 tickets, so treat them as a smoke signal, not a benchmark. But the ordering is
-  informative: **the plain `english` checkpoint is the best of the three here**.
-- `typed-decisions` did *not* win, which matches the upstream documentation once you read it
-  closely: it is fine-tuned on four specific synthetic workflows matched by *exact question-id
-  sets* (`invoice_processing`, `security_incidents`, `customer_service`,
-  `agent_trace_observability`). This project uses its own question ids, so that checkpoint gets
-  none of its fine-tuning benefit and scores like the base model. It would matter only if you
-  adopted those schemas verbatim.
-- The follow-up threshold interacts with the metric: at the upstream 0.85 a clean 5-way
-  department decision (`technical`, conf 0.77) spuriously triggers a follow-up. See
-  `pipeline.DEFAULT_THRESHOLD`.
-- `score` questions (`frustration`) are the weakest primitive — confidence 0.1–0.3 — matching the
-  documented SST-5 weakness. The `noul` and `choice` primitives carry the cascade.
-- Calibration measured better than the docs' warning implies (ECE 0.073 for English), but that is
-  on easy, balanced examples. The docs' warning about over-confidence is worth taking seriously
-  before gating real actions on these probabilities.
-
-## Fine-tuning was the finding we did not pursue
-
-The base checkpoints are weak zero-shot and highly sensitive to phrasing. `scripts/probe_questions.py`
-is the evidence: asking *"Is this a genuine support request?"* as a `noul` scored **0.13** on an
-obvious billing email, while a `choice` framing scored it correctly at 0.73; a churn question
-phrased *"may leave for a competitor"* missed a message that literally said *"we'll have to
-cancel"* (0.11) where *"threaten to cancel their plan or stop being a customer"* caught it (0.58).
-
-Every schema in `schemas.py` was chosen from those measurements. The upstream documentation is
-blunt that the real gains come from fine-tuning on your own domain (RLCD). That is the natural
-next step and is not part of this build.
-
-## The gate is threshold-based, not argmax
-
-The gate was originally "reject unless the choice question picks `genuine_support`". The web demo
-falsified that: the multilingual checkpoint scored a genuine Chinese billing ticket
-**spam 0.37 / other 0.33 / genuine 0.30** — an entropy confidence of 0.00 — so the argmax rule
-rejected a valid ticket. Real spam scores 0.94–0.96, so the gate now rejects only when
-`p(spam) ≥ 0.6` (`schemas.GATE_REJECT_THRESHOLD`). A high-confidence requirement on a hard stop
-is the general lesson: never let a near-uniform distribution trigger an irreversible action.
-
-That leaves a thinner margin than is comfortable on sales enquiries, which legitimately resemble
-marketing (a pricing request scored `p(spam)=0.51`). This is exactly the kind of boundary a
-fine-tuned checkpoint would sharpen.
+`typed-decisions` does not win: it is fine-tuned on four synthetic workflows matched by *exact
+question-id sets*, so it transfers nothing to a custom schema.
 
 ## Layout
 
 ```
 src/jev_classifier/
-  agent.py      shared Router (preloaded checkpoints)
-  schemas.py    the 6 stages' typed questions — tuned by measurement
-  pipeline.py   resumable cascade state machine, confidence gating, multi-turn
-  routing.py    deterministic stage-6 routing policy
-  api.py        FastAPI + SSE stream of stage events
-  cli.py        headless runner
-  personas.py   scripted example support calls
-web/            single-page UI (no build step)
+  dealership.py   departments, intents, slot enums, response templates, routing policy
+  call.py         the turn driver -> node/edge event stream
+  scenarios.py    scripted caller calls
+  runs.py         record / replay (results/runs/*.jsonl)
+  api.py          FastAPI: /api/scenarios /api/call /api/runs
+  pipeline.py     the original generic support cascade (still reachable via CLI)
+web/              Vite + React + React Flow front end
+  src/graph/      canvas, deterministic layout, node components
+  src/inspector/  drill-down panel
+  src/conversation/ collapsible rail
+  src/controls/   run / step / speed / replay
 scripts/
-  smoke_test.py      primitives + Router
-  probe_questions.py phrasing experiments
+  try_call.py        run a call and print the trace headless
+  probe_slots.py     slot-wording measurements
+  probe_questions.py phrasing measurements (support domain)
   bench_latency.py   latency / throughput
-  bench_quality.py   accuracy / calibration on the labelled set
-data/tickets/   sample + labelled tickets
-tests/          routing logic tests (no model required)
+  bench_quality.py   accuracy / calibration
+tests/            routing + policy tests (no model required)
 ```
+
+CLI, no browser:
+
+```bash
+uv run python scripts/try_call.py --scenario collision   # a full call trace
+uv run jev-classify --persona outage                     # the generic support cascade
+uv run pytest -q
+```
+
+## Not built yet
+
+Real speech-to-text and voice, and dropped-call recovery. Both were deliberately left out. The
+record/replay event log is already a serialisable run, which is the foundation recovery would
+need — the seam is a plain list of caller strings and a stream of events, so a real caller drops
+in without touching the cascade or the UI.
 
 ## Licence
 
-Project code is yours. Laya and its weights are Apache-2.0, by Convai Innovations; `laya-mlx` is
-an independent Apache-2.0 port. See `NOTICE`-style attribution in those projects.
+Project code is yours. Laya and its weights are Apache-2.0 by Convai Innovations; `laya-mlx` is an
+independent Apache-2.0 port.
