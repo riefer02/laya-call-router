@@ -2,8 +2,8 @@
 
 Each turn re-reads the whole conversation and runs two batched forward passes:
 
-  pass 1  department + slots            (no branch knowledge needed)
-  pass 2  intent (branched) + next step (depends on pass 1)
+  pass 1  destination + slots          (no branch knowledge needed)
+  pass 2  sub-queue, branched by destination (depends on pass 1)
 
 Emitting the same columns every turn is deliberate: the graph is a stable grid, and the visible
 change between turns *is* the accumulation of state (confidence rising, slots filling).
@@ -27,7 +27,7 @@ COLUMNS: Dict[str, int] = {
     "caller": 0,
     "ack": 1,
     "changed": 2,
-    "department": 3,
+    "destination": 3,
     "vehicle": 4,
     "location": 5,
     "time_preference": 6,
@@ -35,7 +35,7 @@ COLUMNS: Dict[str, int] = {
     "needs_human": 8,
     "extract_time": 9,
     "missing_slots": 10,
-    "intent": 11,
+    "subqueue": 11,
     "next_action": 12,
     "agent": 13,
     "terminal": 14,
@@ -45,7 +45,7 @@ TITLES: Dict[str, str] = {
     "caller": "Caller",
     "ack": "Switchboard (ack)",
     "changed": "Anything new?",
-    "department": "Department",
+    "destination": "Destination",
     "vehicle": "Vehicle",
     "location": "Location",
     "time_preference": "When",
@@ -53,7 +53,7 @@ TITLES: Dict[str, str] = {
     "needs_human": "Needs human?",
     "extract_time": "Time (regex)",
     "missing_slots": "What's missing",
-    "intent": "Intent",
+    "subqueue": "Sub-queue",
     "next_action": "Next step",
     "agent": "Switchboard",
     "terminal": "Route",
@@ -108,8 +108,8 @@ class CallSession:
         #   confidence_threshold — "should a human look at this?" (entropy confidence, 0.75)
         #   pin_threshold        — "can we stop re-deciding this?" (top probability, 0.6)
         #   verify_threshold     — "is a second opinion worth ~10 ms?" (top probability, 0.75)
-        # Pinning on entropy confidence alone never settles a wide choice: intent answers at
-        # p=0.72 over 7 options score only 0.42, so it was re-run every single turn.
+        # Pinning on entropy confidence alone never settles a wide choice: sub-queue answers
+        # at p=0.72 over 7 options score only 0.42, so it was re-run every single turn.
         self.threshold = confidence_threshold
         self.pin_threshold = pin_threshold
         self.verify_threshold = verify_threshold
@@ -319,9 +319,9 @@ class CallSession:
                     latency_ms=ms,
                     batch_size=n,
                 )
-                if key == "department" and answer["type"] == "choice":
+                if key == "destination" and answer["type"] == "choice":
                     yield from self._verify(
-                        turn, key, D.department_question_paraphrase(), answer, summary
+                        turn, key, D.destination_question_paraphrase(), answer, summary
                     )
             elif key in self.facts:
                 fact = self.facts[key]
@@ -352,7 +352,14 @@ class CallSession:
             yield self._edge(prev_id, extract_id, label=extracted, kind="extract")
 
         # ---- policy: what is still missing --------------------------------------
-        missing = [s for s in D.REQUIRED_SLOTS if self._slot_missing(s) and s not in self.asked]
+        # Slots only matter for destinations that end in an appointment; a non-customer call is
+        # transferred, not booked, so nothing is "missing" for it.
+        destination = self.answers.get("destination", {}).get("choice")
+        unsafe = float(self.answers.get("is_safe_to_drive", {}).get("noul", 0.0))
+        if destination in D.TRANSFER_DESTINATIONS or destination is None:
+            missing: List[str] = []
+        else:
+            missing = [s for s in D.REQUIRED_SLOTS if self._slot_missing(s) and s not in self.asked]
         policy_id = f"t{turn}.missing_slots"
         yield self._node(policy_id, turn, "missing_slots", "policy")
         yield self._result(
@@ -364,56 +371,77 @@ class CallSession:
         )
         yield self._edge(prev_id, policy_id, kind="policy")
 
-        department = self.answers.get("department", {}).get("choice") or "general"
-        unsafe = float(self.answers.get("is_safe_to_drive", {}).get("noul", 0.0))
+        # ---- sub-queue, branched by destination: re-run only if not settled ------
+        subqueue_id = f"t{turn}.subqueue"
+        question_def = D.subqueue_question(destination) if destination else None
+        subqueue_fact = self.facts.get("subqueue")
+        # A sub-queue only stays settled while the destination it belongs to is unchanged.
+        subqueue_settled = bool(
+            subqueue_fact
+            and subqueue_fact.get("pinned")
+            and subqueue_fact.get("destination") == destination
+        )
 
-        # ---- branched intent: re-run only if it is not settled -------------------
-        intent_id = f"t{turn}.intent"
-        if self._is_pinned("intent") and not changed_fired:
-            fact = self.facts["intent"]
-            yield self._node(intent_id, turn, "intent", "decision", primitive="choice")
+        if question_def is None:
+            # Destination with no sub-queues in this store profile: the destination IS the
+            # answer, so there is nothing to ask.
+            self.facts.pop("subqueue", None)
+            yield self._node(subqueue_id, turn, "subqueue", "policy")
             yield self._result(
-                intent_id,
+                subqueue_id,
                 turn,
                 status="skipped",
-                summary=fact.get("summary"),
-                question=D.intent_question(department)["intent"]["instructions"],
-                options=list(D.INTENTS.get(department, D.INTENTS["general"])),
-                note=f"already known — not re-computed (settled turn {fact.get('turn')})",
-                extra={"pinned": True, "from_turn": fact.get("turn")},
+                note=(
+                    f"{D.display_name(destination or 'unknown')} has no sub-queues in this "
+                    "store profile; the destination is the answer"
+                ),
             )
-            yield self._edge(prev_id, intent_id, kind="skip")
+            yield self._edge(prev_id, subqueue_id, kind="skip")
+        elif subqueue_settled and not changed_fired:
+            yield self._node(subqueue_id, turn, "subqueue", "decision", primitive="choice")
+            yield self._result(
+                subqueue_id,
+                turn,
+                status="skipped",
+                summary=subqueue_fact.get("summary"),
+                question=question_def["subqueue"]["instructions"],
+                options=list(question_def["subqueue"]["criteria"]),
+                note=f"already known — not re-computed (settled turn {subqueue_fact.get('turn')})",
+                extra={"pinned": True, "from_turn": subqueue_fact.get("turn")},
+            )
+            yield self._edge(prev_id, subqueue_id, kind="skip")
         else:
-            result2 = self._run(D.intent_question(department))
+            result2 = self._run(question_def)
             ms2 = result2.pop("_ms")
             routing2 = result2.get("routing") or {}
-            intent_ans = result2["answers"]["intent"]
-            yield self._node(intent_id, turn, "intent", "decision", primitive="choice")
+            subqueue_ans = result2["answers"]["subqueue"]
+            yield self._node(subqueue_id, turn, "subqueue", "decision", primitive="choice")
             yield self._result(
-                intent_id,
+                subqueue_id,
                 turn,
-                summary=_summarize(intent_ans),
-                question=D.intent_question(department)["intent"]["instructions"],
-                options=list(D.INTENTS.get(department, D.INTENTS["general"])),
+                summary=_summarize(subqueue_ans),
+                question=question_def["subqueue"]["instructions"],
+                options=list(question_def["subqueue"]["criteria"]),
                 model=routing2.get("model"),
                 routing_reason=routing2.get("reason", ""),
                 latency_ms=ms2,
                 batch_size=len(result2["answers"]),
             )
-            self.answers["intent"] = intent_ans
-            self._pin("intent", intent_ans, turn, _summarize(intent_ans))
-            yield self._edge(prev_id, intent_id, label=f"department = {department}", kind="branch")
+            self.answers["subqueue"] = subqueue_ans
+            self._pin("subqueue", subqueue_ans, turn, _summarize(subqueue_ans))
+            self.facts["subqueue"]["destination"] = destination
+            yield self._edge(prev_id, subqueue_id, label=f"destination = {destination}", kind="branch")
             yield from self._verify(
                 turn,
-                "intent",
-                D.intent_question_paraphrase(department),
-                intent_ans,
-                _summarize(intent_ans),
+                "subqueue",
+                D.subqueue_question_paraphrase(destination),
+                subqueue_ans,
+                _summarize(subqueue_ans),
             )
-        prev_id = intent_id
+        prev_id = subqueue_id
 
         # ---- next action: deterministic policy ----------------------------------
-        action = D.next_action_for(missing, department, unsafe)
+        action = D.next_action_for(missing, destination, unsafe)
         action_id = f"t{turn}.next_action"
         yield self._node(action_id, turn, "next_action", "policy")
         yield self._result(
@@ -424,7 +452,7 @@ class CallSession:
             extra={
                 "missing": missing,
                 "reason": D.NEXT_ACTION_LABELS.get(action, ""),
-                "inputs": {"missing": missing, "unsafe": unsafe, "department": department},
+                "inputs": {"missing": missing, "unsafe": unsafe, "destination": destination},
             },
         )
         yield self._edge(prev_id, action_id, kind="policy")
@@ -522,7 +550,7 @@ class CallSession:
         Verification only — the primary answer is never overturned by the second phrasing. Two
         independently-worded questions agreeing is evidence; a second roll of the same question
         is not, and was measured to *inflate* confidence on wrong answers (see
-        `dealership.department_question_paraphrase`).
+        `dealership.destination_question_paraphrase`).
         """
         if not paraphrase or not self._needs_verification(summary):
             return
@@ -596,12 +624,12 @@ class CallSession:
 
     def _response_text(self, action: str) -> str:
         template = D.RESPONSES.get(action, D.RESPONSES["ask_detail"])
-        department = D.display_name(self.answers.get("department", {}).get("choice") or "general")
+        destination = D.display_name(self.answers.get("destination", {}).get("choice") or "unknown")
         location = D.display_name(self.answers.get("location", {}).get("choice") or "not_stated")
         time_pref = D.display_name(
             self.answers.get("time_preference", {}).get("choice") or "not_stated"
         )
-        return template.format(department=department, location=location, time=time_pref)
+        return template.format(destination=destination, location=location, time=time_pref)
 
     def _finish(self, turn: int, prev_id: str, missing: List[str]) -> Iterator[Dict[str, Any]]:
         # "Missing" for routing means the caller never provided it. A shaky but present answer is

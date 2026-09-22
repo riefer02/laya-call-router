@@ -1,158 +1,38 @@
-"""Car-dealership service domain: the questions the switchboard asks, and how answers map to
-queues.
+"""Car-dealership domain: the questions the switchboard asks, and how answers map to queues.
 
-Everything a caller says is turned into a *typed* decision here. Slots (vehicle, location, time)
-are `choice` questions over fixed enums rather than free-text extraction, because Laya classifies
-— it does not generate or parse. The one exception is the exact appointment time, which is a
-clearly-labelled deterministic regex (`extract_time`) and is rendered as a different node kind so
-the UI never pretends a model decided it.
+The taxonomy is **not defined here** — it lives in `config/store_profile.json` and is loaded via
+`store_profile`. This module turns that profile into the typed questions the cascade asks and the
+policy that converts answers into a queue.
+
+Structure follows how dealerships actually organise (Fixed Operations: service/parts/body shop;
+Variable Operations: sales/F&I), with tires and detailing as *Service sub-queues* rather than peer
+departments, and roadside as a dispatch flag rather than a place. See `store_profile` for why.
+
+Slots (vehicle, location, time) are `choice` questions over fixed enums, because Laya classifies
+rather than parses. The one exception is the exact appointment time, a clearly-labelled
+deterministic regex (`extract_time`) rendered as a different node kind so the UI never pretends a
+model decided it.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
-# --------------------------------------------------------------------------- departments
-DEPARTMENTS: Dict[str, str] = {
-    "service": "mechanical repair, maintenance, warning lights, noises, engine or starting trouble",
-    "body_shop": "collision damage, dents, scratches, paint, glass, after an accident",
-    "parts": "ordering or buying a specific part or accessory",
-    "tires": "tire replacement, rotation, balancing, flat tires or wheels",
-    "detailing": "cleaning, detailing, car wash, interior or paint care",
-    "sales": "buying, leasing or appraising a vehicle, inventory questions",
-    "finance": "loan or lease terms, insurance, paperwork, payments",
-    "towing": "roadside assistance, towing, jump start, lockout or fuel delivery",
-    "general": "none of the above, or the caller is unsure",
+from . import store_profile as SP
+
+PROFILE = SP.load()
+
+# --------------------------------------------------------------------------- taxonomy views
+# Kept as plain dicts/strings because that is what the question builders and the UI consume.
+DESTINATIONS: Dict[str, str] = {d.key: d.description for d in PROFILE.destinations}
+SUBQUEUES: Dict[str, Dict[str, str]] = {
+    d.key: {s.key: s.description for s in PROFILE.subqueues_for(d.key)} for d in PROFILE.destinations
 }
-
-DEPARTMENT_QUESTION = {
-    "department": {
-        "type": "choice",
-        "instructions": "Which department at the dealership should handle this caller?",
-        "criteria": DEPARTMENTS,
-    }
-}
-
-# --------------------------------------------------------------------------- intents
-INTENTS: Dict[str, Dict[str, str]] = {
-    "service": {
-        "no_start": "the vehicle will not start or is dead",
-        "warning_light": "a dashboard warning light is on",
-        "brakes": "brakes are squealing, grinding or soft",
-        "noise": "the vehicle makes an unusual noise or vibration",
-        "maintenance": "routine maintenance, oil change or scheduled service",
-        "performance": "the vehicle drives poorly, stalls or loses power",
-        "other": "some other mechanical problem",
-    },
-    "body_shop": {
-        "collision": "damage from a crash or being hit",
-        "dent_scratch": "a dent or scratch without a crash",
-        "glass": "broken or cracked window, windscreen or mirror",
-        "paint": "paint damage, peeling or a repaint",
-        "other": "some other bodywork",
-    },
-    "parts": {
-        "order_part": "wants to order a specific part",
-        "availability": "asks whether a part is in stock",
-        "accessory": "wants an accessory or add-on",
-        "other": "some other parts request",
-    },
-    "tires": {
-        "flat": "has a flat tire or a puncture",
-        "replacement": "wants new tires",
-        "rotation": "wants a rotation or balancing",
-        "alignment": "steering pulls or the vehicle needs an alignment",
-        "other": "some other tire or wheel request",
-    },
-    "detailing": {
-        "wash": "wants a wash",
-        "full_detail": "wants a full interior and exterior detail",
-        "interior": "wants interior cleaning",
-        "paint_correction": "wants polishing or paint correction",
-        "other": "some other cleaning request",
-    },
-    "sales": {
-        "new_vehicle": "interested in a new vehicle",
-        "used_vehicle": "interested in a used vehicle",
-        "trade_in": "wants to trade in or appraise a vehicle",
-        "inventory": "asks what is in stock",
-        "other": "some other sales enquiry",
-    },
-    "finance": {
-        "lease_terms": "asks about lease terms",
-        "loan": "asks about financing or a loan",
-        "insurance": "asks about insurance",
-        "paperwork": "asks about paperwork or a contract",
-        "other": "some other finance question",
-    },
-    "towing": {
-        "tow_needed": "needs the vehicle towed",
-        "jump_start": "needs a jump start",
-        "lockout": "is locked out of the vehicle",
-        "fuel": "has run out of fuel",
-        "other": "some other roadside request",
-    },
-    "general": {
-        "general_question": "a general question about the dealership",
-        "other": "none of the above fits",
-    },
-}
-
-
-def intent_question(department: str) -> Dict:
-    criteria = INTENTS.get(department, INTENTS["general"])
-    return {
-        "intent": {
-            "type": "choice",
-            "instructions": (
-                f"This is a {department.replace('_', ' ')} request. What exactly does the "
-                "caller want? Pick the single closest option."
-            ),
-            "criteria": criteria,
-        }
-    }
-
-
-def department_question_paraphrase() -> Dict:
-    """A second, independently-worded version of the department question.
-
-    Used to *verify* a low-confidence answer rather than to replace it. Measured: re-asking with a
-    narrowed option set does not improve accuracy — it re-rolls the answer and inflates confidence
-    (a *wrong* `body_shop` at 0.73 replacing a `service` at 0.37). Agreement between two phrasings
-    is a real signal; a second roll of the same question is not.
-    """
-    return {
-        "department": {
-            "type": "choice",
-            "instructions": "What kind of help does this caller need from the dealership?",
-            "criteria": DEPARTMENTS,
-        }
-    }
-
-
-def intent_question_paraphrase(department: str) -> Dict:
-    criteria = INTENTS.get(department, INTENTS["general"])
-    return {
-        "intent": {
-            "type": "choice",
-            "instructions": (
-                f"What does the caller need from the {department.replace('_', ' ')} department? "
-                "Pick the single closest option."
-            ),
-            "criteria": criteria,
-        }
-    }
-
+DESTINATION_QUESTION: Dict = PROFILE.destination_question()
 
 # --------------------------------------------------------------------------- slots
-LOCATIONS: Dict[str, str] = {
-    "downtown": "the caller said downtown",
-    "northside": "the caller said northside",
-    "airport": "the caller said airport",
-    "westside": "the caller said westside",
-    "not_stated": "the caller has not named a location",
-}
+LOCATIONS: Dict[str, str] = {loc["key"]: loc["description"] for loc in PROFILE.locations}
 
 VEHICLES: Dict[str, str] = {
     "sedan": "the caller said a car or sedan",
@@ -213,13 +93,9 @@ SLOT_QUESTIONS: Dict = {
     },
 }
 
-# The first pass each turn: department + slots, all answerable without knowing the branch.
-# There is deliberately no model "what should I do next?" question here. Measured, the base
-# checkpoints answer it at confidence 0.03 and pick the same option almost regardless of input
-# (see scripts/probe_slots.py), so control flow is a deterministic policy instead — see
-# next_action_for(). The classifier decides *understanding*; policy decides *control flow*.
+# First pass each turn: destination + slots, all answerable without knowing the branch.
 PASS1_QUESTIONS: Dict = {
-    **DEPARTMENT_QUESTION,
+    **DESTINATION_QUESTION,
     "vehicle": SLOT_QUESTIONS["vehicle"],
     "location": SLOT_QUESTIONS["location"],
     "time_preference": SLOT_QUESTIONS["time_preference"],
@@ -227,9 +103,6 @@ PASS1_QUESTIONS: Dict = {
     "needs_human": SLOT_QUESTIONS["needs_human"],
 }
 
-# Run alongside the still-unresolved questions from turn 2 on. If it fires, the facts we had
-# pinned (department, intent, urgency) are re-evaluated; if it does not, we skip them. One extra
-# question buys the right to skip several.
 CHANGE_QUESTION: Dict = {
     "changed": {
         "type": "noul",
@@ -239,23 +112,63 @@ CHANGE_QUESTION: Dict = {
         ),
     }
 }
-
 CHANGE_FLAG = 0.5
-
-# --------------------------------------------------------------------------- verification
-# A second opinion on a low-confidence *classification* question. Measured: re-asking with a
-# narrowed option set does not improve accuracy — it re-rolls the answer and inflates confidence
-# (a wrong `body_shop` at 0.73 replacing a `service` at 0.37), which is worse than not escalating
-# at all. So tier 2 verifies with a paraphrase and never overturns the primary answer.
-ESCALATION_MIN_OPTIONS = 4
 
 # A choice answer equal to one of these means "the caller has not said", so it must never be
 # pinned — it is exactly the thing a later turn is supposed to resolve.
 UNRESOLVED_SENTINELS = {"not_stated"}
+ESCALATION_MIN_OPTIONS = 4
+
+
+def destination_question_paraphrase() -> Dict:
+    """A second, independently-worded version of the destination question, used to *verify* a
+    low-confidence answer rather than to replace it.
+
+    Measured: re-asking with a narrowed option set does not improve accuracy — it re-rolls the
+    answer and inflates confidence. Agreement between two phrasings is a signal; a second roll of
+    the same question is not.
+    """
+    return {
+        "destination": {
+            "type": "choice",
+            "instructions": (
+                "Where does this caller's work belong — which team actually does it?"
+            ),
+            "criteria": DESTINATIONS,
+        }
+    }
+
+
+def subqueue_question(destination: str) -> Optional[Dict[str, Any]]:
+    return PROFILE.subqueue_question(destination)
+
+
+def subqueue_question_paraphrase(destination: str) -> Optional[Dict[str, Any]]:
+    subs = PROFILE.subqueues_for(destination)
+    if not subs:
+        return None
+    dest = PROFILE.destination(destination)
+    return {
+        "subqueue": {
+            "type": "choice",
+            "instructions": (
+                f"Which {dest.label.lower() if dest else destination} queue should take this?"
+            ),
+            "criteria": {s.key: s.description for s in subs},
+        }
+    }
+
+
+def intent_question(destination: str) -> Dict:
+    """Deprecated alias kept for the generator/teacher, which call it per branch."""
+    return subqueue_question(destination)
+
+
+def intent_question_paraphrase(destination: str) -> Optional[Dict]:
+    return subqueue_question_paraphrase(destination)
+
 
 # --------------------------------------------------------------------------- next action
-# Deterministic control flow. The model is not asked this: it answered at confidence 0.03 and
-# effectively ignored the input (scripts/probe_slots.py).
 NEXT_ACTION_LABELS: Dict[str, str] = {
     "ask_vehicle": "we do not yet know what kind of vehicle this is",
     "ask_location": "we do not yet know which location the caller wants",
@@ -265,10 +178,33 @@ NEXT_ACTION_LABELS: Dict[str, str] = {
     "offer_transfer": "this is outside the routine booking flow; hand to a person",
 }
 
+# The agent must NOT read out the classifier's option list — measured, the spoken question leaks
+# into the transcript the model then classifies and biases the slot answer.
+RESPONSES: Dict[str, str] = {
+    "ask_vehicle": "Thanks. What kind of vehicle is it?",
+    "ask_location": "Got it — which of our locations works best for you?",
+    "ask_time": "When would you like to come in?",
+    "ask_detail": "I want to make sure we book the right thing — could you tell me a little more about what the vehicle is doing?",
+    "confirm_booking": "Perfect, I have everything I need. I'm booking you into {destination} at {location} for {time}.",
+    "offer_transfer": "Let me get you straight to the right team so nobody has to wait.",
+}
 
-def next_action_for(missing: List[str], department: str, unsafe: float) -> str:
+REQUIRED_SLOTS = ("vehicle", "location", "time_preference")
+
+# Destinations where booking an appointment is not the outcome: hand to a person instead.
+TRANSFER_DESTINATIONS = {"non_customer"}
+
+
+def slot_applies(destination: Optional[str], slot: str) -> bool:
+    """Slots only matter for destinations that end in an appointment."""
+    if destination in TRANSFER_DESTINATIONS:
+        return False
+    return slot in REQUIRED_SLOTS
+
+
+def next_action_for(missing: List[str], destination: str, unsafe: float) -> str:
     """The switchboard's next step, as policy over the classifier's understanding."""
-    if department == "general" or unsafe >= UNSAFE_FLAG:
+    if destination == "non_customer" or unsafe >= UNSAFE_FLAG:
         return "offer_transfer"
     if not missing:
         return "confirm_booking"
@@ -276,96 +212,86 @@ def next_action_for(missing: List[str], department: str, unsafe: float) -> str:
     return "ask_time" if slot == "time_preference" else "ask_" + slot
 
 
-# The agent must NOT read out the classifier's option list. Measured: when the switchboard asked
-# "today, tomorrow, later this week, or next week?", the slot classifier started answering with
-# one of those words even when the caller had said nothing — the question itself was leaking into
-# the transcript it classifies. The options still appear as chips in the UI; they are just not
-# spoken.
-RESPONSES: Dict[str, str] = {
-    "ask_vehicle": "Thanks. What kind of vehicle is it?",
-    "ask_location": "Got it — which of our locations works best for you?",
-    "ask_time": "When would you like to come in?",
-    "ask_detail": "I want to make sure we book the right thing — could you tell me a little more about what the vehicle is doing?",
-    "confirm_booking": "Perfect, I have everything I need. I'm booking you into {department} at {location} for {time}.",
-    "offer_transfer": "Let me get you straight to the right team so nobody has to wait.",
-}
-
-REQUIRED_SLOTS = ("vehicle", "location", "time_preference")
-
-# --------------------------------------------------------------------------- routing
-QUEUES: Dict[str, str] = {
-    "service": "Service Department",
-    "body_shop": "Body Shop",
-    "parts": "Parts Counter",
-    "tires": "Tire Bay",
-    "detailing": "Detailing",
-    "sales": "Sales Floor",
-    "finance": "Finance & Insurance",
-    "towing": "Roadside / Towing",
-    "general": "Front Desk",
-}
-
-# Roadside requests always go to dispatch, whatever the department said.
-SPECIAL_QUEUES: Dict[tuple, str] = {
-    ("tires", "flat"): "Roadside / Towing",
-    ("service", "no_start"): "Roadside / Towing",
-}
-
+# --------------------------------------------------------------------------- routing policy
 UNSAFE_FLAG = 0.5
 NEEDS_HUMAN_FLAG = 0.5
 
 
 def decide(answers: Dict, missing: List[str]) -> Dict:
-    """Terminal routing outcome from the accumulated answers."""
+    """Terminal routing outcome: destination + optional sub-queue -> queue, priority, handler."""
 
     def pick(qid):
         ans = answers.get(qid)
         if not isinstance(ans, dict):
             return None
-        return ans.get("choice") if ans.get("type") == "choice" else (
-            ans.get("noul") if ans.get("type") == "noul" else ans.get("score")
-        )
+        if ans.get("type") == "choice":
+            return ans.get("choice")
+        if ans.get("type") == "noul":
+            return ans.get("noul")
+        return ans.get("score")
 
     def prob(qid) -> float:
         v = pick(qid)
         return float(v) if isinstance(v, (int, float)) else 0.0
 
-    department = pick("department") or "general"
-    intent = pick("intent") or "other"
+    destination = pick("destination")
+    if destination not in DESTINATIONS:
+        destination = None
+    subqueue = pick("subqueue")
+    if PROFILE.subqueue(destination, subqueue) is None:
+        subqueue = None
     unsafe = prob("is_safe_to_drive")
     needs_human = prob("needs_human")
 
-    flags: List[str] = []
+    flags: List[str] = list(PROFILE.flags_for(destination, subqueue))
     if unsafe >= UNSAFE_FLAG:
         flags.append("unsafe_to_drive")
     if needs_human >= NEEDS_HUMAN_FLAG:
         flags.append("needs_human")
-    if department == "general":
-        flags.append("out_of_scope")
     if missing:
         flags.append("missing_info")
 
-    queue = SPECIAL_QUEUES.get((department, intent), QUEUES.get(department, QUEUES["general"]))
-    if unsafe >= UNSAFE_FLAG:
-        queue = "Roadside / Towing"
-        flags.append("dispatch")
+    # Roadside is a policy outcome, never a destination: a stranded caller is dispatched whichever
+    # department owns the work.
+    roadside = PROFILE.policy.get("roadside_flag", "roadside_dispatch")
+    if roadside in flags or unsafe >= PROFILE.policy.get("unsafe_threshold", UNSAFE_FLAG):
+        queue = PROFILE.policy.get("roadside_queue", "Roadside / Towing")
+        if "dispatch" not in flags:
+            flags.append("dispatch")
+    else:
+        queue = PROFILE.queue_for(destination, subqueue)
 
-    priority = "HIGH" if (unsafe >= UNSAFE_FLAG or needs_human >= NEEDS_HUMAN_FLAG) else "NORMAL"
-    handler = "human" if (needs_human >= NEEDS_HUMAN_FLAG or unsafe >= UNSAFE_FLAG) else "auto"
+    priority = "HIGH" if (unsafe >= UNSAFE_FLAG or "dispatch" in flags) else "NORMAL"
+
+    sub = PROFILE.subqueue(destination, subqueue)
+    dest = PROFILE.destination(destination)
+    handler = "auto"
+    if needs_human >= PROFILE.policy.get("needs_human_threshold", NEEDS_HUMAN_FLAG):
+        handler = "human"
+    for obj in (sub, dest):
+        if obj is not None and getattr(obj, "handler", "route") == "human":
+            handler = "human"
+    if unsafe >= UNSAFE_FLAG:
+        handler = "human"
+
+    where = destination or "unknown"
+    if subqueue:
+        where += f"/{subqueue}"
+    reasons = [
+        f"destination={where}",
+        f"is_safe_to_drive={unsafe:.2f}",
+        f"needs_human={needs_human:.2f}",
+        ("still missing: " + ", ".join(missing)) if missing else "all required slots filled",
+    ]
 
     return {
         "queue": queue,
         "priority": priority,
         "handler": handler,
         "flags": flags,
-        "department": department,
-        "intent": intent,
-        "reasons": [
-            f"department={department}, intent={intent}",
-            f"is_safe_to_drive={unsafe:.2f}",
-            f"needs_human={needs_human:.2f}",
-            ("still missing: " + ", ".join(missing)) if missing else "all required slots filled",
-        ],
+        "destination": destination,
+        "subqueue": subqueue,
+        "reasons": reasons,
     }
 
 
@@ -381,9 +307,7 @@ _TIME_RE = re.compile(
 def extract_time(text: str) -> str | None:
     """Deterministic clock/day extraction. Labelled as `extract` in the UI, not a model decision."""
     m = _TIME_RE.search(text)
-    if not m:
-        return None
-    return m.group(0).strip()
+    return m.group(0).strip() if m else None
 
 
 def display_name(key: str) -> str:

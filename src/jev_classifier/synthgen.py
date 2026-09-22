@@ -19,8 +19,12 @@ import re
 import threading
 from typing import Any, Dict, Iterable, List, Set
 
-from . import dealership as D
+from . import store_profile as SP
 from . import llm
+
+PROFILE = SP.load()
+DESTINATIONS = {d.key: d.description for d in PROFILE.destinations}
+SUBQUEUE_DESCRIPTIONS = {(s.parent, s.key): s.description for s in PROFILE.subqueues}
 
 # Diversity axes. Each generation call is given one, and they rotate, so the corpus covers
 # register and shape rather than repeating one voice.
@@ -53,7 +57,7 @@ _WS = re.compile(r"\s+")
 
 
 def generation_prompt(
-    department: str, intent: str, n: int, style: str, vague: bool = False, mode: str = "normal"
+    destination: str, subqueue: str, n: int, style: str, vague: bool = False, mode: str = "normal"
 ) -> str:
     if mode == "offtopic":
         # The synthetic set is all "plausible calls about a car or the dealership", so it contains
@@ -76,8 +80,8 @@ def generation_prompt(
         # every undersized intent in the first run was an `other`. To generate real positives you
         # ask for the *shape* that lands there: too vague, too mixed, or off-topic to place.
         return (
-            f"Department: {department} — {D.DEPARTMENTS.get(department, '')}\n"
-            f"Category: {intent} — {D.INTENTS.get(department, {}).get(intent, '')}\n\n"
+            f"Area: {destination} — {DESTINATIONS.get(destination, '')}\n"
+            f"What they want: {subqueue} — {SUBQUEUE_DESCRIPTIONS.get((destination, subqueue), '')}\n\n"
             f"Write {n} different things a caller might say that a {department.replace('_', ' ')} "
             "switchboard could NOT confidently place in a specific category. Make them genuinely "
             "unclear, too vague, mixed across several problems, or only tangentially related. "
@@ -85,8 +89,8 @@ def generation_prompt(
             f"Write them {style}. Return JSON only."
         )
     return (
-        f"Department: {department} — {D.DEPARTMENTS.get(department, '')}\n"
-        f"What the caller wants: {intent} — {D.INTENTS.get(department, {}).get(intent, '')}\n\n"
+        f"Area: {destination} — {DESTINATIONS.get(destination, '')}\n"
+        f"What the caller wants: {subqueue} — {SUBQUEUE_DESCRIPTIONS.get((destination, subqueue), '')}\n\n"
         f"Write {n} different things a caller might say that belong in this category. "
         f"Write them {style}. Each must be self-contained (the caller's first utterance). "
         "Return JSON only."
@@ -94,8 +98,8 @@ def generation_prompt(
 
 
 def generate(
-    department: str,
-    intent: str,
+    destination: str,
+    subqueue: str,
     n: int,
     style: str,
     *,
@@ -110,16 +114,16 @@ def generate(
     prompt for other residual classes, and the normal prompt otherwise.
     """
     if mode == "auto":
-        if department == "general" and intent == "other":
+        if destination == "non_customer" and subqueue == "wrong_number":
             mode = "offtopic"
-        elif intent == "other":
+        elif subqueue == "other":
             mode = "vague"
         else:
             mode = "normal"
     vague = mode == "vague"
     call = llm.chat_json(
         GENERATION_SYSTEM,
-        generation_prompt(department, intent, n, style, vague=vague, mode=mode),
+        generation_prompt(destination, subqueue, n, style, vague=vague, mode=mode),
         {
             "type": "object",
             "properties": {"utterances": {"type": "array", "items": {"type": "string"}}},

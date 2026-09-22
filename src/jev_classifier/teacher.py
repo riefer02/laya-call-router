@@ -3,60 +3,72 @@
 One place so the teacher-validation gate and the training-set generator cannot drift apart — if
 they used different prompts, the measured agreement would not describe the labels we actually
 train on.
+
+The taxonomy comes from the store profile, so relabelling against a different store needs no code
+change here.
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from . import dealership as D
-from . import labels, llm
+from . import labels, llm, store_profile as SP
 
-ALL_INTENTS = sorted({name for branch in D.INTENTS.values() for name in branch})
+PROFILE = SP.load()
+DESTINATIONS = PROFILE.destination_keys
+ALL_SUBQUEUES = sorted({s.key for s in PROFILE.subqueues})
 
 SCHEMA: Dict[str, Any] = {
     "type": "object",
     "properties": {
-        "department": {"type": "string", "enum": list(D.DEPARTMENTS)},
-        "intent": {"type": "string", "enum": ALL_INTENTS},
+        "destination": {"type": "string", "enum": list(DESTINATIONS)},
+        "subqueue": {"type": "string", "enum": ALL_SUBQUEUES},
     },
-    "required": ["department", "intent"],
+    "required": ["destination", "subqueue"],
     "additionalProperties": False,
 }
+
+_SUBQUEUE_MENU = "\n".join(
+    f"  {d.key}: " + (", ".join(PROFILE.subqueue_keys(d.key)) or "(no sub-queues; use 'other')")
+    for d in PROFILE.destinations
+)
+_DEST_MENU = "\n".join(f"  {d.key}: {d.description}" for d in PROFILE.destinations)
 
 # Deliberately blunt. Measured: told only "return JSON with department and intent", DeepSeek
 # answered `"body shop"` and invented `"schedule body work"`; the exact-string instruction below
 # is what actually moves it into our vocabulary.
 _SYSTEM = (
     "You label car-dealership phone calls for a routing classifier.\n\n"
-    "Return a JSON object with exactly two keys: department and intent.\n\n"
-    "department MUST be exactly one of: " + ", ".join(D.DEPARTMENTS) + ".\n\n"
-    "intent MUST be exactly one of the strings listed for the chosen department:\n"
-    + "\n".join(f"  {dept}: " + ", ".join(branch) for dept, branch in D.INTENTS.items())
-    + "\n\nCopy values exactly as written: lowercase, underscores, no spaces, nothing invented. "
+    "Return a JSON object with exactly two keys: destination and subqueue.\n\n"
+    "destination is which part of the dealership owns the work:\n"
+    f"{_DEST_MENU}\n\n"
+    "subqueue is the queue within that destination:\n"
+    f"{_SUBQUEUE_MENU}\n\n"
+    "Important: tyres and detailing are sub-queues of service, NOT destinations. Roadside "
+    "assistance is a service sub-queue, not a destination. A caller who is a supplier, a job "
+    "applicant or a wrong number is destination non_customer.\n\n"
+    "Copy values exactly as written: lowercase, underscores, no spaces, nothing invented. "
     "Reply with JSON only."
 )
 
-
-def system_prompt() -> str:
-    return _SYSTEM
-
-
-# A second, independently-worded labelling prompt. Two phrasings agreeing is evidence; one
-# phrasing twice is not. Used to filter generated training data.
 _SYSTEM_ALT = (
-    "You are auditing incoming dealership phone calls for the department that should handle them.\n\n"
-    "Decide two things and return them as JSON keys department and intent.\n\n"
-    "Permitted departments (use the string verbatim): " + ", ".join(D.DEPARTMENTS) + ".\n\n"
-    "Permitted intents, grouped by the department they belong to:\n"
-    + "\n".join(f"  {dept}: " + ", ".join(branch) for dept, branch in D.INTENTS.items())
-    + "\n\nUse the exact strings, lower case, with underscores. Do not add keys or commentary. "
+    "You are auditing incoming dealership phone calls for the team that should handle them.\n\n"
+    "Decide two things and return them as JSON keys destination and subqueue.\n\n"
+    "Which part of the dealership owns the work:\n"
+    f"{_DEST_MENU}\n\n"
+    "Which queue within it:\n"
+    f"{_SUBQUEUE_MENU}\n\n"
+    "Use the exact strings, lower case, with underscores. Do not add keys or commentary. "
     "Output JSON only."
 )
 
 
-def labelling_prompt(variant: int = 1) -> str:
+def system_prompt(variant: int = 1) -> str:
     return _SYSTEM if variant == 1 else _SYSTEM_ALT
+
+
+def labelling_prompt(variant: int = 1) -> str:
+    return system_prompt(variant)
 
 
 def label(
@@ -77,13 +89,16 @@ def label(
         thinking=thinking,
     )
     raw = call["data"] if isinstance(call.get("data"), dict) else {}
-    department, intent, ok = labels.validate_label(raw.get("department"), raw.get("intent"))
+    destination, subqueue, ok = labels.validate_label(
+        labels.field(raw, "destination", "dept", "department"),
+        labels.field(raw, "subqueue", "sub_queue", "intent"),
+    )
     return {
-        "department": department,
-        "intent": intent,
+        "destination": destination,
+        "subqueue": subqueue,
         "valid": ok,
-        "raw_department": raw.get("department"),
-        "raw_intent": raw.get("intent"),
+        "raw_destination": labels.field(raw, "destination", "dept", "department"),
+        "raw_subqueue": labels.field(raw, "subqueue", "sub_queue", "intent"),
         "latency_ms": call["latency_ms"],
         "usage": call["usage"],
         "provider": call["provider"],

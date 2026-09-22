@@ -114,8 +114,8 @@ def main() -> None:
     arms = ["laya"] + (["cascade-ft"] if ft_routing is not None else []) + [short(r) for r in refs]
     rows = []
     for label, key in [
-        ("department accuracy", "department_accuracy"),
-        ("intent accuracy", "intent_accuracy"),
+        ("destination accuracy", "destination_accuracy"),
+        ("sub-queue accuracy", "subqueue_accuracy"),
         ("joint accuracy", "joint_accuracy"),
         ("invalid labels", "invalid_labels"),
         ("p50 latency (ms)", "_p50"),
@@ -134,20 +134,20 @@ def main() -> None:
                 row.append(f"{s['latency_ms']['p95']}")
             elif key == "determinism":
                 row.append(f"{s.get('determinism', 1.0):.2f}")
-            elif key in ("department_accuracy", "intent_accuracy", "joint_accuracy"):
+            elif key in ("destination_accuracy", "subqueue_accuracy", "joint_accuracy"):
                 row.append(f"{s[key]:.3f}")
             else:
                 row.append(str(s.get(key, "")))
         rows.append(row)
     print()
-    print(H.render(f"DECISION LEVEL  ({len(routing)} cases: department + intent)", rows, ["metric", *arms]))
+    print(H.render(f"DECISION LEVEL  ({len(routing)} cases: destination + sub-queue)", rows, ["metric", *arms]))
 
     for arm_name in [a for a in arms if a in report["routing"]]:
         gate = report["routing"][arm_name].get("gate") or {}
         if not gate:
             continue
         print(
-            f"\nGATE QUALITY ({arm_name}) — escalate when department confidence < {gate.get('threshold')}\n"
+            f"\nGATE QUALITY ({arm_name}) — escalate when destination confidence < {gate.get('threshold')}\n"
             f"  errors {gate.get('errors')} · flagged {gate.get('flagged')} ({gate.get('flag_rate'):.1%})"
             f" · caught {gate.get('errors_caught')} (recall {gate.get('recall')})\n"
             f"  accuracy when confident {gate.get('accuracy_when_confident')}"
@@ -235,7 +235,7 @@ def main() -> None:
     for arm in ["laya"] + [short(r) for r in refs]:
         misses = report["routing"][arm]["misses"]
         if misses:
-            print(f"\n{arm} department misses ({len(misses)}):")
+            print(f"\n{arm} destination misses ({len(misses)}):")
             for m in misses[:10]:
                 print(f"  {m['id']:9s} expected {str(m['expected']):11s} got {str(m.get('got'))}")
 

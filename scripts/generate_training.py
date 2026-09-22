@@ -2,8 +2,9 @@
 
 Quality bar (the dataset does not ship unless every line passes):
 
-    every intent >= --min-per-intent          (default 25)
-    every department >= --min-per-department  (default 100)
+    every specific sub-queue >= --min-per-subqueue
+    every destination >= (its specific sub-queues) x --min-per-subqueue
+    residual 'other' sub-queues are reported, not gated (they are the branch fallback)
     100% of labels inside our vocabulary
     zero near-duplicates of the held-out hand-labelled cases
     both labelling phrasings agreed on 100% of kept rows
@@ -12,8 +13,8 @@ Candidates come from the teacher, but a candidate only becomes a training exampl
 independently-worded labelling passes agree with each other *and* with the intended target. That
 filter is the whole point: it removes exactly the cases the teacher is unsure about.
 
-    uv run python scripts/generate_training.py --per-intent 6 --out data/calls/pilot.jsonl
-    uv run python scripts/generate_training.py --per-intent 50
+    uv run python scripts/generate_training.py --per-subqueue 6 --out data/calls/pilot.jsonl
+    uv run python scripts/generate_training.py --per-subqueue 50
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from typing import Any, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from jev_classifier import dealership as D
+from jev_classifier import labels
 from jev_classifier import evalharness as H
 from jev_classifier import llm, synthgen, teacher
 
@@ -37,8 +39,8 @@ BATCH = 6
 
 
 def make_pair(
-    department: str,
-    intent: str,
+    destination: str,
+    subqueue: str,
     target: int,
     provider: str,
     model: str,
@@ -47,7 +49,7 @@ def make_pair(
 ) -> Dict[str, Any]:
     kept: List[dict] = list(seed_kept or [])
     stats = {"generated": 0, "dup": 0, "invalid": 0, "disagreed": 0, "mismatch": 0, "rounds": 0, "cost": 0.0}
-    style_i = abs(hash((department, intent))) % len(synthgen.STYLES)
+    style_i = abs(hash((destination, subqueue))) % len(synthgen.STYLES)
 
     for _ in range(rounds):
         if len(kept) >= target:
@@ -57,7 +59,7 @@ def make_pair(
         style_i += 1
         try:
             utterances, meta = synthgen.generate(
-                department, intent, BATCH, style, provider=provider, model=model
+                destination, subqueue, BATCH, style, provider=provider, model=model
             )
             stats["cost"] += teacher.cost_of({"usage": meta["usage"], "provider": provider, "model": model}) or 0.0
         except Exception as exc:  # noqa: BLE001
@@ -83,23 +85,23 @@ def make_pair(
             if not (l1["valid"] and l2["valid"]):
                 stats["invalid"] += 1
                 continue
-            if (l1["department"], l1["intent"]) != (l2["department"], l2["intent"]):
+            if (l1["destination"], l1["subqueue"]) != (l2["destination"], l2["subqueue"]):
                 stats["disagreed"] += 1
                 continue
-            if (l1["department"], l1["intent"]) != (department, intent):
+            if (l1["destination"], l1["subqueue"]) != (destination, subqueue):
                 stats["mismatch"] += 1
                 continue
             kept.append(
                 {
                     "text": text,
-                    "department": department,
-                    "intent": intent,
+                    "destination": destination,
+                    "subqueue": subqueue,
                     "style": style,
                     "agreed": True,
                     "teacher": {"provider": provider, "model": model},
                 }
             )
-    return {"department": department, "intent": intent, "kept": kept, "stats": stats}
+    return {"destination": destination, "subqueue": subqueue, "kept": kept, "stats": stats}
 
 
 DEDUPER: synthgen.Deduper
@@ -108,17 +110,17 @@ DEDUPER: synthgen.Deduper
 def main() -> int:
     global DEDUPER
     ap = argparse.ArgumentParser()
-    ap.add_argument("--per-intent", type=int, default=50)
+    ap.add_argument("--per-subqueue", type=int, default=50)
     ap.add_argument("--rounds", type=int, default=6)
     ap.add_argument("--provider", default="deepseek")
     ap.add_argument("--model", default="")
     ap.add_argument("--concurrency", type=int, default=5)
-    ap.add_argument("--min-per-intent", type=int, default=25)
+    ap.add_argument("--min-per-subqueue", type=int, default=25)
     ap.add_argument("--resume", action="store_true", default=True,
                     help="reuse validated rows already on disk and top up only the shortfalls")
     ap.add_argument("--no-resume", dest="resume", action="store_false")
     ap.add_argument("--only", action="append", default=[],
-                    help="restrict to DEPT/INTENT (repeatable), e.g. --only general/other")
+                    help="restrict to DEST/SUBQUEUE (repeatable), e.g. --only service/tires")
     ap.add_argument("--dev-fraction", type=float, default=0.1)
     ap.add_argument("--out", default="data/calls/synthetic.jsonl")
     ap.add_argument("--dev-out", default="data/calls/synthetic_dev.jsonl")
@@ -147,9 +149,9 @@ def main() -> int:
     DEDUPER = synthgen.Deduper(protected=protected + [r["text"] for r in existing], threshold=0.6)
     seeded: Dict[tuple, List[dict]] = defaultdict(list)
     for row in existing:
-        seeded[(row["department"], row["intent"])].append(row)
+        seeded[(row["destination"], row.get("subqueue"))].append(row)
 
-    all_pairs = [(d, i) for d, branch in D.INTENTS.items() for i in branch]
+    all_pairs = [(s.parent, s.key) for s in D.PROFILE.subqueues]
     pairs = all_pairs
     if args.only:
         wanted = {tuple(o.split("/", 1)) for o in args.only if "/" in o}
@@ -157,8 +159,8 @@ def main() -> int:
         if unknown:
             raise SystemExit(f"unknown --only targets: {sorted(unknown)}")
         pairs = [p for p in pairs if p in wanted]
-    short = [(d, i) for d, i in pairs if len(seeded[(d, i)]) < args.per_intent]
-    print(f"generating: {len(short)}/{len(pairs)} pairs below target x {args.per_intent} "
+    short = [(d, i) for d, i in pairs if len(seeded[(d, i)]) < args.per_subqueue]
+    print(f"generating: {len(short)}/{len(pairs)} pairs below target x {args.per_subqueue} "
           f"({provider}:{model})")
     print(f"held out from training: {len(protected)} hand-labelled cases "
           f"(near-duplicate guard at Jaccard >= 0.6)\n")
@@ -166,7 +168,7 @@ def main() -> int:
     results: List[Dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         futures = {
-            pool.submit(make_pair, d, i, args.per_intent, provider, model, args.rounds, seeded[(d, i)]): (d, i)
+            pool.submit(make_pair, d, i, args.per_subqueue, provider, model, args.rounds, seeded[(d, i)]): (d, i)
             for d, i in short
         }
         done = 0
@@ -186,8 +188,8 @@ def main() -> int:
     rows = [row for r in results for row in r["kept"]]
     random.Random(20260922).shuffle(rows)
 
-    by_intent = Counter((r["department"], r["intent"]) for r in rows)
-    by_dept = Counter(r["department"] for r in rows)
+    by_intent = Counter((r["destination"], r.get("subqueue")) for r in rows)
+    by_dept = Counter(r["destination"] for r in rows)
     stats = {
         k: sum(r["stats"].get(k, 0) for r in results)
         for k in ("generated", "dup", "invalid", "disagreed", "mismatch", "rounds")
@@ -201,26 +203,33 @@ def main() -> int:
     # "other" examples, i.e. teach the model to answer `other` for things that have a better label.
     # Coverage is therefore required of the *specific* intents, and a department's requirement
     # scales with how many specific intents it actually has.
-    specific = {d: [i for i in branch if i != "other"] for d, branch in D.INTENTS.items()}
+    specific = {
+        d.key: [s for s in D.PROFILE.subqueue_keys(d.key) if s != "other"]
+        for d in D.PROFILE.destinations
+    }
     problems: List[str] = []
-    for (dept, intent), n in by_intent.items():
-        if intent == "other":
+    for (dest, sub), n in by_intent.items():
+        if sub == "other":
             continue
-        if n < args.min_per_intent:
-            problems.append(f"intent {dept}/{intent} has {n} < {args.min_per_intent}")
-    for dept, n in by_dept.items():
-        required = max(1, len(specific[dept])) * args.min_per_intent
+        if n < args.min_per_subqueue:
+            problems.append(f"sub-queue {dest}/{sub} has {n} < {args.min_per_subqueue}")
+    for dest, n in by_dept.items():
+        required = max(1, len(specific[dest])) * args.min_per_subqueue
         if n < required:
-            problems.append(f"department {dept} has {n} < {required} (={len(specific[dept])} specific intents x {args.min_per_intent})")
-    for dept, intents in specific.items():
-        for intent in intents:
-            if (dept, intent) not in by_intent:
-                problems.append(f"specific intent {dept}/{intent} has 0 examples")
-    missing_others = [f"{d}/other" for d in D.DEPARTMENTS if (d, "other") not in by_intent]
+            problems.append(f"destination {dest} has {n} < {required} (={len(specific[dest])} specific sub-queues x {args.min_per_subqueue})")
+    for dest, subs in specific.items():
+        for sub in subs:
+            if (dest, sub) not in by_intent:
+                problems.append(f"specific sub-queue {dest}/{sub} has 0 examples")
+    missing_others = [
+        f"{d.key}/other" for d in D.PROFILE.destinations if (d.key, "other") not in by_intent
+    ]
     if any(not r["agreed"] for r in rows):
         problems.append("some rows were not double-agreement filtered")
-    invalid = [r for r in rows if r["department"] not in D.DEPARTMENTS
-               or r["intent"] not in D.INTENTS.get(r["department"], {})]
+    invalid = [
+        r for r in rows
+        if not labels.validate_label(r["destination"], r.get("subqueue"))[2]
+    ]
     if invalid:
         problems.append(f"{len(invalid)} rows have out-of-vocabulary labels")
     # explicit re-check: nothing may be near-identical to the held-out set
@@ -242,14 +251,14 @@ def main() -> int:
         "model": model,
         "kept": n,
         "stats": stats,
-        "by_intent": {f"{d}/{i}": c for (d, i), c in sorted(by_intent.items())},
-        "by_department": dict(sorted(by_dept.items())),
+        "by_subqueue": {f"{d}/{i}": c for (d, i), c in sorted(by_intent.items())},
+        "by_destination": dict(sorted(by_dept.items())),
         "cost_usd": round(cost, 6),
         "problems": problems,
         "residual_missing": missing_others,
         "criteria": {
-            "min_per_intent_specific": args.min_per_intent,
-            "min_per_department": "max(1, n_specific_intents) x min_per_intent",
+            "min_per_subqueue_specific": args.min_per_subqueue,
+            "min_per_destination": "max(1, n_specific_subqueues) x min_per_subqueue",
             "residual_intents_gated": False,
             "dev_fraction": args.dev_fraction,
         },
@@ -273,9 +282,9 @@ def main() -> int:
     print(f"  dropped disagree   {stats['disagreed']}  (two phrasings disagreed)")
     print(f"  dropped mismatch   {stats['mismatch']}  (label != intended target)")
     print(f"train / dev          {len(train)} / {len(dev)}")
-    print(f"departments          {dict(sorted(by_dept.items()))}")
+    print(f"destinations         {dict(sorted(by_dept.items()))}")
     print(f"intents covered      {len(by_intent)}/{len(all_pairs)} ({len(missing_others)} residual-only missing)")
-    print(f"min specific intent  {min((v for k, v in by_intent.items() if k[1] != 'other'), default=0)}")
+    print(f"min specific sub-q   {min((v for k, v in by_intent.items() if k[1] != 'other'), default=0)}")
     print(f"residual (other)     {sum(v for k, v in by_intent.items() if k[1] == 'other')} "
           f"across {len([k for k in by_intent if k[1] == 'other'])} departments (not gated)")
     print(f"total cost           ${cost:.4f}")

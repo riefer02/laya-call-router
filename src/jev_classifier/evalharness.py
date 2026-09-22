@@ -32,14 +32,16 @@ from concurrent.futures import ThreadPoolExecutor
 
 from . import dealership as D
 from . import labels, llm
+from . import store_profile as SP
 from .agent import get_router
 from .call import CallSession
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data" / "calls"
 
-DEPARTMENT_LIST = list(D.DEPARTMENTS)
-ALL_INTENTS = sorted({name for branch in D.INTENTS.values() for name in branch})
+PROFILE = SP.load()
+DESTINATION_LIST = list(PROFILE.destination_keys)
+ALL_SUBQUEUES = sorted({s.key for s in PROFILE.subqueues})
 
 
 # --------------------------------------------------------------------------- ground truth
@@ -47,8 +49,8 @@ ALL_INTENTS = sorted({name for branch in D.INTENTS.values() for name in branch})
 class RoutingCase:
     id: str
     text: str
-    department: str
-    intent: str
+    destination: str
+    subqueue: Optional[str] = None
 
 
 @dataclass
@@ -56,21 +58,24 @@ class CallCase:
     id: str
     label: str
     turns: List[str]
-    department: str
-    intent: str
+    destination: str
     queue: str
+    subqueue: Optional[str] = None
 
 
 def load_routing(path: Optional[Path] = None) -> List[RoutingCase]:
     rows = _read_jsonl(path or DATA / "routing.jsonl")
-    _validate(rows, {"id", "text", "department", "intent"}, "routing")
-    return [RoutingCase(r["id"], r["text"], r["department"], r["intent"]) for r in rows]
+    _validate(rows, {"id", "text", "destination"}, "routing")
+    return [RoutingCase(r["id"], r["text"], r["destination"], r.get("subqueue")) for r in rows]
 
 
 def load_calls(path: Optional[Path] = None) -> List[CallCase]:
     rows = _read_jsonl(path or DATA / "scripts.jsonl")
-    _validate(rows, {"id", "label", "turns", "department", "intent", "queue"}, "calls")
-    return [CallCase(r["id"], r["label"], r["turns"], r["department"], r["intent"], r["queue"]) for r in rows]
+    _validate(rows, {"id", "label", "turns", "destination", "queue"}, "calls")
+    return [
+        CallCase(r["id"], r["label"], r["turns"], r["destination"], r["queue"], r.get("subqueue"))
+        for r in rows
+    ]
 
 
 def _read_jsonl(path: Path) -> List[dict]:
@@ -84,12 +89,15 @@ def _validate(rows: Sequence[dict], required: set, what: str) -> None:
         missing = required - row.keys()
         if missing:
             raise ValueError(f"{what} case {row.get('id')!r} is missing {sorted(missing)}")
-        if "department" in row and row["department"] not in D.DEPARTMENTS:
-            raise ValueError(f"{what} case {row['id']!r} has unknown department {row['department']!r}")
-        if "intent" in row and row["intent"] not in D.INTENTS.get(row["department"], {}):
+        if "destination" in row and row["destination"] not in PROFILE.destination_keys:
             raise ValueError(
-                f"{what} case {row['id']!r}: intent {row['intent']!r} is not in the "
-                f"{row['department']!r} branch"
+                f"{what} case {row['id']!r} has unknown destination {row['destination']!r}"
+            )
+        sub = row.get("subqueue")
+        if sub is not None and PROFILE.subqueue(row.get("destination"), sub) is None:
+            raise ValueError(
+                f"{what} case {row['id']!r}: sub-queue {sub!r} is not under "
+                f"{row.get('destination')!r}"
             )
 
 
@@ -98,31 +106,32 @@ def _routing_schema() -> Dict[str, Any]:
     return {
         "type": "object",
         "properties": {
-            "department": {"type": "string", "enum": DEPARTMENT_LIST},
-            "intent": {"type": "string", "enum": ALL_INTENTS},
+            "destination": {"type": "string", "enum": DESTINATION_LIST},
+            "subqueue": {"type": "string", "enum": ALL_SUBQUEUES},
         },
-        "required": ["department", "intent"],
+        "required": ["destination", "subqueue"],
         "additionalProperties": False,
     }
 
 
-def _intent_menu() -> str:
+def _subqueue_menu() -> str:
     lines = []
-    for dept, intents in D.INTENTS.items():
-        lines.append(f"  {dept}: " + ", ".join(intents))
+    for dest in PROFILE.destinations:
+        subs = PROFILE.subqueue_keys(dest.key)
+        lines.append(f"  {dest.key}: " + (", ".join(subs) if subs else "(none)"))
     return "\n".join(lines)
 
 
 def _system_prompt() -> str:
-    depts = "\n".join(f"  {k}: {v}" for k, v in D.DEPARTMENTS.items())
+    depts = "\n".join(f"  {d.key}: {d.description}" for d in PROFILE.destinations)
     return (
         "You are the switchboard for a car dealership. Read the caller's message and decide which "
-        "department should handle it, and what they want.\n\n"
-        f"Departments:\n{depts}\n\n"
-        "Valid intents per department:\n"
-        f"{_intent_menu()}\n\n"
-        "Choose the single closest department and the single closest intent for that department. "
-        "Reply with JSON only."
+        "part of the dealership owns the work, and which queue should take it.\n\n"
+        f"Destinations:\n{depts}\n\n"
+        "Sub-queues per destination:\n"
+        f"{_subqueue_menu()}\n\n"
+        "Tyres, detailing and roadside assistance are sub-queues of service, not destinations. "
+        "Choose the closest destination and the closest sub-queue within it. Reply with JSON only."
     )
 
 
@@ -138,16 +147,19 @@ def run_llm_routing(
                 system, f'Caller: "{case.text}"', schema, provider=provider, model=model
             )
         except Exception as exc:  # noqa: BLE001 - recorded as a failure, not a crash
-            return {"id": case.id, "error": str(exc), "department": None, "intent": None}
+            return {"id": case.id, "error": str(exc), "destination": None, "subqueue": None}
         raw = result["data"] if isinstance(result.get("data"), dict) else {}
-        department, intent, ok = labels.validate_label(raw.get("department"), raw.get("intent"))
+        destination, subqueue, ok = labels.validate_label(
+            labels.field(raw, "destination", "dept", "department"),
+            labels.field(raw, "subqueue", "sub_queue", "intent"),
+        )
         return {
             "id": case.id,
-            "department": department,
-            "intent": intent,
+            "destination": destination,
+            "subqueue": subqueue,
             "valid": ok,
-            "raw_department": raw.get("department"),
-            "raw_intent": raw.get("intent"),
+            "raw_destination": labels.field(raw, "destination", "dept", "department"),
+            "raw_subqueue": labels.field(raw, "subqueue", "sub_queue", "intent"),
             "latency_ms": result["latency_ms"],
             "usage": result["usage"],
             "provider": result["provider"],
@@ -168,12 +180,15 @@ def run_llm_call(
         system, transcript, schema or _routing_schema(), provider=provider, model=model
     )
     raw = result["data"] if isinstance(result.get("data"), dict) else {}
-    department, intent, _ = labels.validate_label(raw.get("department"), raw.get("intent"))
+    destination, subqueue, _ = labels.validate_label(
+        labels.field(raw, "destination", "dept", "department"),
+        labels.field(raw, "subqueue", "sub_queue", "intent"),
+    )
     return {
         "id": case.id,
-        "department": department,
-        "intent": intent,
-        "queue": queue_from(department, intent),
+        "destination": destination,
+        "subqueue": subqueue,
+        "queue": queue_from(destination, subqueue),
         "latency_ms": result["latency_ms"],
         "usage": result["usage"],
         "provider": result["provider"],
@@ -191,27 +206,28 @@ def run_laya_routing(cases: Sequence[RoutingCase], router) -> List[dict]:
     for case in cases:
         try:
             started = time.perf_counter()
-            first = router.predict({"call": case.text}, D.DEPARTMENT_QUESTION)
-            dept = first["answers"]["department"]["choice"]
-            branch = D.intent_question(dept)
-            second = router.predict({"call": case.text}, branch)
+            first = router.predict({"call": case.text}, D.DESTINATION_QUESTION)
+            dest = first["answers"]["destination"]["choice"]
+            ptr = first["usage"]["input_tokens"]
+            sub = None
+            sub_q = D.subqueue_question(dest)
+            if sub_q is not None:
+                second = router.predict({"call": case.text}, sub_q)
+                sub = second["answers"]["subqueue"]["choice"]
+                ptr += second["usage"]["input_tokens"]
             ms = (time.perf_counter() - started) * 1000
-            intent = second["answers"]["intent"]["choice"]
             out.append(
                 {
                     "id": case.id,
-                    "department": dept,
-                    "intent": intent,
+                    "destination": dest,
+                    "subqueue": sub,
                     "latency_ms": ms,
-                    "department_confidence": first["answers"]["department"].get("confidence"),
-                    "usage": {
-                        "prompt_tokens": first["usage"]["input_tokens"] + second["usage"]["input_tokens"],
-                        "completion_tokens": 0,
-                    },
+                    "destination_confidence": first["answers"]["destination"].get("confidence"),
+                    "usage": {"prompt_tokens": ptr, "completion_tokens": 0},
                 }
             )
         except Exception as exc:  # noqa: BLE001
-            out.append({"id": case.id, "error": str(exc), "department": None, "intent": None})
+            out.append({"id": case.id, "error": str(exc), "destination": None, "subqueue": None})
     return out
 
 
@@ -226,8 +242,8 @@ def run_laya_call(case: CallCase, router, *, incremental: bool = True, verify: b
     end = next((e for e in reversed(events) if e["type"] == "call_end"), {})
     return {
         "id": case.id,
-        "department": (session.routing or {}).get("department"),
-        "intent": (session.routing or {}).get("intent"),
+        "destination": (session.routing or {}).get("destination"),
+        "subqueue": (session.routing or {}).get("subqueue"),
         "queue": (session.routing or {}).get("queue"),
         "latency_ms": end.get("compute_ms", 0.0),
         "questions": sum(t["questions"] for t in session.turn_stats),
@@ -270,17 +286,16 @@ def run_hybrid_call(
 
 
 # --------------------------------------------------------------------------- queues
-def queue_from(department: Optional[str], intent: Optional[str]) -> Optional[str]:
-    """Apply our deterministic routing policy to any arm's (department, intent) answer."""
-    if not department:
+def queue_from(destination: Optional[str], subqueue: Optional[str]) -> Optional[str]:
+    """Apply our deterministic routing policy to any arm's answer."""
+    if not destination:
         return None
-    return D.decide(
-        {
-            "department": {"type": "choice", "choice": department, "probabilities": {department: 1.0}},
-            "intent": {"type": "choice", "choice": intent or "other", "probabilities": {}},
-        },
-        [],
-    )["queue"]
+    answers: Dict[str, Any] = {
+        "destination": {"type": "choice", "choice": destination, "probabilities": {destination: 1.0}}
+    }
+    if subqueue:
+        answers["subqueue"] = {"type": "choice", "choice": subqueue, "probabilities": {subqueue: 1.0}}
+    return D.decide(answers, [])["queue"]
 
 
 # --------------------------------------------------------------------------- scoring
@@ -308,10 +323,10 @@ def simulate_hybrid(
         alt = llm_by.get(case.id) or {}
         conf = laya.get("department_confidence")
         escalate = conf is None or conf < threshold
-        got = alt.get("department") if escalate else laya.get("department")
+        got = alt.get("destination") if escalate else laya.get("destination")
         correct = got == case.department
         ok += correct
-        if laya.get("department") != case.department:
+        if laya.get("destination") != case.destination:
             errors_total += 1
             if escalate:
                 errors_caught += 1
@@ -408,7 +423,7 @@ def score_routing(
     cases: Sequence[RoutingCase], results: Sequence[dict], *, model_ref: Optional[str] = None
 ) -> dict:
     by_id = {r["id"]: r for r in results}
-    dept_ok = intent_ok = joint_ok = 0
+    dest_ok = sub_ok = joint_ok = 0
     errors = 0
     latencies: List[float] = []
     misses: List[dict] = []
@@ -417,22 +432,22 @@ def score_routing(
 
     for case in cases:
         row = by_id.get(case.id) or {}
-        if row.get("error") or not row.get("department"):
+        if row.get("error") or not row.get("destination"):
             errors += 1
-            misses.append({"id": case.id, "text": case.text, "expected": case.department, "got": "ERROR"})
+            misses.append({"id": case.id, "text": case.text, "expected": case.destination, "got": "ERROR"})
             continue
         latencies.append(float(row.get("latency_ms") or 0.0))
         if row.get("valid") is False:
             invalid += 1
-        d_ok = row["department"] == case.department
-        i_ok = row.get("intent") == case.intent
-        dept_ok += d_ok
-        intent_ok += i_ok
-        joint_ok += d_ok and i_ok
-        gate_rows.append((row.get("department_confidence"), d_ok))
+        d_ok = row["destination"] == case.destination
+        s_ok = case.subqueue is None or row.get("subqueue") == case.subqueue
+        dest_ok += d_ok
+        sub_ok += s_ok
+        joint_ok += d_ok and s_ok
+        gate_rows.append((row.get("destination_confidence"), d_ok))
         if not d_ok:
             misses.append(
-                {"id": case.id, "text": case.text, "expected": case.department, "got": row["department"]}
+                {"id": case.id, "text": case.text, "expected": case.destination, "got": row["destination"]}
             )
 
     n = len(cases)
@@ -440,8 +455,8 @@ def score_routing(
     cost = cost_of(model_ref, totals)
     return {
         "n": n,
-        "department_accuracy": round(dept_ok / n, 4),
-        "intent_accuracy": round(intent_ok / n, 4),
+        "destination_accuracy": round(dest_ok / n, 4),
+        "subqueue_accuracy": round(sub_ok / n, 4),
         "joint_accuracy": round(joint_ok / n, 4),
         "errors": errors,
         "invalid_labels": invalid,

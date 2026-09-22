@@ -1,0 +1,323 @@
+{
+  "_comment": [
+    "Store profile: the routing taxonomy as DATA, not code.",
+    "Structure follows how dealerships actually organise: Fixed Operations (service, parts,",
+    "body shop) and Variable Operations (sales, F&I). Tires and detailing are SERVICE SUB-QUEUES,",
+    "not peer departments; roadside is a policy flag, not a place. A store with no body shop",
+    "deletes that destination; a store with its own tire centre promotes it to level 1 by moving",
+    "it from service.subqueues to destinations.",
+    "Edit this file per store. No code changes required."
+  ],
+  "name": "Industry default dealership",
+  "destinations": [
+    {
+      "key": "service",
+      "label": "Service",
+      "description": "mechanical repair, maintenance, express service, tires, detailing, roadside assistance",
+      "queue": "Service Department"
+    },
+    {
+      "key": "parts",
+      "label": "Parts",
+      "description": "ordering or buying a part or accessory, checking availability",
+      "queue": "Parts Counter"
+    },
+    {
+      "key": "body_shop",
+      "label": "Body Shop",
+      "description": "collision damage, dents, scratches, paint, glass, anything after an accident",
+      "queue": "Body Shop"
+    },
+    {
+      "key": "sales",
+      "label": "Sales",
+      "description": "buying, leasing or appraising a vehicle, and what is in stock",
+      "queue": "Sales Floor"
+    },
+    {
+      "key": "finance",
+      "label": "Finance",
+      "description": "loan or lease terms, insurance, paperwork, payments",
+      "queue": "Finance & Insurance"
+    },
+    {
+      "key": "front_desk",
+      "label": "Front desk",
+      "description": "a general enquiry no department owns: opening hours, location, directions, facilities, feedback or a complaint",
+      "queue": "Front Desk"
+    },
+    {
+      "key": "non_customer",
+      "label": "Not a customer",
+      "description": "not a customer enquiry: a supplier or vendor, a job applicant, or a wrong number",
+      "queue": "Front Desk",
+      "handler": "human"
+    }
+  ],
+  "subqueues": [
+    {
+      "key": "express_maintenance",
+      "parent": "service",
+      "label": "Express maintenance",
+      "description": "oil changes, tire rotations, multi-point inspections and light scheduled maintenance",
+      "queue": "Express Bay"
+    },
+    {
+      "key": "tires",
+      "parent": "service",
+      "label": "Tires",
+      "description": "flat tires, punctures, new tires, balancing, wheel alignment and steering pull",
+      "queue": "Tire Bay"
+    },
+    {
+      "key": "detailing",
+      "parent": "service",
+      "label": "Detailing",
+      "description": "car wash, full detail, interior cleaning, polishing and paint correction",
+      "queue": "Detailing"
+    },
+    {
+      "key": "mechanical_diagnostic",
+      "parent": "service",
+      "label": "Mechanical / diagnostics",
+      "description": "will not start, warning lights, brakes, noises, stalling, loss of power, overheating",
+      "queue": "Service Department"
+    },
+    {
+      "key": "roadside_assistance",
+      "parent": "service",
+      "label": "Roadside assistance",
+      "description": "needs a tow, a jump start, help locked out of the vehicle, or fuel delivery",
+      "queue": "Roadside / Towing",
+      "flags": [
+        "roadside_dispatch"
+      ]
+    },
+    {
+      "key": "warranty_recall",
+      "parent": "service",
+      "label": "Warranty / recall",
+      "description": "warranty repairs, recall campaigns and manufacturer-paid work",
+      "queue": "Warranty Desk"
+    },
+    {
+      "key": "order_part",
+      "parent": "parts",
+      "label": "Order a part",
+      "description": "wants to order a specific part",
+      "queue": "Parts Counter"
+    },
+    {
+      "key": "availability",
+      "parent": "parts",
+      "label": "Check availability",
+      "description": "asks whether a part is in stock",
+      "queue": "Parts Counter"
+    },
+    {
+      "key": "accessory",
+      "parent": "parts",
+      "label": "Accessory",
+      "description": "wants an accessory or add-on",
+      "queue": "Parts Counter"
+    },
+    {
+      "key": "collision",
+      "parent": "body_shop",
+      "label": "Collision",
+      "description": "damage from a crash or being hit",
+      "queue": "Body Shop"
+    },
+    {
+      "key": "dent_scratch",
+      "parent": "body_shop",
+      "label": "Dent or scratch",
+      "description": "a dent or scratch without a crash",
+      "queue": "Body Shop"
+    },
+    {
+      "key": "glass",
+      "parent": "body_shop",
+      "label": "Glass",
+      "description": "broken or cracked window, windscreen or mirror",
+      "queue": "Body Shop"
+    },
+    {
+      "key": "paint",
+      "parent": "body_shop",
+      "label": "Paint",
+      "description": "paint damage, peeling or a repaint",
+      "queue": "Body Shop"
+    },
+    {
+      "key": "new_vehicle",
+      "parent": "sales",
+      "label": "New vehicle",
+      "description": "interested in a new vehicle",
+      "queue": "Sales Floor"
+    },
+    {
+      "key": "used_vehicle",
+      "parent": "sales",
+      "label": "Used vehicle",
+      "description": "interested in a used vehicle",
+      "queue": "Sales Floor"
+    },
+    {
+      "key": "trade_in",
+      "parent": "sales",
+      "label": "Trade-in / appraisal",
+      "description": "wants to trade in or appraise a vehicle",
+      "queue": "Appraisal Desk"
+    },
+    {
+      "key": "inventory",
+      "parent": "sales",
+      "label": "Inventory",
+      "description": "asks what is in stock",
+      "queue": "Sales Floor"
+    },
+    {
+      "key": "lease_terms",
+      "parent": "finance",
+      "label": "Lease terms",
+      "description": "asks about lease terms, money factor or residual",
+      "queue": "Finance & Insurance"
+    },
+    {
+      "key": "loan",
+      "parent": "finance",
+      "label": "Loan / financing",
+      "description": "asks about financing, a loan or a credit application",
+      "queue": "Finance & Insurance"
+    },
+    {
+      "key": "insurance",
+      "parent": "finance",
+      "label": "Insurance",
+      "description": "asks about insurance, including gap insurance",
+      "queue": "Finance & Insurance"
+    },
+    {
+      "key": "paperwork",
+      "parent": "finance",
+      "label": "Paperwork",
+      "description": "asks about a contract, documents or signing",
+      "queue": "Finance & Insurance"
+    },
+    {
+      "key": "vendor",
+      "parent": "non_customer",
+      "label": "Supplier or vendor",
+      "description": "a business trying to sell something to the dealership",
+      "queue": "Front Desk",
+      "handler": "human"
+    },
+    {
+      "key": "jobseeker",
+      "parent": "non_customer",
+      "label": "Job applicant",
+      "description": "asking about jobs, hiring or recruitment",
+      "queue": "Front Desk",
+      "handler": "human"
+    },
+    {
+      "key": "wrong_number",
+      "parent": "non_customer",
+      "label": "Wrong number",
+      "description": "not about the dealership or a vehicle at all",
+      "queue": "Front Desk",
+      "handler": "human"
+    },
+    {
+      "key": "other",
+      "parent": "service",
+      "label": "Other",
+      "description": "none of the other options fits, but it is still a service matter",
+      "queue": "Service Department"
+    },
+    {
+      "key": "other",
+      "parent": "parts",
+      "label": "Other",
+      "description": "none of the other options fits, but it is still a parts matter",
+      "queue": "Parts Counter"
+    },
+    {
+      "key": "other",
+      "parent": "body_shop",
+      "label": "Other",
+      "description": "none of the other options fits, but it is still a body shop matter",
+      "queue": "Body Shop"
+    },
+    {
+      "key": "other",
+      "parent": "sales",
+      "label": "Other",
+      "description": "none of the other options fits, but it is still a sales matter",
+      "queue": "Sales Floor"
+    },
+    {
+      "key": "other",
+      "parent": "finance",
+      "label": "Other",
+      "description": "none of the other options fits, but it is still a finance matter",
+      "queue": "Finance & Insurance"
+    },
+    {
+      "key": "other",
+      "parent": "front_desk",
+      "label": "Other",
+      "description": "none of the other options fits, but it is still a front desk matter",
+      "queue": "Front Desk"
+    },
+    {
+      "key": "general_question",
+      "parent": "front_desk",
+      "label": "General question",
+      "description": "opening hours, location, directions, facilities, does the dealership offer X",
+      "queue": "Front Desk"
+    },
+    {
+      "key": "feedback",
+      "parent": "front_desk",
+      "label": "Feedback or complaint",
+      "description": "a complaint, a compliment, or feedback about a visit",
+      "queue": "Front Desk",
+      "handler": "human"
+    }
+  ],
+  "locations": [
+    {
+      "key": "downtown",
+      "label": "Downtown",
+      "description": "the caller said downtown"
+    },
+    {
+      "key": "northside",
+      "label": "Northside",
+      "description": "the caller said northside"
+    },
+    {
+      "key": "airport",
+      "label": "Airport",
+      "description": "the caller said airport"
+    },
+    {
+      "key": "westside",
+      "label": "Westside",
+      "description": "the caller said westside"
+    },
+    {
+      "key": "not_stated",
+      "label": "Not stated",
+      "description": "the caller has not named a location"
+    }
+  ],
+  "policy": {
+    "roadside_flag": "roadside_dispatch",
+    "roadside_queue": "Roadside / Towing",
+    "unsafe_threshold": 0.5,
+    "needs_human_threshold": 0.5
+  }
+}

@@ -31,7 +31,7 @@ usual mount points and tells you if it cannot find them.
 
 MD_DATA = """## 1. Locate the uploaded data
 
-The dataset needs `taxonomy.json`, `build_items.py` and `synthetic.jsonl`. We search the common
+The dataset needs `store_profile.json`, `build_items.py` and `synthetic.jsonl`. We search the common
 Kaggle mount points rather than hard-coding a slug.
 """
 
@@ -114,7 +114,7 @@ print("laya", laya.__version__, "| transformers", transformers.__version__, "| t
 
 FIND_DATA = '''import os, glob, shutil
 
-WANTED = ("synthetic.jsonl", "taxonomy.json", "build_items.py", "train_ddp.py")
+WANTED = ("synthetic.jsonl", "store_profile.json", "build_items.py", "train_ddp.py")
 
 def log_tree(root, limit=40):
     print(f"  tree under {root}:")

@@ -54,22 +54,22 @@ def test_concrete_confident_value_is_pinned():
 
 
 def test_wide_choice_pins_on_top_probability_not_entropy():
-    """A 7-option intent with a clear winner scores only ~0.42 entropy confidence.
+    """A 6-option sub-queue with a clear winner scores only ~0.42 entropy confidence.
 
-    Pinning on entropy confidence alone re-ran the intent question on every single turn; pinning
+    Pinning on entropy confidence alone re-ran the sub-queue question on every turn; pinning
     on the top probability settles it.
     """
     s = session()
     answer = choice("collision", 0.42, 0.72)
-    s._pin("intent", answer, 1, answer)
-    assert s._is_pinned("intent") is True
+    s._pin("subqueue", answer, 1, answer)
+    assert s._is_pinned("subqueue") is True
 
 
 def test_undecided_choice_is_not_pinned():
     s = session()
-    answer = choice("billing", 0.10, 0.31)
-    s._pin("department", answer, 1, answer)
-    assert s._is_pinned("department") is False
+    answer = choice("parts", 0.10, 0.31)
+    s._pin("destination", answer, 1, answer)
+    assert s._is_pinned("destination") is False
 
 
 def test_noul_pins_on_top_probability():

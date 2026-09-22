@@ -9,7 +9,7 @@ bar. Exit code is non-zero if the bar is missed, so it can be used as a real gat
 
     uv run python scripts/validate_teacher.py
     uv run python scripts/validate_teacher.py --provider openai --model gpt-5.4-nano
-    uv run python scripts/validate_teacher.py --bar-department 0.92 --bar-intent 0.85
+    uv run python scripts/validate_teacher.py --bar-destination 0.92 --bar-subqueue 0.85
 """
 
 from __future__ import annotations
@@ -34,12 +34,12 @@ def run(cases, provider: str, model: str, concurrency: int) -> list[dict]:
         try:
             rec = teacher.label(case.text, provider=provider, model=model)
         except Exception as exc:  # noqa: BLE001
-            rec = {"error": str(exc), "valid": False, "department": None, "intent": None}
+            rec = {"error": str(exc), "valid": False, "destination": None, "subqueue": None}
         rec["id"] = case.id
-        rec["expected_department"] = case.department
-        rec["expected_intent"] = case.intent
-        rec["department_ok"] = rec.get("department") == case.department
-        rec["intent_ok"] = rec.get("intent") == case.intent
+        rec["expected_destination"] = case.destination
+        rec["expected_subqueue"] = case.subqueue
+        rec["destination_ok"] = rec.get("destination") == case.destination
+        rec["subqueue_ok"] = case.subqueue is None or rec.get("subqueue") == case.subqueue
         return rec
 
     with ThreadPoolExecutor(max_workers=max(1, concurrency)) as pool:
@@ -51,8 +51,8 @@ def main() -> int:
     ap.add_argument("--provider", default="deepseek")
     ap.add_argument("--model", default="")
     ap.add_argument("--concurrency", type=int, default=6)
-    ap.add_argument("--bar-department", type=float, default=0.92)
-    ap.add_argument("--bar-intent", type=float, default=0.85)
+    ap.add_argument("--bar-destination", type=float, default=0.92)
+    ap.add_argument("--bar-subqueue", type=float, default=0.85)
     ap.add_argument("--out", default="results/teacher_validation.json")
     args = ap.parse_args()
 
@@ -72,22 +72,22 @@ def main() -> int:
     errors = [r for r in records if r.get("error")]
     n = len(records)
     valid = [r for r in records if r.get("valid")]
-    dept_ok = sum(1 for r in records if r.get("department_ok"))
-    intent_ok = sum(1 for r in records if r.get("intent_ok"))
+    dest_ok = sum(1 for r in records if r.get("destination_ok"))
+    sub_ok = sum(1 for r in records if r.get("subqueue_ok"))
     invalid = n - len(valid)
     latencies = [r["latency_ms"] for r in records if r.get("latency_ms")]
     cost = sum(teacher.cost_of(r) or 0.0 for r in records if not r.get("error"))
 
-    dept_acc = dept_ok / n
-    intent_acc = intent_ok / n
+    dest_acc = dest_ok / n
+    sub_acc = sub_ok / n
 
     report = {
         "provider": provider,
         "model": model,
         "n": n,
-        "department_accuracy": round(dept_acc, 4),
-        "intent_accuracy": round(intent_acc, 4),
-        "joint_accuracy": round(sum(1 for r in records if r.get("department_ok") and r.get("intent_ok")) / n, 4),
+        "destination_accuracy": round(dest_acc, 4),
+        "subqueue_accuracy": round(sub_acc, 4),
+        "joint_accuracy": round(sum(1 for r in records if r.get("destination_ok") and r.get("subqueue_ok")) / n, 4),
         "invalid_labels": invalid,
         "invalid_rate": round(invalid / n, 4),
         "errors": len(errors),
@@ -96,47 +96,47 @@ def main() -> int:
             "mean": round(statistics.fmean(latencies), 1) if latencies else None,
         },
         "cost_usd": round(cost, 6),
-        "bars": {"department": args.bar_department, "intent": args.bar_intent},
-        "passes": dept_acc >= args.bar_department and intent_acc >= args.bar_intent,
+        "bars": {"destination": args.bar_destination, "subqueue": args.bar_subqueue},
+        "passes": dest_acc >= args.bar_destination and sub_acc >= args.bar_subqueue,
         "retry_worthy": [],   # invalid or department-wrong cases we could repair
         "records": records,
     }
 
     # what the teacher gets wrong, grouped, so the failure modes are visible
-    wrong = [r for r in records if not r.get("department_ok")]
-    report["department_misses"] = [
+    wrong = [r for r in records if not r.get("destination_ok")]
+    report["destination_misses"] = [
         {
             "id": r["id"],
-            "expected": r.get("expected_department"),
-            "got": r.get("department"),
-            "raw": r.get("raw_department"),
+            "expected": r.get("expected_destination"),
+            "got": r.get("destination"),
+            "raw": r.get("raw_destination"),
         }
         for r in wrong
     ]
     invalid_items = [r for r in records if not r.get("valid")]
     report["invalid_items"] = [
-        {"id": r["id"], "raw_department": r.get("raw_department"), "raw_intent": r.get("raw_intent")}
+        {"id": r["id"], "raw_destination": r.get("raw_destination"), "raw_subqueue": r.get("raw_subqueue")}
         for r in invalid_items
     ]
 
-    print(f"department agreement  {dept_ok}/{n} = {dept_acc:.3f}   (bar {args.bar_department:.2f})")
-    print(f"intent agreement      {intent_ok}/{n} = {intent_acc:.3f}   (bar {args.bar_intent:.2f})")
+    print(f"destination agreement {dest_ok}/{n} = {dest_acc:.3f}   (bar {args.bar_destination:.2f})")
+    print(f"sub-queue agreement   {sub_ok}/{n} = {sub_acc:.3f}   (bar {args.bar_subqueue:.2f})")
     print(f"unusable labels       {invalid}/{n} = {invalid / n:.1%}")
     print(f"latency p50           {report['latency_ms']['p50']} ms")
     print(f"cost                  ${cost:.6f}")
     print()
 
     if wrong:
-        print(f"department misses ({len(wrong)}):")
+        print(f"destination misses ({len(wrong)}):")
         for r in wrong[:20]:
             print(
-                f"  {r['id']:9s} expected {str(r.get('expected_department')):11s} "
-                f"got {str(r.get('department')):11s} raw={r.get('raw_department')!r}"
+                f"  {r['id']:9s} expected {str(r.get('expected_destination')):12s} "
+                f"got {str(r.get('destination')):12s} raw={r.get('raw_destination')!r}"
             )
     if invalid_items:
         print(f"\nlabels that could not be placed in vocabulary ({len(invalid_items)}):")
         for r in invalid_items[:15]:
-            print(f"  {r['id']:9s} raw={r.get('raw_department')!r} / {r.get('raw_intent')!r}")
+            print(f"  {r['id']:9s} raw={r.get('raw_destination')!r} / {r.get('raw_subqueue')!r}")
 
     out = Path(args.out)
     if not out.is_absolute():
