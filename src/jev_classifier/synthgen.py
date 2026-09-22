@@ -82,7 +82,7 @@ def generation_prompt(
         return (
             f"Area: {destination} — {DESTINATIONS.get(destination, '')}\n"
             f"What they want: {subqueue} — {SUBQUEUE_DESCRIPTIONS.get((destination, subqueue), '')}\n\n"
-            f"Write {n} different things a caller might say that a {department.replace('_', ' ')} "
+            f"Write {n} different things a caller might say that a {destination.replace('_', ' ')} "
             "switchboard could NOT confidently place in a specific category. Make them genuinely "
             "unclear, too vague, mixed across several problems, or only tangentially related. "
             "They must still be plausible phone calls about a car or the dealership. "
@@ -110,8 +110,8 @@ def generate(
 ) -> tuple[List[str], Dict[str, Any]]:
     """One generation call. Returns (utterances, call metadata).
 
-    `mode="auto"` picks: off-topic calls for the general department's residual class, the vaguer
-    prompt for other residual classes, and the normal prompt otherwise.
+    `mode="auto"` picks: off-topic calls for the wrong-number residual, the vaguer prompt for the
+    other residual classes, and the normal prompt otherwise.
     """
     if mode == "auto":
         if destination == "non_customer" and subqueue == "wrong_number":

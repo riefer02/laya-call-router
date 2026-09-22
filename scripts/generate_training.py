@@ -183,7 +183,7 @@ def main() -> int:
     # pairs already at target still count toward coverage
     for (d, i), rows in seeded.items():
         if (d, i) not in short:
-            results.append({"department": d, "intent": i, "kept": rows, "stats": {}})
+            results.append({"destination": d, "subqueue": i, "kept": rows, "stats": {}})
 
     rows = [row for r in results for row in r["kept"]]
     random.Random(20260922).shuffle(rows)

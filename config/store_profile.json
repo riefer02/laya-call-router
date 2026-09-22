@@ -59,14 +59,14 @@
       "key": "express_maintenance",
       "parent": "service",
       "label": "Express maintenance",
-      "description": "oil changes, tire rotations, multi-point inspections and light scheduled maintenance",
+      "description": "oil changes, multi-point inspections and light scheduled maintenance",
       "queue": "Express Bay"
     },
     {
       "key": "tires",
       "parent": "service",
       "label": "Tires",
-      "description": "flat tires, punctures, new tires, balancing, wheel alignment and steering pull",
+      "description": "flat tires, punctures, new tires, tire rotations, balancing, wheel alignment and steering pull",
       "queue": "Tire Bay"
     },
     {
