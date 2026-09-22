@@ -363,6 +363,42 @@ investment, not more model work.**
 One measurement caveat: the nano arm scored 0.901 in one run and 0.926 in another. Small deltas
 between arms are inside that variance; the 22-point gap is not.
 
+## Does the fine-tune still work on questions it was never trained on?
+
+This matters more than the domain numbers. Laya's defining property is that **the option space is
+defined at request time**, so a new schema needs no retraining — which is what makes a per-store
+configurable taxonomy viable. We then fine-tuned the encoder hard on 43 fixed intents for four
+epochs, and had never checked what that cost. `scripts/generality_test.py` measures it on real
+human text from outside our domain:
+
+| suite | base | fine-tuned |
+|---|---|---|
+| **Banking77** — 77 real customer-service intents | 0.415 | **0.403** |
+| **CLINC150** — 150 intents incl. out-of-domain (151 options) | 0.095 | **0.260** |
+| CLINC150 out-of-domain recall | 0.025 | 0.018 |
+
+**Verdict: generality held.** A 1.2-point drop on a completely different domain with 77
+runtime-defined options. Per-store configuration is viable; a store adding a Fleet queue does not
+require retraining. The base model scoring **0.415 against Laya's published 0.425** also validates
+the harness — we are measuring the same thing they measured.
+
+Two further findings worth keeping:
+
+- **The option token budget is a real, large lever.** Banking77 scores **0.415 at
+  `head_max_len=256` and 0.470 at 512** — +5.5 points just from giving 77 options room to stay
+  distinct. The top confusions are semantically adjacent pairs (`top_up_limits` ↔
+  `top_up_reverted`, `unable_to_verify_identity` ↔ `verify_my_identity`), i.e. sensible confusions
+  caused by labels running out of tokens, not random noise. Above ~20 options, raise the budget
+  before blaming the model.
+- **The model cannot detect out-of-domain.** Asked as a `noul` question — *"is this outside the
+  domain?"* — the mean P(ood) was **0.166 on genuinely out-of-domain text and 0.160 on in-domain
+  text**. It is a constant, not a signal. This is a **design constraint, not a tuning problem**:
+  "is this even a dealership call?" must be a *`choice` option the model can select*, never a
+  confidence threshold we read off a boolean. The fine-tuned model does the former.
+- Counter-intuitively, fine-tuning **improved** 151-option performance (0.095 → 0.260). Practising
+  discriminating 43 classes appears to have helped general many-option behaviour rather than
+  hurting it.
+
 ## Measurements (Apple M5 Pro, 64 GB)
 
 Whole triage schema, batched in one forward pass:
