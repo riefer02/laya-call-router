@@ -1,0 +1,81 @@
+{"id": "svc-01", "text": "My car won't start at all this morning, it just clicks when I turn the key.", "department": "service", "intent": "no_start"}
+{"id": "svc-02", "text": "The check engine light came on yesterday and it is still on.", "department": "service", "intent": "warning_light"}
+{"id": "svc-03", "text": "My brakes are grinding when I slow down, it sounds awful.", "department": "service", "intent": "brakes"}
+{"id": "svc-04", "text": "There is a rattling noise coming from under the car when I drive over bumps.", "department": "service", "intent": "noise"}
+{"id": "svc-05", "text": "I would like to book a routine oil change and a tire rotation.", "department": "service", "intent": "maintenance"}
+{"id": "svc-06", "text": "The engine stalls at red lights and sometimes while idling.", "department": "service", "intent": "performance"}
+{"id": "svc-07", "text": "The car hesitates and loses power when I accelerate onto the highway.", "department": "service", "intent": "performance"}
+{"id": "svc-08", "text": "There is a burning smell coming from the engine bay after I drive.", "department": "service", "intent": "other"}
+{"id": "svc-09", "text": "My car has 60,000 miles on it, what maintenance do I need next?", "department": "service", "intent": "maintenance"}
+{"id": "body-01", "text": "Someone rear ended me in a parking lot yesterday and the bumper is crushed.", "department": "body_shop", "intent": "collision"}
+{"id": "body-02", "text": "A shopping trolley hit my door and left a big dent.", "department": "body_shop", "intent": "dent_scratch"}
+{"id": "body-03", "text": "My windscreen has a crack that keeps spreading.", "department": "body_shop", "intent": "glass"}
+{"id": "body-04", "text": "The paint is peeling off the roof of my car.", "department": "body_shop", "intent": "paint"}
+{"id": "body-05", "text": "I scraped a pillar in a car park and there are scratches down the side.", "department": "body_shop", "intent": "dent_scratch"}
+{"id": "body-06", "text": "I was in a fender bender and the front end is pushed in.", "department": "body_shop", "intent": "collision"}
+{"id": "body-07", "text": "My side mirror got knocked off, can that be replaced?", "department": "body_shop", "intent": "glass"}
+{"id": "body-08", "text": "There is rust bubbling through the paint on the rear wheel arch.", "department": "body_shop", "intent": "paint"}
+{"id": "body-09", "text": "A rock chipped my windscreen on the highway.", "department": "body_shop", "intent": "glass"}
+{"id": "part-01", "text": "I need to order a replacement side mirror for a 2019 Civic.", "department": "parts", "intent": "order_part"}
+{"id": "part-02", "text": "Do you have brake pads in stock for a Ford F-150?", "department": "parts", "intent": "availability"}
+{"id": "part-03", "text": "I would like to buy a roof rack and some floor mats.", "department": "parts", "intent": "accessory"}
+{"id": "part-04", "text": "Can I order a new headlight assembly for a Mazda 3?", "department": "parts", "intent": "order_part"}
+{"id": "part-05", "text": "Is the cabin air filter for a Toyota RAV4 available today?", "department": "parts", "intent": "availability"}
+{"id": "part-06", "text": "I want to add a tow hitch to my SUV.", "department": "parts", "intent": "accessory"}
+{"id": "part-07", "text": "I need a serpentine belt for a 2015 Accord, can you get one?", "department": "parts", "intent": "order_part"}
+{"id": "part-08", "text": "Do you stock wiper blades for a Subaru Outback?", "department": "parts", "intent": "availability"}
+{"id": "part-09", "text": "I am after a set of all weather floor liners.", "department": "parts", "intent": "accessory"}
+{"id": "tire-01", "text": "I have a flat tire and I am on the side of the highway.", "department": "tires", "intent": "flat"}
+{"id": "tire-02", "text": "I need four new tires for my pickup truck.", "department": "tires", "intent": "replacement"}
+{"id": "tire-03", "text": "Can I book a tire rotation and balance?", "department": "tires", "intent": "rotation"}
+{"id": "tire-04", "text": "My steering pulls to the right, I think it needs an alignment.", "department": "tires", "intent": "alignment"}
+{"id": "tire-05", "text": "There is a slow puncture in my rear left tire.", "department": "tires", "intent": "flat"}
+{"id": "tire-06", "text": "I would like winter tires fitted before the season starts.", "department": "tires", "intent": "replacement"}
+{"id": "tire-07", "text": "The car vibrates at highway speed, maybe the wheels need balancing.", "department": "tires", "intent": "rotation"}
+{"id": "tire-08", "text": "My front tires are wearing unevenly on the inside edge.", "department": "tires", "intent": "alignment"}
+{"id": "tire-09", "text": "One of my tires keeps losing pressure every few days.", "department": "tires", "intent": "flat"}
+{"id": "det-01", "text": "I would like to book a full detail, inside and out.", "department": "detailing", "intent": "full_detail"}
+{"id": "det-02", "text": "Can I get a wash and vacuum today?", "department": "detailing", "intent": "wash"}
+{"id": "det-03", "text": "The inside of my car needs a deep clean, the seats are stained.", "department": "detailing", "intent": "interior"}
+{"id": "det-04", "text": "I want the paint machine polished to remove light scratches.", "department": "detailing", "intent": "paint_correction"}
+{"id": "det-05", "text": "Just an exterior wash please, no interior.", "department": "detailing", "intent": "wash"}
+{"id": "det-06", "text": "My dog rides in the back and it smells, I need the interior shampooed.", "department": "detailing", "intent": "interior"}
+{"id": "det-07", "text": "I would like a full valet before I sell the car.", "department": "detailing", "intent": "full_detail"}
+{"id": "det-08", "text": "Can you clean and condition the leather seats?", "department": "detailing", "intent": "interior"}
+{"id": "det-09", "text": "I want the swirl marks buffed out of the clear coat.", "department": "detailing", "intent": "paint_correction"}
+{"id": "sale-01", "text": "I am interested in a new electric SUV, what do you have?", "department": "sales", "intent": "new_vehicle"}
+{"id": "sale-02", "text": "Do you have any used hatchbacks under fifteen thousand?", "department": "sales", "intent": "used_vehicle"}
+{"id": "sale-03", "text": "I would like to know what my current car is worth as a trade in.", "department": "sales", "intent": "trade_in"}
+{"id": "sale-04", "text": "Is the blue RAV4 still on the lot?", "department": "sales", "intent": "inventory"}
+{"id": "sale-05", "text": "I want to test drive a new pickup truck.", "department": "sales", "intent": "new_vehicle"}
+{"id": "sale-06", "text": "What used SUVs do you have in stock?", "department": "sales", "intent": "inventory"}
+{"id": "sale-07", "text": "I am looking to sell my car to you outright.", "department": "sales", "intent": "trade_in"}
+{"id": "sale-08", "text": "I would like to see a certified pre owned sedan.", "department": "sales", "intent": "used_vehicle"}
+{"id": "sale-09", "text": "Has the new model year arrived yet?", "department": "sales", "intent": "inventory"}
+{"id": "fin-01", "text": "What lease terms do you offer on a three year deal?", "department": "finance", "intent": "lease_terms"}
+{"id": "fin-02", "text": "I would like to apply for financing on a used car.", "department": "finance", "intent": "loan"}
+{"id": "fin-03", "text": "Does the advertised price include insurance?", "department": "finance", "intent": "insurance"}
+{"id": "fin-04", "text": "I need a copy of my purchase contract.", "department": "finance", "intent": "paperwork"}
+{"id": "fin-05", "text": "What is the money factor and residual on a thirty six month lease?", "department": "finance", "intent": "lease_terms"}
+{"id": "fin-06", "text": "What interest rate can I get with a 720 credit score?", "department": "finance", "intent": "loan"}
+{"id": "fin-07", "text": "Can I add gap insurance to my loan?", "department": "finance", "intent": "insurance"}
+{"id": "fin-08", "text": "I need to sign the paperwork for my new car, when can I come in?", "department": "finance", "intent": "paperwork"}
+{"id": "fin-09", "text": "Do you offer leasing for business vehicles?", "department": "finance", "intent": "lease_terms"}
+{"id": "tow-01", "text": "I need a tow, my car died on the freeway.", "department": "towing", "intent": "tow_needed"}
+{"id": "tow-02", "text": "My battery is dead, can someone come and jump start it?", "department": "towing", "intent": "jump_start"}
+{"id": "tow-03", "text": "I have locked my keys in the car and I am stuck.", "department": "towing", "intent": "lockout"}
+{"id": "tow-04", "text": "I ran out of gas on the side of the road.", "department": "towing", "intent": "fuel"}
+{"id": "tow-05", "text": "Can you send a truck to pick up my car? It will not move.", "department": "towing", "intent": "tow_needed"}
+{"id": "tow-06", "text": "I am stranded, my car will not turn over and I need a boost.", "department": "towing", "intent": "jump_start"}
+{"id": "tow-07", "text": "I am locked out of my vehicle in a parking garage.", "department": "towing", "intent": "lockout"}
+{"id": "tow-08", "text": "I need a fuel delivery, I am on the shoulder of the interstate.", "department": "towing", "intent": "fuel"}
+{"id": "tow-09", "text": "My car is in a ditch and it needs recovering.", "department": "towing", "intent": "tow_needed"}
+{"id": "gen-01", "text": "What time do you open on Saturdays?", "department": "general", "intent": "general_question"}
+{"id": "gen-02", "text": "Where are you located?", "department": "general", "intent": "general_question"}
+{"id": "gen-03", "text": "Do you have a customer lounge with wifi?", "department": "general", "intent": "general_question"}
+{"id": "gen-04", "text": "I want to make a complaint about my last visit.", "department": "general", "intent": "other"}
+{"id": "gen-05", "text": "Can you tell me whether you are hiring technicians?", "department": "general", "intent": "other"}
+{"id": "gen-06", "text": "What is the direct number for the parts desk?", "department": "general", "intent": "general_question"}
+{"id": "gen-07", "text": "I would like to speak to the manager.", "department": "general", "intent": "other"}
+{"id": "gen-08", "text": "Do you offer loaner cars while mine is in for service?", "department": "general", "intent": "general_question"}
+{"id": "gen-09", "text": "I am calling to ask about your sponsorship of the local football club.", "department": "general", "intent": "other"}

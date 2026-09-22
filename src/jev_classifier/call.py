@@ -98,6 +98,8 @@ class CallSession:
         confidence_threshold: float = DEFAULT_THRESHOLD,
         pin_threshold: float = 0.6,
         verify_threshold: float = 0.75,
+        incremental: bool = True,
+        verify: bool = True,
     ) -> None:
         self.scenario = scenario
         self.session_id = session_id
@@ -111,6 +113,10 @@ class CallSession:
         self.threshold = confidence_threshold
         self.pin_threshold = pin_threshold
         self.verify_threshold = verify_threshold
+        # Ablation switches used by the evaluation harness: `incremental=False` restores the
+        # always-re-evaluate-everything behaviour, `verify=False` disables second opinions.
+        self.incremental = incremental
+        self.verify = verify
 
         self.exchanges: List[Dict[str, str]] = []  # {"role": caller|agent, "text": ...}
         self.answers: Dict[str, Dict[str, Any]] = {}
@@ -485,6 +491,8 @@ class CallSession:
         }
 
     def _is_pinned(self, key: str) -> bool:
+        if not self.incremental:
+            return False
         fact = self.facts.get(key)
         return bool(fact and fact.get("pinned"))
 
@@ -517,6 +525,8 @@ class CallSession:
         `dealership.department_question_paraphrase`).
         """
         if not paraphrase or not self._needs_verification(summary):
+            return
+        if not self.verify:
             return
         try:
             res = self._run(paraphrase)
