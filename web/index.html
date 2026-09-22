@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>jev-classifier · staged support triage</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">◈</span>
+        <span class="name">jev-classifier</span>
+        <span class="tag">Laya-MLX · staged support triage</span>
+      </div>
+      <div class="stats">
+        <span class="stat" id="token-stat" title="Laya returns typed decisions, never generated text">
+          <b id="token-count">0</b> tokens generated
+        </span>
+        <span class="stat" id="latency-stat">— ms</span>
+        <label class="stat toggle">
+          <input type="checkbox" id="pace-toggle" checked /> pace
+        </label>
+      </div>
+    </header>
+
+    <main>
+      <section class="pane chat-pane">
+        <div class="pane-head">
+          <span>Support conversation</span>
+          <button id="reset-btn" class="ghost" type="button">reset</button>
+        </div>
+        <div class="chat-log" id="chat-log">
+          <div class="empty" id="chat-empty">
+            Pick a persona below, or type a support message, to watch it route.
+          </div>
+        </div>
+        <div class="chips" id="persona-bar"></div>
+        <form id="composer" autocomplete="off">
+          <input id="message-input" placeholder="Describe your issue…" />
+          <button id="send-btn" type="submit">Send</button>
+        </form>
+      </section>
+
+      <section class="pane pipe-pane">
+        <div class="pane-head">
+          <span>Decision pipeline</span>
+          <span class="hint">each node = one typed decision</span>
+        </div>
+        <div class="stages" id="stages">
+          <div class="empty">No run yet.</div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+{"message": "Hi, we were billed twice for March on invoice #4411. Please refund the duplicate today or we'll have to cancel our plan.", "department": "billing", "churn": true, "refund": true}
+{"message": "Where can I download my last invoice? I need it for accounting.", "department": "billing", "churn": false, "refund": false}
+{"message": "My credit card was declined when I tried to upgrade my plan. Can you help?", "department": "billing", "churn": false, "refund": false}
+{"message": "You charged me for an extra seat that nobody uses. I want that money returned.", "department": "billing", "churn": false, "refund": true}
+{"message": "Your API has been returning 503s for the last 40 minutes and our checkout is completely down. This is blocking all our customers right now.", "department": "technical", "churn": false, "refund": false}
+{"message": "The export button throws a javascript error every time I click it. Here is a screenshot.", "department": "technical", "churn": false, "refund": false}
+{"message": "How do I connect your webhook to a Slack channel? The docs are not clear.", "department": "technical", "churn": false, "refund": false}
+{"message": "The dashboard has been extremely slow all week, pages take 20 seconds to load.", "department": "technical", "churn": false, "refund": false}
+{"message": "We're a 40-person team evaluating your product. Could you send pricing for the business tier and arrange a demo next week?", "department": "sales", "churn": false, "refund": false}
+{"message": "What does the enterprise plan cost and does it include SSO?", "department": "sales", "churn": false, "refund": false}
+{"message": "We'd like to upgrade from starter to the pro plan, who do we talk to?", "department": "sales", "churn": false, "refund": false}
+{"message": "I can't log in any more. My password reset email never arrives. Can you help me get back in?", "department": "account", "churn": false, "refund": false}
+{"message": "Please close my account and delete all my data. I'm done with this service, moving to a competitor.", "department": "account", "churn": true, "refund": false}
+{"message": "I need to change the billing email address and add two more seats to our account.", "department": "account", "churn": false, "refund": false}
+{"message": "CONGRATULATIONS!! You have WON a $1000 gift card. Click here to claim your prize now >> bit.ly/not-a-real-link", "department": "other", "churn": false, "refund": false}
+{"message": "I love your product, just wanted to say the new release is great. Keep it up!", "department": "other", "churn": false, "refund": false}
+{"message": "This is the third time I've contacted you about the same bug and nobody has replied. If this isn't fixed this week we are cancelling our subscription.", "department": "technical", "churn": true, "refund": false}
+{"message": "I was promised a refund two weeks ago and it still has not arrived. Can you check where my money is?", "department": "billing", "churn": false, "refund": true}

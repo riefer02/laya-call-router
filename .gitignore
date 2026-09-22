@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# uv / build
+dist/
+build/
+*.egg-info/
+
+# Project artefacts
+results/
+models/
+.cache/
+
+# OS
+.DS_Store
