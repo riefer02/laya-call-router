@@ -23,6 +23,7 @@ Methodology, stated so it can be argued with:
 from __future__ import annotations
 
 import json
+import math
 import statistics
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -419,6 +420,32 @@ def cost_of(model_ref: Optional[str], totals: Dict[str, int]) -> Optional[float]
     )
 
 
+def wilson_ci(successes: int, n: int, z: float = 1.96) -> Dict[str, float]:
+    """Wilson score interval for a proportion.
+
+    Reported because our test set is 81 cases: one case moves a percentage by 1.23 points, so an
+    unqualified "0.654 vs 0.728" invites a conclusion the sample cannot support. The interval is
+    the honest unit of comparison.
+    """
+    if n <= 0:
+        return {"lo": 0.0, "hi": 0.0, "half_width": 0.0}
+    p = successes / n
+    denom = 1.0 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z * math.sqrt(p * (1.0 - p) / n + z * z / (4.0 * n * n)) / denom
+    lo, hi = max(0.0, centre - half), min(1.0, centre + half)
+    return {"lo": round(lo, 4), "hi": round(hi, 4), "half_width": round((hi - lo) / 2.0, 4)}
+
+
+def _confusion(pairs: Iterable[tuple]) -> Dict[str, Dict[str, int]]:
+    out: Dict[str, Dict[str, int]] = {}
+    for expected, got in pairs:
+        out.setdefault(str(expected), {})
+        key = str(got)
+        out[str(expected)][key] = out[str(expected)].get(key, 0) + 1
+    return {k: dict(sorted(v.items(), key=lambda kv: -kv[1])) for k, v in sorted(out.items())}
+
+
 def score_routing(
     cases: Sequence[RoutingCase], results: Sequence[dict], *, model_ref: Optional[str] = None
 ) -> dict:
@@ -429,6 +456,9 @@ def score_routing(
     misses: List[dict] = []
     gate_rows: List[tuple] = []
     invalid = 0
+    dest_pairs: List[tuple] = []
+    sub_pairs: List[tuple] = []
+    n_sub_predicted = n_sub_scored = n_sub_other = 0
 
     for case in cases:
         row = by_id.get(case.id) or {}
@@ -444,6 +474,14 @@ def score_routing(
         dest_ok += d_ok
         sub_ok += s_ok
         joint_ok += d_ok and s_ok
+        dest_pairs.append((case.destination, row["destination"]))
+        if case.subqueue is not None:
+            n_sub_scored += 1
+            sub_pairs.append((case.subqueue, row.get("subqueue")))
+            if row.get("subqueue") == "other":
+                n_sub_other += 1
+        if row.get("subqueue") is not None:
+            n_sub_predicted += 1
         gate_rows.append((row.get("destination_confidence"), d_ok))
         if not d_ok:
             misses.append(
@@ -453,11 +491,27 @@ def score_routing(
     n = len(cases)
     totals = token_totals(results)
     cost = cost_of(model_ref, totals)
+    sub_misses = sum(1 for e, g in sub_pairs if e != g)
+    other_among_misses = sum(1 for e, g in sub_pairs if e != g and g == "other")
     return {
         "n": n,
         "destination_accuracy": round(dest_ok / n, 4),
         "subqueue_accuracy": round(sub_ok / n, 4),
         "joint_accuracy": round(joint_ok / n, 4),
+        "destination_ci95": wilson_ci(dest_ok, n),
+        "subqueue_ci95": wilson_ci(sub_ok, n),
+        "joint_ci95": wilson_ci(joint_ok, n),
+        "destination_confusion": _confusion(dest_pairs),
+        "subqueue_confusion": _confusion(sub_pairs),
+        "other": {
+            "predicted_other": n_sub_other,
+            "rate_of_subqueue_predictions": (
+                round(n_sub_predicted and n_sub_other / n_sub_predicted, 4)
+            ),
+            "subqueue_misses": sub_misses,
+            "miss_absorbed_by_other": other_among_misses,
+            "share_of_misses": round(other_among_misses / sub_misses, 4) if sub_misses else None,
+        },
         "errors": errors,
         "invalid_labels": invalid,
         "latency_ms": _pct(latencies),
@@ -507,7 +561,7 @@ def score_calls(
     }
 
 
-def agreement(runs: Sequence[Sequence[dict]], key: str = "department") -> float:
+def agreement(runs: Sequence[Sequence[dict]], key: str = "destination") -> float:
     """Fraction of cases where every repeat produced the same answer."""
     if len(runs) < 2:
         return 1.0

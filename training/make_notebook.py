@@ -38,8 +38,8 @@ Kaggle mount points rather than hard-coding a slug.
 MD_BUILD = """## 2. Build training items
 
 Turns each labelled utterance into sequences for the two questions the cascade asks at inference:
-`department` (9 options) and `intent` (the branch for the gold department). Unmodified
-`train_ddp.py` then consumes `train_items.pt`.
+`destination` (7 options in the shipped profile) and `subqueue` (the branch for the gold
+destination). Unmodified `train_ddp.py` then consumes `train_items.pt`.
 
 If the option-budget warning below fires, some rows were skipped — that is the `head_max_len`
 constraint, and it is reported rather than hidden.

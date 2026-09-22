@@ -115,9 +115,13 @@ def main() -> None:
     rows = []
     for label, key in [
         ("destination accuracy", "destination_accuracy"),
+        ("   ±95%", "_dest_ci"),
         ("sub-queue accuracy", "subqueue_accuracy"),
+        ("   ±95%", "_sub_ci"),
         ("joint accuracy", "joint_accuracy"),
         ("invalid labels", "invalid_labels"),
+        ("other rate (sub-q)", "_other_rate"),
+        ("misses -> other", "_other_miss"),
         ("p50 latency (ms)", "_p50"),
         ("p95 latency (ms)", "_p95"),
         ("cost per case", "cost_usd"),
@@ -126,12 +130,23 @@ def main() -> None:
         row = [label]
         for arm in arms:
             s = report["routing"][arm]
+            other = s.get("other") or {}
             if key == "cost_usd":
                 row.append(H.money(s.get(key)) if s.get("cost_usd") else "$0")
             elif key == "_p50":
                 row.append(f"{s['latency_ms']['p50']}")
             elif key == "_p95":
                 row.append(f"{s['latency_ms']['p95']}")
+            elif key == "_dest_ci":
+                row.append(f"±{(s.get('destination_ci95') or {}).get('half_width', 0):.3f}")
+            elif key == "_sub_ci":
+                row.append(f"±{(s.get('subqueue_ci95') or {}).get('half_width', 0):.3f}")
+            elif key == "_other_rate":
+                rate = other.get("rate_of_subqueue_predictions")
+                row.append(f"{rate:.3f}" if rate is not None else "n/a")
+            elif key == "_other_miss":
+                share = other.get("share_of_misses")
+                row.append(f"{share:.0%}" if share is not None else "n/a")
             elif key == "determinism":
                 row.append(f"{s.get('determinism', 1.0):.2f}")
             elif key in ("destination_accuracy", "subqueue_accuracy", "joint_accuracy"):
@@ -141,6 +156,8 @@ def main() -> None:
         rows.append(row)
     print()
     print(H.render(f"DECISION LEVEL  ({len(routing)} cases: destination + sub-queue)", rows, ["metric", *arms]))
+    print("\n±95% is the Wilson half-width. On 81 cases one case is 1.23 points, so two arms")
+    print("whose intervals overlap are not distinguishable at this sample size.")
 
     for arm_name in [a for a in arms if a in report["routing"]]:
         gate = report["routing"][arm_name].get("gate") or {}
@@ -153,6 +170,29 @@ def main() -> None:
             f"  accuracy when confident {gate.get('accuracy_when_confident')}"
             f" · when flagged {gate.get('accuracy_when_flagged')}"
         )
+
+    # ---- where the errors actually go ---------------------------------------
+    # Reading an accuracy number tells you how often we are wrong; it does not tell you whether the
+    # errors are adjacent (tires -> roadside, a defensible near-miss) or random. The distinction
+    # decides whether the remaining gap is a model problem or a label-boundary problem.
+    primary = "cascade-ft" if ft_routing is not None else "laya"
+    pscore = report["routing"].get(primary) or {}
+    for key, title, width in (
+        ("destination_confusion", "DESTINATION", 12),
+        ("subqueue_confusion", "SUB-QUEUE", 24),
+    ):
+        conf = pscore.get(key) or {}
+        lines = []
+        for expected, gots in conf.items():
+            wrong = [(g, k) for g, k in gots.items() if g != expected]
+            if not wrong:
+                continue
+            total = sum(gots.values())
+            parts = ", ".join(f"{g} x{k}" for g, k in wrong)
+            lines.append(f"  {expected:{width}s} {parts}   ({sum(k for _, k in wrong)}/{total} wrong)")
+        if lines:
+            print(f"\n{title} CONFUSION ({primary}) — expected -> got, only classes with errors")
+            print("\n".join(lines))
 
     # ---- hybrid frontier, per llm arm ---------------------------------------
     # Escalation is simulated on whichever cascade we would actually ship.

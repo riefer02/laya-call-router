@@ -43,7 +43,7 @@ def main() -> None:
         if not src.is_file():
             raise SystemExit(
                 f"missing {src_rel}\n"
-                "run: uv run python scripts/generate_training.py --per-intent 55"
+                "run: uv run python scripts/generate_training.py --per-subqueue 50"
             )
         shutil.copy(src, OUT / dst_name)
         size = (OUT / dst_name).stat().st_size
@@ -57,7 +57,7 @@ def main() -> None:
         "licenses": [{"name": "apache-2.0"}],
         "description": (
             f"{rows} teacher-labelled dealership call utterances for fine-tuning Laya "
-            "(departments + intents), plus the RLCD training code. Labels were produced by "
+            "(destinations + sub-queues), plus the RLCD training code. Labels were produced by "
             "deepseek-flash and kept only where two independently-worded labelling passes agreed "
             "with each other and the intended target."
         ),
