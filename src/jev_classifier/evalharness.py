@@ -31,7 +31,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 from concurrent.futures import ThreadPoolExecutor
 
 from . import dealership as D
-from . import llm
+from . import labels, llm
 from .agent import get_router
 from .call import CallSession
 
@@ -126,21 +126,31 @@ def _system_prompt() -> str:
     )
 
 
-def run_llm_routing(cases: Sequence[RoutingCase], *, concurrency: int = 4) -> List[dict]:
+def run_llm_routing(
+    cases: Sequence[RoutingCase], *, model_ref: str = "openai:gpt-5.4-nano", concurrency: int = 4
+) -> List[dict]:
     schema, system = _routing_schema(), _system_prompt()
+    provider, model = llm.parse_model(model_ref)
 
     def one(case: RoutingCase) -> dict:
         try:
-            result = llm.chat_json(system, f'Caller: "{case.text}"', schema)
+            result = llm.chat_json(
+                system, f'Caller: "{case.text}"', schema, provider=provider, model=model
+            )
         except Exception as exc:  # noqa: BLE001 - recorded as a failure, not a crash
             return {"id": case.id, "error": str(exc), "department": None, "intent": None}
-        data = result["data"]
+        raw = result["data"] if isinstance(result.get("data"), dict) else {}
+        department, intent, ok = labels.validate_label(raw.get("department"), raw.get("intent"))
         return {
             "id": case.id,
-            "department": data.get("department"),
-            "intent": data.get("intent"),
+            "department": department,
+            "intent": intent,
+            "valid": ok,
+            "raw_department": raw.get("department"),
+            "raw_intent": raw.get("intent"),
             "latency_ms": result["latency_ms"],
             "usage": result["usage"],
+            "provider": result["provider"],
             "model": result["model"],
         }
 
@@ -148,18 +158,25 @@ def run_llm_routing(cases: Sequence[RoutingCase], *, concurrency: int = 4) -> Li
         return list(pool.map(one, cases))
 
 
-def run_llm_call(case: CallCase, *, schema: Optional[Dict[str, Any]] = None) -> dict:
+def run_llm_call(
+    case: CallCase, *, model_ref: str = "openai:gpt-5.4-nano", schema: Optional[Dict[str, Any]] = None
+) -> dict:
     system = _system_prompt()
     transcript = "\n".join(f"Caller: {t}" for t in case.turns)
-    result = llm.chat_json(system, transcript, schema or _routing_schema())
-    data = result["data"]
+    provider, model = llm.parse_model(model_ref)
+    result = llm.chat_json(
+        system, transcript, schema or _routing_schema(), provider=provider, model=model
+    )
+    raw = result["data"] if isinstance(result.get("data"), dict) else {}
+    department, intent, _ = labels.validate_label(raw.get("department"), raw.get("intent"))
     return {
         "id": case.id,
-        "department": data.get("department"),
-        "intent": data.get("intent"),
-        "queue": queue_from(data.get("department"), data.get("intent")),
+        "department": department,
+        "intent": intent,
+        "queue": queue_from(department, intent),
         "latency_ms": result["latency_ms"],
         "usage": result["usage"],
+        "provider": result["provider"],
         "model": result["model"],
         "llm_calls": 1,
         "would_escalate": 1,
@@ -224,12 +241,18 @@ def run_laya_call(case: CallCase, router, *, incremental: bool = True, verify: b
     }
 
 
-def run_hybrid_call(case: CallCase, router, *, schema: Optional[Dict[str, Any]] = None) -> dict:
+def run_hybrid_call(
+    case: CallCase,
+    router,
+    *,
+    model_ref: str = "openai:gpt-5.4-nano",
+    schema: Optional[Dict[str, Any]] = None,
+) -> dict:
     """Laya first; only ask the LLM when verification disagreed somewhere in the call."""
     base = run_laya_call(case, router)
     if base.get("would_escalate", 0) > 0:
         try:
-            escalated = run_llm_call(case, schema=schema)
+            escalated = run_llm_call(case, model_ref=model_ref, schema=schema)
         except Exception as exc:  # noqa: BLE001
             base["escalation_error"] = str(exc)
             base["escalated"] = True
@@ -267,7 +290,7 @@ def simulate_hybrid(
     llm_results: Sequence[dict],
     threshold: float,
     *,
-    model: Optional[str] = None,
+    model_ref: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Replay the decisions using a real escalation rule: trust the cascade unless its
     department confidence is below `threshold`, otherwise take the LLM's answer.
@@ -278,7 +301,7 @@ def simulate_hybrid(
     laya_by = {r["id"]: r for r in laya_results}
     llm_by = {r["id"]: r for r in llm_results}
     ok = flagged = errors_caught = errors_total = 0
-    prompt_tokens = completion_tokens = 0
+    escalated_rows: List[dict] = []
 
     for case in cases:
         laya = laya_by.get(case.id) or {}
@@ -294,12 +317,11 @@ def simulate_hybrid(
                 errors_caught += 1
         if escalate:
             flagged += 1
-            usage = alt.get("usage") or {}
-            prompt_tokens += int(usage.get("prompt_tokens", 0))
-            completion_tokens += int(usage.get("completion_tokens", 0))
+            escalated_rows.append(alt)
 
     n = len(cases)
-    cost = llm.price(model, prompt_tokens, completion_tokens) if model else None
+    totals = token_totals(escalated_rows)
+    cost = cost_of(model_ref, totals) if escalated_rows else 0.0
     return {
         "threshold": threshold,
         "accuracy": round(ok / n, 4),
@@ -352,14 +374,46 @@ def gate_stats(rows: Sequence[tuple], threshold: float) -> Dict[str, Any]:
     }
 
 
-def score_routing(cases: Sequence[RoutingCase], results: Sequence[dict], *, model: Optional[str] = None) -> dict:
+def token_totals(rows: Sequence[dict]) -> Dict[str, int]:
+    """Sum real token usage. Rows with no LLM call contribute nothing — a cascade row is not
+    billed at generative prices just because it also produced tokens internally."""
+    tot = {"prompt_tokens": 0, "prompt_cache_hit": 0, "prompt_cache_miss": 0, "completion_tokens": 0}
+    for row in rows:
+        if "llm_calls" in row and int(row.get("llm_calls", 0)) < 1:
+            continue
+        usage = row.get("usage") or {}
+        tot["prompt_tokens"] += int(usage.get("prompt_tokens", 0))
+        tot["prompt_cache_hit"] += int(usage.get("prompt_cache_hit", 0))
+        tot["prompt_cache_miss"] += int(usage.get("prompt_cache_miss", 0))
+        tot["completion_tokens"] += int(usage.get("completion_tokens", 0))
+    if not tot["prompt_cache_hit"] and not tot["prompt_cache_miss"]:
+        tot["prompt_cache_miss"] = tot["prompt_tokens"]
+    return tot
+
+
+def cost_of(model_ref: Optional[str], totals: Dict[str, int]) -> Optional[float]:
+    if not model_ref:
+        return None
+    provider, model = llm.parse_model(model_ref)
+    return llm.price(
+        provider,
+        model,
+        totals.get("prompt_cache_miss", 0),
+        totals.get("prompt_cache_hit", 0),
+        totals.get("completion_tokens", 0),
+    )
+
+
+def score_routing(
+    cases: Sequence[RoutingCase], results: Sequence[dict], *, model_ref: Optional[str] = None
+) -> dict:
     by_id = {r["id"]: r for r in results}
     dept_ok = intent_ok = joint_ok = 0
     errors = 0
     latencies: List[float] = []
-    prompt_tokens = completion_tokens = 0
     misses: List[dict] = []
     gate_rows: List[tuple] = []
+    invalid = 0
 
     for case in cases:
         row = by_id.get(case.id) or {}
@@ -368,9 +422,8 @@ def score_routing(cases: Sequence[RoutingCase], results: Sequence[dict], *, mode
             misses.append({"id": case.id, "text": case.text, "expected": case.department, "got": "ERROR"})
             continue
         latencies.append(float(row.get("latency_ms") or 0.0))
-        usage = row.get("usage") or {}
-        prompt_tokens += int(usage.get("prompt_tokens", 0))
-        completion_tokens += int(usage.get("completion_tokens", 0))
+        if row.get("valid") is False:
+            invalid += 1
         d_ok = row["department"] == case.department
         i_ok = row.get("intent") == case.intent
         dept_ok += d_ok
@@ -383,28 +436,32 @@ def score_routing(cases: Sequence[RoutingCase], results: Sequence[dict], *, mode
             )
 
     n = len(cases)
-    cost = llm.price(model, prompt_tokens, completion_tokens) if model else 0.0
+    totals = token_totals(results)
+    cost = cost_of(model_ref, totals)
     return {
         "n": n,
         "department_accuracy": round(dept_ok / n, 4),
         "intent_accuracy": round(intent_ok / n, 4),
         "joint_accuracy": round(joint_ok / n, 4),
         "errors": errors,
+        "invalid_labels": invalid,
         "latency_ms": _pct(latencies),
-        "prompt_tokens": prompt_tokens,
-        "completion_tokens": completion_tokens,
+        "prompt_tokens": totals["prompt_tokens"],
+        "prompt_cache_hit_tokens": totals["prompt_cache_hit"],
+        "completion_tokens": totals["completion_tokens"],
         "cost_usd": round(cost, 8) if cost is not None else None,
-        "cost_model": model,
+        "cost_model": model_ref,
         "gate": gate_stats(gate_rows, 0.75),
         "misses": misses,
     }
 
 
-def score_calls(cases: Sequence[CallCase], results: Sequence[dict], *, model: Optional[str] = None) -> dict:
+def score_calls(
+    cases: Sequence[CallCase], results: Sequence[dict], *, model_ref: Optional[str] = None
+) -> dict:
     by_id = {r["id"]: r for r in results}
     ok = 0
     latencies: List[float] = []
-    prompt_tokens = completion_tokens = 0
     llm_calls = would_escalate = 0
     questions = 0
     misses: List[dict] = []
@@ -415,16 +472,12 @@ def score_calls(cases: Sequence[CallCase], results: Sequence[dict], *, model: Op
         else:
             misses.append({"id": case.id, "expected": case.queue, "got": row.get("queue")})
         latencies.append(float(row.get("latency_ms") or 0.0))
-        # Only real LLM calls are billed; a row with no LLM call contributes nothing.
-        if int(row.get("llm_calls", 0)) > 0:
-            usage = row.get("usage") or {}
-            prompt_tokens += int(usage.get("prompt_tokens", 0))
-            completion_tokens += int(usage.get("completion_tokens", 0))
         llm_calls += int(row.get("llm_calls", 0))
         would_escalate += int(row.get("would_escalate", 0))
         questions += int(row.get("questions", 0))
     n = len(cases)
-    cost = llm.price(model, prompt_tokens, completion_tokens) if model else 0.0
+    totals = token_totals(results)
+    cost = cost_of(model_ref, totals)
     return {
         "n": n,
         "queue_accuracy": round(ok / n, 4),
@@ -432,8 +485,8 @@ def score_calls(cases: Sequence[CallCase], results: Sequence[dict], *, model: Op
         "would_escalate": would_escalate,
         "questions": questions,
         "latency_ms": _pct(latencies),
-        "prompt_tokens": prompt_tokens,
-        "completion_tokens": completion_tokens,
+        "prompt_tokens": totals["prompt_tokens"],
+        "completion_tokens": totals["completion_tokens"],
         "cost_usd": round(cost, 8) if cost is not None else None,
         "misses": misses,
     }

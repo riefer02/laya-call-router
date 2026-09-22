@@ -194,15 +194,15 @@ our cascade, an ablation with the incremental work disabled, a cheap structured-
 
 ### Decision level — 81 cases, department + intent
 
-| metric | cascade | gpt-5.4-nano |
-|---|---|---|
-| department accuracy | **0.728** | **0.926** |
-| intent accuracy | 0.617 | 0.815 |
-| joint accuracy | 0.605 | 0.802 |
-| p50 latency | **20.5 ms** | 671 ms |
-| p95 latency | **21.7 ms** | 1031 ms |
-| cost per case | **$0** | $0.002529 |
-| determinism (3 repeats) | **1.00** | 0.93 |
+| metric                  | cascade     | gpt-5.4-nano |
+| ----------------------- | ----------- | ------------ |
+| department accuracy     | **0.728**   | **0.926**    |
+| intent accuracy         | 0.617       | 0.815        |
+| joint accuracy          | 0.605       | 0.802        |
+| p50 latency             | **20.5 ms** | 671 ms       |
+| p95 latency             | **21.7 ms** | 1031 ms      |
+| cost per case           | **$0**      | $0.002529    |
+| determinism (3 repeats) | **1.00**    | 0.93         |
 
 **The honest headline: the small model is ~20 points more accurate than our cascade.** We are
 33× faster, free, and deterministic — but on this balanced, deliberately broad set our base
@@ -210,25 +210,25 @@ checkpoint is simply not as good at reading a sentence. That is consistent with 
 Laya documentation says about the base checkpoints being weak zero-shot, and it is the number to
 lead with internally rather than the flattering latency one.
 
-It is also worth noting the test set is *harder than reality*: 81 cases spread evenly across nine
+It is also worth noting the test set is _harder than reality_: 81 cases spread evenly across nine
 departments, so every department is 11% of the traffic. Real call mixes are far more skewed.
 
 ### The hybrid frontier — this is the actual product
 
-The cascade's confidence *does* track its correctness, which is what makes escalation worth
+The cascade's confidence _does_ track its correctness, which is what makes escalation worth
 anything. On the 22 cases it got wrong, escalating whenever confidence < 0.75 would have caught
 **20 of them (recall 0.91)**, and accuracy when confident is 0.913 against 0.655 when flagged.
 Replaying the recorded predictions at each threshold:
 
-| threshold | accuracy | % sent to the LLM | error recall | cost/case |
-|---|---|---|---|---|
-| 0.60 | 0.901 | 51.8% | 0.77 | $0.000016 |
-| 0.70 | 0.914 | 65.4% | 0.86 | $0.000020 |
-| **0.75** | **0.914** | 71.6% | **0.91** | **$0.000022** |
-| 0.90 | 0.926 | 80.2% | 0.95 | $0.000025 |
-| 0.95 | 0.926 | 87.6% | 0.95 | $0.000027 |
-| *cascade alone* | *0.728* | *0%* | *—* | *$0* |
-| *llm alone* | *0.926* | *100%* | *1.0* | *$0.002529* |
+| threshold       | accuracy  | % sent to the LLM | error recall | cost/case     |
+| --------------- | --------- | ----------------- | ------------ | ------------- |
+| 0.60            | 0.901     | 51.8%             | 0.77         | $0.000016     |
+| 0.70            | 0.914     | 65.4%             | 0.86         | $0.000020     |
+| **0.75**        | **0.914** | 71.6%             | **0.91**     | **$0.000022** |
+| 0.90            | 0.926     | 80.2%             | 0.95         | $0.000025     |
+| 0.95            | 0.926     | 87.6%             | 0.95         | $0.000027     |
+| _cascade alone_ | _0.728_   | _0%_              | _—_          | _$0_          |
+| _llm alone_     | _0.926_   | _100%_            | _1.0_        | _$0.002529_   |
 
 At threshold 0.75 the hybrid lands **1.2 points below LLM-alone at 1/115th the cost per case**.
 That trade — not "cheaper than GPT" in the abstract — is the defensible claim, and the curve is
@@ -241,12 +241,12 @@ the documented path and not part of this build.
 
 ### Call level — 10 calls, final queue
 
-| metric | cascade-full | cascade | hybrid | llm |
-|---|---|---|---|---|
-| queue accuracy | 1.000 | 1.000 | 1.000 | 1.000 |
-| questions asked | 214 | **127** | 127 | 0 |
-| p50 latency | 180 ms | **94 ms** | 83 ms | 745 ms |
-| cost | $0 | $0 | $0 | $0.000323 |
+| metric          | cascade-full | cascade   | hybrid | llm       |
+| --------------- | ------------ | --------- | ------ | --------- |
+| queue accuracy  | 1.000        | 1.000     | 1.000  | 1.000     |
+| questions asked | 214          | **127**   | 127    | 0         |
+| p50 latency     | 180 ms       | **94 ms** | 83 ms  | 745 ms    |
+| cost            | $0           | $0        | $0     | $0.000323 |
 
 Every arm got every call right, so this set does not separate them on quality — it is too easy
 once a conversation runs several turns, because the department becomes unambiguous. It does

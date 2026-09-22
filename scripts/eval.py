@@ -1,10 +1,11 @@
-"""Four-arm evaluation: our cascade vs a cheap generative model, on labelled ground truth.
+"""Multi-arm evaluation: our cascade against cheap generative models, on labelled ground truth.
 
     uv run python scripts/eval.py
-    uv run python scripts/eval.py --skip-llm              # cascade arms only, no key needed
-    uv run python scripts/eval.py --limit 20              # quick smoke run
+    uv run python scripts/eval.py --llm-arms openai:gpt-5.4-nano,deepseek:deepseek-flash
+    uv run python scripts/eval.py --skip-llm           # cascade arms only, no key needed
+    uv run python scripts/eval.py --limit 20 --determinism 1
 
-Writes results/eval.json. The API key is read from .env and never printed.
+Writes results/eval.json. Keys are read from .env / the environment and never printed.
 """
 
 from __future__ import annotations
@@ -18,14 +19,32 @@ from jev_classifier import llm
 from jev_classifier.agent import get_router
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_ARMS = "openai:gpt-5.4-nano,deepseek:deepseek-flash"
+
+
+def short(ref: str) -> str:
+    return ref.split(":")[-1]
+
+
+def usable(refs: list[str]) -> list[str]:
+    out = []
+    for ref in refs:
+        provider, _ = llm.parse_model(ref)
+        if llm.available(provider):
+            out.append(ref)
+        else:
+            print(f"  skipping {ref}: no {llm.PROVIDERS[provider].key_env}")
+    return out
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0, help="cap the routing cases (0 = all)")
-    ap.add_argument("--concurrency", type=int, default=4)
+    ap.add_argument("--concurrency", type=int, default=6)
     ap.add_argument("--determinism", type=int, default=3, help="repeats for the agreement check")
     ap.add_argument("--skip-llm", action="store_true")
+    ap.add_argument("--llm-arms", default=DEFAULT_ARMS)
+    ap.add_argument("--hybrid-arm", default="", help="which arm the hybrid escalates to")
     ap.add_argument("--out", default="results/eval.json")
     args = ap.parse_args()
 
@@ -34,63 +53,83 @@ def main() -> None:
     if args.limit:
         routing = routing[: args.limit]
 
-    use_llm = not args.skip_llm and llm.available()
-    model = llm.model_name() if use_llm else None
+    refs = [] if args.skip_llm else usable([r.strip() for r in args.llm_arms.split(",") if r.strip()])
+    hybrid_ref = args.hybrid_arm or (refs[0] if refs else "")
 
     print(f"ground truth: {len(routing)} routing cases, {len(calls)} calls")
-    print(f"llm arm: {'disabled' if not use_llm else model}")
-    if not use_llm and not args.skip_llm:
-        print("  (no OPENAI_API_KEY found — set it in .env, or pass --skip-llm)")
+    print(f"llm arms: {', '.join(refs) if refs else 'none'}")
 
     router = get_router()
     print("preloading checkpoints ...", flush=True)
     router.preload(["english", "multilingual"])
 
-    report: dict = {"model": model, "routing": {}, "calls": {}}
+    report: dict = {"llm_arms": refs, "routing": {}, "calls": {}}
 
     # ---- decision level ------------------------------------------------------
     print("\nrunning cascade arm ...", flush=True)
     laya_routing = H.run_laya_routing(routing, router)
     report["routing"]["laya"] = H.score_routing(routing, laya_routing)
 
-    if use_llm:
-        print(f"running llm arm ({model}, {args.concurrency} workers) ...", flush=True)
-        llm_runs = [
-            H.run_llm_routing(routing, concurrency=args.concurrency)
+    llm_routing: dict[str, list] = {}
+    for ref in refs:
+        print(f"running {ref} ({args.concurrency} workers, {args.determinism} repeats) ...", flush=True)
+        runs = [
+            H.run_llm_routing(routing, model_ref=ref, concurrency=args.concurrency)
             for _ in range(max(1, args.determinism))
         ]
-        report["routing"]["llm"] = H.score_routing(routing, llm_runs[0], model=model)
-        report["routing"]["llm"]["determinism"] = H.agreement(llm_runs)
-        report["routing"]["laya"]["determinism"] = H.agreement(
-            [H.run_laya_routing(routing, router) for _ in range(max(1, args.determinism))]
+        llm_routing[ref] = runs[0]
+        score = H.score_routing(routing, runs[0], model_ref=ref)
+        score["determinism"] = H.agreement(runs)
+        report["routing"][short(ref)] = score
+
+    arms = ["laya"] + [short(r) for r in refs]
+    rows = []
+    for label, key in [
+        ("department accuracy", "department_accuracy"),
+        ("intent accuracy", "intent_accuracy"),
+        ("joint accuracy", "joint_accuracy"),
+        ("invalid labels", "invalid_labels"),
+        ("p50 latency (ms)", "_p50"),
+        ("p95 latency (ms)", "_p95"),
+        ("cost per case", "cost_usd"),
+        ("determinism", "determinism"),
+    ]:
+        row = [label]
+        for arm in arms:
+            s = report["routing"][arm]
+            if key == "cost_usd":
+                row.append(H.money(s.get(key)) if s.get("cost_usd") else "$0")
+            elif key == "_p50":
+                row.append(f"{s['latency_ms']['p50']}")
+            elif key == "_p95":
+                row.append(f"{s['latency_ms']['p95']}")
+            elif key == "determinism":
+                row.append(f"{s.get('determinism', 1.0):.2f}")
+            elif key in ("department_accuracy", "intent_accuracy", "joint_accuracy"):
+                row.append(f"{s[key]:.3f}")
+            else:
+                row.append(str(s.get(key, "")))
+        rows.append(row)
+    print()
+    print(H.render(f"DECISION LEVEL  ({len(routing)} cases: department + intent)", rows, ["metric", *arms]))
+
+    gate = report["routing"]["laya"].get("gate") or {}
+    if gate:
+        print(
+            f"\nGATE QUALITY (cascade) — escalate when department confidence < {gate.get('threshold')}\n"
+            f"  errors {gate.get('errors')} · flagged {gate.get('flagged')} ({gate.get('flag_rate'):.1%})"
+            f" · caught {gate.get('errors_caught')} (recall {gate.get('recall')})\n"
+            f"  accuracy when confident {gate.get('accuracy_when_confident')}"
+            f" · when flagged {gate.get('accuracy_when_flagged')}"
         )
 
-    # ---- call level ----------------------------------------------------------
-    print("\nrunning call arms ...", flush=True)
-    report["calls"]["laya-full"] = H.score_calls(
-        calls, [H.run_laya_call(c, router, incremental=False, verify=False) for c in calls]
-    )
-    report["calls"]["laya"] = H.score_calls(
-        calls, [H.run_laya_call(c, router) for c in calls]
-    )
-    if use_llm:
-        report["calls"]["hybrid"] = H.score_calls(
-            calls, [H.run_hybrid_call(c, router) for c in calls], model=model
-        )
-        try:
-            report["calls"]["llm"] = H.score_calls(
-                calls, [H.run_llm_call(c) for c in calls], model=model
-            )
-        except Exception as exc:  # noqa: BLE001
-            print(f"  llm call arm failed: {exc}")
-
-    # ---- hybrid frontier -----------------------------------------------------
-    if use_llm and llm_runs:
+    # ---- hybrid frontier, per llm arm ---------------------------------------
+    for ref in refs:
         frontier = [
-            H.simulate_hybrid(routing, laya_routing, llm_runs[0], t, model=model)
+            H.simulate_hybrid(routing, laya_routing, llm_routing[ref], t, model_ref=ref)
             for t in (0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95)
         ]
-        report["routing"]["hybrid_frontier"] = frontier
+        report.setdefault("routing", {})[f"hybrid_frontier:{short(ref)}"] = frontier
         frows = [
             [
                 f"{f['threshold']:.2f}",
@@ -104,99 +143,63 @@ def main() -> None:
         print()
         print(
             H.render(
-                "HYBRID FRONTIER — trust the cascade unless confidence < threshold",
+                f"HYBRID FRONTIER → {short(ref)}",
                 frows,
                 ["threshold", "accuracy", "% to llm", "error recall", "cost/case"],
             )
         )
-        print(
-            f"\n  cascade alone: {report['routing']['laya']['department_accuracy']:.3f} accuracy at $0"
-            f"   |   llm alone: {report['routing']['llm']['department_accuracy']:.3f} accuracy at "
-            f"${report['routing']['llm']['cost_usd']:.6f}/case"
+
+    # ---- call level ----------------------------------------------------------
+    print("\nrunning call arms ...", flush=True)
+    report["calls"]["laya-full"] = H.score_calls(
+        calls, [H.run_laya_call(c, router, incremental=False, verify=False) for c in calls]
+    )
+    report["calls"]["laya"] = H.score_calls(calls, [H.run_laya_call(c, router) for c in calls])
+    if hybrid_ref:
+        report["calls"][f"hybrid→{short(hybrid_ref)}"] = H.score_calls(
+            calls,
+            [H.run_hybrid_call(c, router, model_ref=hybrid_ref) for c in calls],
+            model_ref=hybrid_ref,
         )
+    for ref in refs:
+        try:
+            report["calls"][short(ref)] = H.score_calls(
+                calls, [H.run_llm_call(c, model_ref=ref) for c in calls], model_ref=ref
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"  call arm {ref} failed: {exc}")
 
-    # ---- report --------------------------------------------------------------
-    print()
-    rows = []
-    arms = [a for a in ("laya", "llm") if a in report["routing"]]
-    for label, key in [
-        ("department accuracy", "department_accuracy"),
-        ("intent accuracy", "intent_accuracy"),
-        ("joint accuracy", "joint_accuracy"),
-        ("p50 latency (ms)", None),
-        ("p95 latency (ms)", None),
-        ("cost per case", "cost_usd"),
-        ("errors", "errors"),
-        ("determinism", "determinism"),
-    ]:
-        row = [label]
-        for arm in arms:
-            s = report["routing"][arm]
-            if key == "cost_usd":
-                row.append(H.money(s[key]) if arm == "llm" else "$0")
-            elif label.startswith("p50"):
-                row.append(f"{s['latency_ms']['p50']}")
-            elif label.startswith("p95"):
-                row.append(f"{s['latency_ms']['p95']}")
-            elif key == "determinism":
-                row.append(f"{s.get('determinism', 1.0):.2f}")
-            elif key in ("department_accuracy", "intent_accuracy", "joint_accuracy"):
-                row.append(f"{s[key]:.3f}")
-            else:
-                row.append(str(s.get(key, "")))
-        rows.append(row)
-    print(H.render(f"DECISION LEVEL  ({len(routing)} cases: department + intent)", rows, ["metric", *arms]))
-
-    gate = report["routing"]["laya"].get("gate") or {}
-    if gate:
-        print()
-        print(
-            f"GATE QUALITY (laya) — escalate when department confidence < {gate.get('threshold')}\n"
-            f"  errors                       {gate.get('errors')}\n"
-            f"  flagged for escalation       {gate.get('flagged')} ({gate.get('flag_rate'):.1%} of cases)\n"
-            f"  of those errors, caught      {gate.get('errors_caught')}  (recall {gate.get('recall')})\n"
-            f"  flags that were warranted    {gate.get('precision')}\n"
-            f"  accuracy when confident      {gate.get('accuracy_when_confident')}\n"
-            f"  accuracy when flagged        {gate.get('accuracy_when_flagged')}"
-        )
-
-    print()
-    carms = [a for a in ("laya-full", "laya", "hybrid", "llm") if a in report["calls"]]
+    carms = [a for a in report["calls"]]
     crows = []
     for label, key in [
         ("queue accuracy", "queue_accuracy"),
         ("llm calls made", "llm_calls"),
         ("would-escalate (cascade)", "would_escalate"),
         ("questions asked", "questions"),
-        ("p50 latency (ms)", None),
+        ("p50 latency (ms)", "_p50"),
         ("cost total", "cost_usd"),
     ]:
         row = [label]
         for arm in carms:
             s = report["calls"][arm]
             if key == "cost_usd":
-                row.append(H.money(s[key]) if arm in ("llm", "hybrid") else "$0")
-            elif label.startswith("p50"):
+                row.append(H.money(s.get("cost_usd")) if s.get("cost_usd") else "$0")
+            elif key == "_p50":
                 row.append(f"{s['latency_ms']['p50']}")
             elif key == "queue_accuracy":
                 row.append(f"{s[key]:.3f}")
             else:
                 row.append(str(s.get(key, "")))
         crows.append(row)
+    print()
     print(H.render(f"CALL LEVEL  ({len(calls)} calls: final queue)", crows, ["metric", *carms]))
 
-    for arm in arms:
+    for arm in ["laya"] + [short(r) for r in refs]:
         misses = report["routing"][arm]["misses"]
         if misses:
             print(f"\n{arm} department misses ({len(misses)}):")
-            for m in misses[:12]:
-                print(f"  {m['id']:9s} expected {m['expected']:11s} got {m['got']}")
-    for arm in carms:
-        misses = report["calls"][arm]["misses"]
-        if misses:
-            print(f"\n{arm} call misses ({len(misses)}):")
-            for m in misses:
-                print(f"  {m['id']:18s} expected {m['expected']:22s} got {m['got']}")
+            for m in misses[:10]:
+                print(f"  {m['id']:9s} expected {str(m['expected']):11s} got {str(m.get('got'))}")
 
     out = Path(args.out)
     if not out.is_absolute():
