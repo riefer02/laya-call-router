@@ -114,23 +114,48 @@ print("laya", laya.__version__, "| transformers", transformers.__version__, "| t
 
 FIND_DATA = '''import os, glob, shutil
 
-CANDIDATES = glob.glob("/kaggle/input/*/") + ["/kaggle/input/", "/kaggle/working/"]
-found = None
-for root in CANDIDATES:
-    if os.path.exists(os.path.join(root, "synthetic.jsonl")) and os.path.exists(os.path.join(root, "build_items.py")):
-        found = root
+WANTED = ("synthetic.jsonl", "taxonomy.json", "build_items.py", "train_ddp.py")
+
+def log_tree(root, limit=40):
+    print(f"  tree under {root}:")
+    n = 0
+    for dirpath, dirnames, filenames in os.walk(root):
+        for f in filenames:
+            p = os.path.join(dirpath, f)
+            print(f"    {os.path.relpath(p, root)}  {os.path.getsize(p):,} bytes")
+            n += 1
+            if n >= limit:
+                print("    ...")
+                return
+    if n == 0:
+        print("    (empty)")
+
+print("=== /kaggle/input ===")
+if os.path.isdir("/kaggle/input"):
+    entries = sorted(os.listdir("/kaggle/input"))
+    print("  entries:", entries or "(none)")
+    for e in entries:
+        log_tree(os.path.join("/kaggle/input", e), limit=10)
+else:
+    print("  /kaggle/input does not exist")
+
+# Find the files anywhere under /kaggle/input rather than assuming a mount layout.
+found_dir = None
+for dirpath, _, filenames in os.walk("/kaggle/input"):
+    if all(w in filenames for w in WANTED):
+        found_dir = dirpath
         break
 
-assert found, (
-    "Could not find synthetic.jsonl + build_items.py under /kaggle/input.\\n"
-    "Upload this repo's data/calls/synthetic.jsonl and training/ (taxonomy.json, build_items.py, "
-    "train_ddp.py) as a Kaggle dataset and attach it via Add Data."
-)
-print("using data from", found)
-for name in ("synthetic.jsonl", "taxonomy.json", "build_items.py", "train_ddp.py"):
-    src = os.path.join(found, name)
-    assert os.path.exists(src), f"missing {name} in {found}"
-    shutil.copy(src, os.path.join("/kaggle/working", name))
+if found_dir is None:
+    raise SystemExit(
+        "Could not find all of {0} under /kaggle/input.\\n"
+        "Attach the dataset to this notebook (Add Data -> andrewriefenstahl/"
+        "jev-dealership-routing-data) and re-run.".format(WANTED)
+    )
+
+print(f"\\nusing data from {found_dir}")
+for name in WANTED:
+    shutil.copy(os.path.join(found_dir, name), os.path.join("/kaggle/working", name))
     print("  copied", name)
 
 n = sum(1 for _ in open("/kaggle/working/synthetic.jsonl"))
