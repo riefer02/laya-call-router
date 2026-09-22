@@ -159,15 +159,6 @@ def subqueue_question_paraphrase(destination: str) -> Optional[Dict[str, Any]]:
     }
 
 
-def intent_question(destination: str) -> Dict:
-    """Deprecated alias kept for the generator/teacher, which call it per branch."""
-    return subqueue_question(destination)
-
-
-def intent_question_paraphrase(destination: str) -> Optional[Dict]:
-    return subqueue_question_paraphrase(destination)
-
-
 # --------------------------------------------------------------------------- next action
 NEXT_ACTION_LABELS: Dict[str, str] = {
     "ask_vehicle": "we do not yet know what kind of vehicle this is",

@@ -2,7 +2,7 @@
 
 Two jobs:
 
-1. Ask the teacher for realistic caller utterances for a given (department, intent) pair, varied
+1. Ask the teacher for realistic caller utterances for a given (destination, sub-queue) pair, varied
    across explicit *style axes*. Without those axes you get four thousand paraphrases of fifty
    sentences, and a model trained on that learns the phrasing rather than the task.
 2. Keep the corpus honest — normalise for exact dedup, and Jaccard-match on word shingles for
@@ -76,8 +76,8 @@ def generation_prompt(
     if vague:
         # `other` is a residual class: it is what the branch falls back to when nothing specific
         # fits. Asking for "an example of other" produces utterances that clearly belong to a
-        # specific intent, and the labelling pass rightly relabels them — measured, that is why
-        # every undersized intent in the first run was an `other`. To generate real positives you
+        # specific sub-queue, and the labelling pass rightly relabels them — measured, that is why
+        # every undersized class in the first run was an `other`. To generate real positives you
         # ask for the *shape* that lands there: too vague, too mixed, or off-topic to place.
         return (
             f"Area: {destination} — {DESTINATIONS.get(destination, '')}\n"
