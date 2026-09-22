@@ -30,6 +30,18 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PATH = ROOT / "config" / "store_profile.json"
 
 
+DEFAULT_QUESTIONS: Dict[str, str] = {
+    "destination": (
+        "Which part of the dealership should handle this caller? Pick where the work belongs, "
+        "not the first thing the caller mentioned."
+    ),
+    "subqueue": (
+        "This is a {label} call. What exactly does the caller want, and which sub-queue should "
+        "it go to? Pick the single closest option."
+    ),
+}
+
+
 @dataclass(frozen=True)
 class Destination:
     key: str
@@ -55,8 +67,19 @@ class StoreProfile:
     name: str
     destinations: Tuple[Destination, ...]
     subqueues: Tuple[SubQueue, ...]
-    locations: Tuple[Dict[str, str], ...]
+    locations: Tuple[Dict[str, str], ...] = ()
     policy: Dict[str, Any] = field(default_factory=dict)
+    questions: Dict[str, str] = field(default_factory=dict)
+
+    def question_text(self, key: str, **fmt: Any) -> str:
+        """The instruction for a question, from one place.
+
+        Training and inference must send the model the *same* wording: the fine-tune learns to
+        answer this exact instruction, so a drifted copy means asking a question the model was
+        never trained on. Both sides read this.
+        """
+        template = self.questions.get(key) or DEFAULT_QUESTIONS[key]
+        return template.format(**fmt) if fmt else template
 
     # ------------------------------------------------------------------ lookups
     @property
@@ -113,10 +136,7 @@ class StoreProfile:
         return {
             "destination": {
                 "type": "choice",
-                "instructions": (
-                    "Which part of the dealership should handle this caller? Pick where the work "
-                    "belongs, not the first thing the caller mentioned."
-                ),
+                "instructions": self.question_text("destination"),
                 "criteria": {d.key: d.description for d in self.destinations},
             }
         }
@@ -126,13 +146,11 @@ class StoreProfile:
         if not subs:
             return None
         dest = self.destination(destination)
-        name = dest.label if dest else destination
         return {
             "subqueue": {
                 "type": "choice",
-                "instructions": (
-                    f"This is a {name} call. What exactly does the caller want, and which "
-                    "sub-queue should it go to? Pick the single closest option."
+                "instructions": self.question_text(
+                    "subqueue", label=dest.label if dest else destination
                 ),
                 "criteria": {s.key: s.description for s in subs},
             }
@@ -168,6 +186,7 @@ def _load(path_str: str) -> StoreProfile:
         ),
         locations=tuple(raw.get("locations", ())),
         policy=raw.get("policy", {}),
+        questions=dict(raw.get("questions", {})),
     )
     profile.validate()
     return profile

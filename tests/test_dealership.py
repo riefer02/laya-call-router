@@ -164,3 +164,43 @@ def test_shipped_profile_is_valid():
     p.validate()
     assert len(p.destination_keys) == 7
     assert "other" in p.subqueue_keys("service")  # residual exists so the model can decline
+
+
+# --------------------------------------------------------------------------- question text
+def test_question_templates_live_in_the_profile():
+    """Training and inference must ask the identical question.
+
+    The fine-tune learns to answer one exact instruction string. A copy of that string drifted
+    once already (training said "service", inference said "Service"), which asks the model a
+    question it was never trained on. Both sides now read the profile, so this asserts the
+    templates are present and wired to the built questions rather than duplicated in code.
+    """
+    p = profile()
+    assert set(p.questions) >= {"destination", "subqueue"}
+    assert p.destination_question()["destination"]["instructions"] == p.question_text("destination")
+    assert (
+        p.subqueue_question("service")["subqueue"]["instructions"]
+        == p.question_text("subqueue", label="Service")
+    )
+
+
+def test_subqueue_instruction_uses_the_destination_label_verbatim():
+    """`Service`, not `service`. The label is what the runtime sends, so it is what training sends."""
+    p = profile()
+    assert "This is a Service call." in p.subqueue_question("service")["subqueue"]["instructions"]
+    assert "This is a Body Shop call." in p.subqueue_question("body_shop")["subqueue"]["instructions"]
+
+
+def test_subqueue_question_needs_a_substitution():
+    p = profile()
+    assert "{label}" in p.questions["subqueue"]
+    assert "{label}" not in p.question_text("subqueue", label="Parts")
+
+
+def test_a_profile_without_templates_falls_back_to_the_defaults():
+    p = profile()
+    bare = SP.StoreProfile(
+        name="no templates", destinations=p.destinations, subqueues=p.subqueues
+    )
+    assert bare.destination_question()["destination"]["instructions"] == SP.DEFAULT_QUESTIONS["destination"]
+    assert "This is a Service call." in bare.subqueue_question("service")["subqueue"]["instructions"]

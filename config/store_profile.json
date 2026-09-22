@@ -9,6 +9,17 @@
     "Edit this file per store. No code changes required."
   ],
   "name": "Industry default dealership",
+  "_questions_note": [
+    "The question text lives here, not in code, because the SAME string must be used when training",
+    "and at inference. The fine-tune learns to answer this exact instruction; if the training copy",
+    "drifts from the runtime copy the model is asked a question it was never trained on. Both read",
+    "these templates, so they cannot disagree.",
+    "`{label}` is substituted with the destination's label."
+  ],
+  "questions": {
+    "destination": "Which part of the dealership should handle this caller? Pick where the work belongs, not the first thing the caller mentioned.",
+    "subqueue": "This is a {label} call. What exactly does the caller want, and which sub-queue should it go to? Pick the single closest option."
+  },
   "destinations": [
     {
       "key": "service",

@@ -81,10 +81,16 @@ def main() -> None:
     subqueues = {}
     for sub in profile.get("subqueues", []):
         subqueues.setdefault(sub["parent"], {})[sub["key"]] = sub.get("description", "")
-    destination_instructions = (
-        "Which part of the dealership should handle this caller? Pick where the work belongs, "
-        "not the first thing the caller mentioned."
-    )
+    questions = profile.get("questions") or {}
+    if "destination" not in questions or "subqueue" not in questions:
+        raise SystemExit(
+            "store_profile.json has no `questions` block. The training and inference instructions "
+            "must be the same string, so they are defined once in the profile rather than copied "
+            "into this script (a copy drifted once already). Add:\n"
+            '  "questions": {"destination": "...", "subqueue": "This is a {label} call. ..."}\n'
+            f"profile: {profile_path}"
+        )
+    destination_instructions = questions["destination"]
     print(f"store profile: {profile_path}  ({profile.get('name')})")
     print(f"  {len(destinations)} destinations, {sum(len(v) for v in subqueues.values())} sub-queues")
 
@@ -115,14 +121,15 @@ def main() -> None:
 
         branch = subqueues.get(destination) or {}
         if branch and subqueue:
-            label = profile["destinations"]
             name = next(
-                (d.get("label", d["key"]) for d in label if d["key"] == destination), destination
+                (
+                    d.get("label", d["key"])
+                    for d in profile["destinations"]
+                    if d["key"] == destination
+                ),
+                destination,
             )
-            instructions = (
-                f"This is a {name.lower()} call. What exactly does the caller want, and which "
-                "sub-queue should it go to? Pick the single closest option."
-            )
+            instructions = questions["subqueue"].format(label=name)
             it = build_item(tok, cfg, state, instructions, branch, subqueue)
             if it is None:
                 skipped += 1
