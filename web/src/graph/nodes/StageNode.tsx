@@ -22,6 +22,7 @@ export default function StageNode({ data, selected }: NodeProps) {
 
   const isUtterance = node.kind === "utterance";
   const isTerminal = node.kind === "terminal";
+  const isSkipped = node.status === "skipped";
 
   // top probabilities for choice questions
   let ranked: [string, number][] = [];
@@ -33,31 +34,53 @@ export default function StageNode({ data, selected }: NodeProps) {
 
   return (
     <div
-      className="node-pop rounded-lg border bg-slate-900/95 shadow-lg backdrop-blur-sm transition-shadow"
+      className={`node-pop rounded-lg border bg-slate-900/95 shadow-lg backdrop-blur-sm transition-shadow ${
+        isSkipped ? "border-dashed opacity-55" : ""
+      }`}
       style={{
         width: 190,
-        borderColor: selected ? style.accent : "#1e293b",
+        borderColor: selected ? style.accent : isSkipped ? "#334155" : "#1e293b",
         boxShadow: selected ? `0 0 0 2px ${style.accent}55` : undefined,
-        borderLeft: `3px solid ${result ? statusAccent : style.accent}`,
+        borderLeft: `3px solid ${isSkipped ? "#334155" : result ? statusAccent : style.accent}`,
       }}
     >
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
 
       <div className="flex items-center gap-1.5 px-2.5 pt-2">
-        <span className="text-[11px] font-semibold truncate" style={{ color: style.accent }}>
+        <span
+          className="text-[11px] font-semibold truncate"
+          style={{ color: isSkipped ? "#64748b" : style.accent }}
+        >
           {node.title}
         </span>
         <span
           className="ml-auto shrink-0 rounded px-1 py-px text-[8.5px] font-mono uppercase"
-          style={{ background: style.tint, color: style.accent }}
+          style={{
+            background: isSkipped ? "rgba(51,65,85,0.5)" : style.tint,
+            color: isSkipped ? "#64748b" : style.accent,
+          }}
         >
-          {isUtterance ? style.label : node.primitive || style.label}
+          {isSkipped ? "skipped" : isUtterance ? style.label : node.primitive || style.label}
         </span>
       </div>
 
       <div className="px-2.5 pb-2 pt-1">
-        {isUtterance ? (
+        {isSkipped ? (
+          <div>
+            <div className="text-[10.5px] text-slate-500">already known</div>
+            <div className="mt-0.5 text-[10.5px] font-medium text-slate-400">
+              {summary.primitive === "choice"
+                ? String(summary.choice)
+                : summary.primitive === "noul"
+                  ? `P(true) ${(summary.noul ?? 0).toFixed(2)}`
+                  : "—"}
+            </div>
+            <div className="mt-1 font-mono text-[8.5px] text-slate-600">
+              settled turn {String((result as unknown as { from_turn?: number })?.from_turn ?? "?")}
+            </div>
+          </div>
+        ) : isUtterance ? (
           <p className="line-clamp-3 text-[10.5px] leading-snug text-slate-200">
             {String(result?.value ?? "…")}
           </p>

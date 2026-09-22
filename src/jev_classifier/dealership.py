@@ -196,6 +196,25 @@ PASS1_QUESTIONS: Dict = {
     "needs_human": SLOT_QUESTIONS["needs_human"],
 }
 
+# Run alongside the still-unresolved questions from turn 2 on. If it fires, the facts we had
+# pinned (department, intent, urgency) are re-evaluated; if it does not, we skip them. One extra
+# question buys the right to skip several.
+CHANGE_QUESTION: Dict = {
+    "changed": {
+        "type": "noul",
+        "instructions": (
+            "Does the caller's latest message change or add to information the caller gave "
+            "earlier in this call?"
+        ),
+    }
+}
+
+CHANGE_FLAG = 0.5
+
+# A choice answer equal to one of these means "the caller has not said", so it must never be
+# pinned — it is exactly the thing a later turn is supposed to resolve.
+UNRESOLVED_SENTINELS = {"not_stated"}
+
 # --------------------------------------------------------------------------- next action
 # Deterministic control flow. The model is not asked this: it answered at confidence 0.03 and
 # effectively ignored the input (scripts/probe_slots.py).

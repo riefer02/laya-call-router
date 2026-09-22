@@ -21,7 +21,13 @@ def render(ev: dict) -> None:
         print(f"\n── turn {ev['turn']} ─────────────────────────────")
     elif t == "node_result":
         kind = ev.get("status")
-        mark = {"ok": "✓", "low_confidence": "⚠", "warn": "!", "rejected": "✗"}.get(kind, "·")
+        mark = {"ok": "✓", "low_confidence": "⚠", "warn": "!", "rejected": "✗", "skipped": "–"}.get(
+            kind, "·"
+        )
+        if kind == "skipped":
+            label = ev["id"].split(".")[-1]
+            print(f"  {mark} {label:22s} (skipped — settled turn {ev.get('from_turn')})")
+            return
         value = ev.get("value")
         summary = ev.get("summary") or {}
         if summary.get("primitive") == "choice":

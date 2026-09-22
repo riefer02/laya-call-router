@@ -106,6 +106,42 @@ are the evidence. Three findings shaped the design:
 A fourth finding, from the earlier support-triage build, still applies: a **hard stop must not
 fire on an argmax of a near-uniform distribution** — reject only on a confident signal.
 
+## Why it doesn't re-decide what it already knows
+
+The first implementation ran all seven questions on **every** turn, re-reading the whole growing
+transcript each time. Turn 4 of a four-turn call re-asked what turn 1 had already established:
+
+| collision scenario | turn 1 | turn 2 | turn 3 | turn 4 | total |
+|---|---|---|---|---|---|
+| questions — before | 7 | 7 | 7 | 7 | **28** |
+| questions — now | 7 | 4 | 3 | 2 | **16** (−43%) |
+| input tokens — before | 720 | 895 | 1070 | 1259 | 3944 |
+| input tokens — now | 720 | 479 | 406 | 318 | **1923** (−51%) |
+| compute — before | 60 ms | 64 ms | 71 ms | 78 ms | **272 ms** |
+| compute — now | 59 ms | 30 ms | 22 ms | 23 ms | **134 ms (−51%)** |
+
+Three mechanisms:
+
+- **Settled facts are skipped.** Each turn keeps a session of what is already known. A fact is
+  *pinned* when it is a concrete value answered decisively enough to rely on; pinned facts are not
+  re-evaluated, and appear in the graph as dimmed *"already known — settled turn N"* nodes.
+- **`not_stated` is never pinned.** Resolving "the caller hasn't said" is the whole point of a
+  later turn, so those stay open. This is what keeps self-correction working: in the collision
+  call the `when` answer is wrong for two turns (`today`, inferred from "yesterday") and then
+  settles correctly to `next_week` on turn 4 — because it was never pinned.
+- **One change-detector buys the right to skip several.** From turn 2 on, a single `noul`
+  question — *"does the caller's latest message change or add to anything said earlier?"* — runs
+  alongside the unresolved questions. If it fires, the pinned facts are re-evaluated in a second
+  pass; if not, they are skipped.
+
+**Pinning uses top probability, not entropy confidence.** They are different questions and want
+different numbers: `confidence` (entropy, 0.75) asks *"should a human look at this?"*, while
+pinning (top probability, 0.6) asks *"can we stop re-deciding this?"*. Judging pinning by entropy
+confidence never settled `intent`, because a 7-option question with a clear winner (p = 0.72)
+scores only 0.42.
+
+`scripts/bench_call.py` reproduces the table; `--out results/*.json` keeps a baseline to diff against.
+
 ## Measurements (Apple M5 Pro, 64 GB)
 
 Whole triage schema, batched in one forward pass:
@@ -116,7 +152,8 @@ Whole triage schema, batched in one forward pass:
 | `multilingual` (mmBERT-base, 322M) | 4.6 ms | 11.1 ms | 520 q/s |
 | `typed-decisions` (421M) | 9.2 ms | 27.8 ms | 218 q/s |
 
-A full 4-turn call costs **~250 ms of compute**, **0 generated tokens**, **$0.00**.
+A full 4-turn call costs **~134 ms of compute**, **0 generated tokens**, **$0.00**, and asks
+**16 questions instead of 28** (see the efficiency section above).
 
 Quality, 18 hand-labelled tickets (`data/tickets/labelled.jsonl`, from the support-domain work):
 

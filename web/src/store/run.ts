@@ -182,9 +182,11 @@ export function useCounters() {
   const total = useRun((s) => s.events.length);
   return useMemo(() => {
     const list = Object.values(nodes);
+    const decisions = list.filter((n) => n.kind === "decision");
     return {
       nodes: list.length,
-      decisions: list.filter((n) => n.kind === "decision").length,
+      decisions: decisions.filter((n) => n.status !== "skipped").length,
+      skipped: decisions.filter((n) => n.status === "skipped").length,
       turns: turnCount,
       applied,
       total,

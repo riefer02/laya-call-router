@@ -25,22 +25,24 @@ from .agent import get_router
 # Fixed column per node key so the frontend can lay out deterministically.
 COLUMNS: Dict[str, int] = {
     "caller": 0,
-    "department": 1,
-    "vehicle": 2,
-    "location": 3,
-    "time_preference": 4,
-    "is_safe_to_drive": 5,
-    "needs_human": 6,
-    "extract_time": 7,
-    "missing_slots": 8,
-    "intent": 9,
-    "next_action": 10,
-    "agent": 11,
-    "terminal": 12,
+    "changed": 1,
+    "department": 2,
+    "vehicle": 3,
+    "location": 4,
+    "time_preference": 5,
+    "is_safe_to_drive": 6,
+    "needs_human": 7,
+    "extract_time": 8,
+    "missing_slots": 9,
+    "intent": 10,
+    "next_action": 11,
+    "agent": 12,
+    "terminal": 13,
 }
 
 TITLES: Dict[str, str] = {
     "caller": "Caller",
+    "changed": "Anything new?",
     "department": "Department",
     "vehicle": "Vehicle",
     "location": "Location",
@@ -84,14 +86,25 @@ class CallSession:
         router: Optional["laya.Router"] = None,
         session_id: str = "call",
         confidence_threshold: float = DEFAULT_THRESHOLD,
+        pin_threshold: float = 0.6,
     ) -> None:
         self.scenario = scenario
         self.session_id = session_id
         self.router = router or get_router()
+        # Two different questions, two different numbers:
+        #   confidence_threshold — "should a human look at this?" (entropy confidence, 0.75)
+        #   pin_threshold        — "can we stop re-deciding this?" (top probability, 0.6)
+        # Pinning on entropy confidence alone never settles a wide choice: intent answers at
+        # p=0.72 over 7 options score only 0.42, so it was re-run every single turn.
         self.threshold = confidence_threshold
+        self.pin_threshold = pin_threshold
 
         self.exchanges: List[Dict[str, str]] = []  # {"role": caller|agent, "text": ...}
         self.answers: Dict[str, Dict[str, Any]] = {}
+        # Settled facts: what we already know, with the confidence and the turn that settled it.
+        # A fact is only pinned when it is a concrete value answered confidently; "not_stated"
+        # answers are never pinned, because resolving them is the whole point of a later turn.
+        self.facts: Dict[str, Dict[str, Any]] = {}
         self.asked: set[str] = set()
         self.nodes: List[Dict[str, Any]] = []
         self.edges: List[Dict[str, Any]] = []
@@ -99,6 +112,8 @@ class CallSession:
         self.input_tokens = 0
         self.output_tokens = 0
         self.compute_ms = 0.0
+        self.turn_stats: List[Dict[str, Any]] = []
+        self._turn_q = 0
         self.finished = False
         self.routing: Optional[Dict[str, Any]] = None
         self._t0 = time.perf_counter()
@@ -118,6 +133,7 @@ class CallSession:
         self.input_tokens += int(usage.get("input_tokens", 0) or 0)
         self.output_tokens += int(usage.get("output_tokens", 0) or 0)
         self.compute_ms += ms
+        self._turn_q += len(questions)
         result["_ms"] = ms
         return result
 
@@ -190,6 +206,11 @@ class CallSession:
 
     # ------------------------------------------------------------------ turn
     def _run_turn(self, turn: int, utterance: str) -> Iterator[Dict[str, Any]]:
+        self._turn_q = 0
+        turn_t0 = time.perf_counter()
+        turn_ms0 = self.compute_ms
+        turn_tok0 = self.input_tokens
+
         self.exchanges.append({"role": "caller", "text": utterance})
         yield {"type": "turn_start", "turn": turn, "speaker": "caller"}
 
@@ -199,38 +220,85 @@ class CallSession:
 
         prev_id = caller_id
 
-        # ---- pass 1: department + slots -----------------------------------------
-        result = self._run(D.PASS1_QUESTIONS)
-        ms = result.pop("_ms")
-        routing = result.get("routing") or {}
-        questions = D.PASS1_QUESTIONS
-        n = len(questions)
-        for key, answer in result["answers"].items():
+        # ---- choose what actually needs evaluating this turn --------------------
+        # Turn 1 evaluates everything. Later turns evaluate the still-unresolved questions plus a
+        # single change-detector; facts that are settled and confident are skipped entirely.
+        pass1 = dict(D.PASS1_QUESTIONS)
+        to_run: Dict[str, Any] = {}
+        changed_fired = False
+
+        if turn == 1 or not self.facts:
+            to_run = dict(pass1)
+        else:
+            to_run = dict(D.CHANGE_QUESTION)
+            to_run.update({k: q for k, q in pass1.items() if not self._is_pinned(k)})
+
+        result: Dict[str, Any] = {}
+        ms = 0.0
+        routing: Dict[str, Any] = {}
+        if to_run:
+            result = self._run(to_run)
+            ms = result.pop("_ms")
+            routing = result.get("routing") or {}
+            if "changed" in result["answers"]:
+                changed_fired = float(result["answers"]["changed"]["noul"]) >= D.CHANGE_FLAG
+
+        # If something genuinely changed, re-evaluate the facts we would otherwise have skipped.
+        if changed_fired:
+            revisit = {k: q for k, q in pass1.items() if self._is_pinned(k)}
+            if revisit:
+                extra = self._run(revisit)
+                extra.pop("_ms", None)
+                result.setdefault("answers", {}).update(extra["answers"])
+
+        answers = result.get("answers") or {}
+        n = len(to_run)
+
+        # Emit in column order: change-detector first, then each pass-1 question, whether it was
+        # evaluated or skipped.
+        emit_keys = (["changed"] if turn > 1 and self.facts else []) + list(pass1)
+        for key in emit_keys:
             node_id = f"t{turn}.{key}"
-            yield self._node(node_id, turn, key, "decision", primitive=answer["type"])
-            status = "ok"
-            if answer["type"] == "choice":
+            if key in answers:
+                answer = answers[key]
+                yield self._node(node_id, turn, key, "decision", primitive=answer["type"])
+                status = "ok"
                 summary = _summarize(answer)
-                if summary["confidence"] is not None and summary["confidence"] < self.threshold:
-                    status = "low_confidence"
-            else:
-                summary = _summarize(answer)
-                if key == "is_safe_to_drive" and float(answer["noul"]) >= 0.5:
+                if answer["type"] == "choice":
+                    if summary["confidence"] is not None and summary["confidence"] < self.threshold:
+                        status = "low_confidence"
+                elif key == "is_safe_to_drive" and float(answer["noul"]) >= 0.5:
                     status = "warn"
-            self.answers[key] = answer
-            yield self._result(
-                node_id,
-                turn,
-                status=status,
-                summary=summary,
-                question=questions[key]["instructions"],
-                options=list(questions[key].get("criteria") or []),
-                model=routing.get("model"),
-                routing_reason=routing.get("reason", ""),
-                latency_ms=ms,
-                batch_size=n,
-            )
-            yield self._edge(prev_id, node_id)
+                self.answers[key] = answer
+                self._pin(key, answer, turn, summary)
+                yield self._result(
+                    node_id,
+                    turn,
+                    status=status,
+                    summary=summary,
+                    question=(D.CHANGE_QUESTION if key == "changed" else pass1)[key]["instructions"],
+                    options=list(((D.CHANGE_QUESTION if key == "changed" else pass1)[key]).get("criteria") or []),
+                    model=routing.get("model"),
+                    routing_reason=routing.get("reason", ""),
+                    latency_ms=ms,
+                    batch_size=n,
+                )
+            elif key in self.facts:
+                fact = self.facts[key]
+                yield self._node(node_id, turn, key, "decision", primitive=fact.get("type", "choice"))
+                yield self._result(
+                    node_id,
+                    turn,
+                    status="skipped",
+                    summary=fact.get("summary"),
+                    question=pass1[key]["instructions"],
+                    options=list(pass1[key].get("criteria") or []),
+                    note=f"already known — not re-computed (settled turn {fact.get('turn')})",
+                    extra={"pinned": True, "from_turn": fact.get("turn")},
+                )
+            else:
+                continue
+            yield self._edge(prev_id, node_id, kind="skip" if key in self.facts and key not in answers else "flow")
             prev_id = node_id
 
         # ---- deterministic extraction -------------------------------------------
@@ -259,26 +327,42 @@ class CallSession:
         department = self.answers.get("department", {}).get("choice") or "general"
         unsafe = float(self.answers.get("is_safe_to_drive", {}).get("noul", 0.0))
 
-        # ---- pass 2: branched intent --------------------------------------------
-        result2 = self._run(D.intent_question(department))
-        ms2 = result2.pop("_ms")
-        routing2 = result2.get("routing") or {}
-        intent_ans = result2["answers"]["intent"]
+        # ---- branched intent: re-run only if it is not settled -------------------
         intent_id = f"t{turn}.intent"
-        yield self._node(intent_id, turn, "intent", "decision", primitive="choice")
-        yield self._result(
-            intent_id,
-            turn,
-            summary=_summarize(intent_ans),
-            question=D.intent_question(department)["intent"]["instructions"],
-            options=list(D.INTENTS.get(department, D.INTENTS["general"])),
-            model=routing2.get("model"),
-            routing_reason=routing2.get("reason", ""),
-            latency_ms=ms2,
-            batch_size=len(result2["answers"]),
-        )
-        self.answers["intent"] = intent_ans
-        yield self._edge(prev_id, intent_id, label=f"department = {department}", kind="branch")
+        if self._is_pinned("intent") and not changed_fired:
+            fact = self.facts["intent"]
+            yield self._node(intent_id, turn, "intent", "decision", primitive="choice")
+            yield self._result(
+                intent_id,
+                turn,
+                status="skipped",
+                summary=fact.get("summary"),
+                question=D.intent_question(department)["intent"]["instructions"],
+                options=list(D.INTENTS.get(department, D.INTENTS["general"])),
+                note=f"already known — not re-computed (settled turn {fact.get('turn')})",
+                extra={"pinned": True, "from_turn": fact.get("turn")},
+            )
+            yield self._edge(prev_id, intent_id, kind="skip")
+        else:
+            result2 = self._run(D.intent_question(department))
+            ms2 = result2.pop("_ms")
+            routing2 = result2.get("routing") or {}
+            intent_ans = result2["answers"]["intent"]
+            yield self._node(intent_id, turn, "intent", "decision", primitive="choice")
+            yield self._result(
+                intent_id,
+                turn,
+                summary=_summarize(intent_ans),
+                question=D.intent_question(department)["intent"]["instructions"],
+                options=list(D.INTENTS.get(department, D.INTENTS["general"])),
+                model=routing2.get("model"),
+                routing_reason=routing2.get("reason", ""),
+                latency_ms=ms2,
+                batch_size=len(result2["answers"]),
+            )
+            self.answers["intent"] = intent_ans
+            self._pin("intent", intent_ans, turn, _summarize(intent_ans))
+            yield self._edge(prev_id, intent_id, label=f"department = {department}", kind="branch")
         prev_id = intent_id
 
         # ---- next action: deterministic policy ----------------------------------
@@ -320,9 +404,48 @@ class CallSession:
         )
         yield self._edge(prev_id, agent_id, label=action)
 
+        # per-turn cost accounting: this is the number the optimisation has to move
+        self.turn_stats.append(
+            {
+                "turn": turn,
+                "questions": self._turn_q,
+                "input_tokens": self.input_tokens - turn_tok0,
+                "compute_ms": round(self.compute_ms - turn_ms0, 2),
+                "wall_ms": round((time.perf_counter() - turn_t0) * 1000, 2),
+            }
+        )
+
         # ---- terminal ------------------------------------------------------------
         if action in ("confirm_booking", "offer_transfer"):
             yield from self._finish(turn, agent_id, missing)
+
+    # ------------------------------------------------------------------ settled facts
+    def _pin(self, key: str, answer: Dict[str, Any], turn: int, summary: Dict[str, Any]) -> None:
+        """Record a fact as settled if it is concrete and decisive enough to rely on.
+
+        Decisiveness is judged on the *top probability*, not the entropy confidence, so a wide
+        choice with a clear winner still settles (see the constructor note).
+        """
+        conf = float(answer.get("confidence") or 0.0)
+        top = summary.get("top_probability")
+        kind = answer.get("type")
+        concrete = True
+        if kind == "choice":
+            concrete = answer.get("choice") not in D.UNRESOLVED_SENTINELS
+        pinned = concrete and top is not None and float(top) >= self.pin_threshold
+        self.facts[key] = {
+            "type": kind,
+            "value": answer.get("choice") if kind == "choice" else answer.get("noul"),
+            "confidence": conf,
+            "top_probability": top,
+            "turn": turn,
+            "summary": summary,
+            "pinned": pinned,
+        }
+
+    def _is_pinned(self, key: str) -> bool:
+        fact = self.facts.get(key)
+        return bool(fact and fact.get("pinned"))
 
     def _slot_missing(self, slot: str) -> bool:
         ans = self.answers.get(slot)
@@ -375,4 +498,5 @@ class CallSession:
             "tokens_generated": 0,
             "cost_usd": 0.0,
             "routing": self.routing,
+            "turn_stats": self.turn_stats,
         }

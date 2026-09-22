@@ -12,7 +12,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 }
 
 export default function Hud() {
-  const { decisions, turns } = useCounters();
+  const { decisions, skipped, turns } = useCounters();
   const summary = useRun((s) => s.summary);
   const routing = useRun((s) => s.routing);
   const label = useRun((s) => s.scenarioLabel);
@@ -32,7 +32,8 @@ export default function Hud() {
       )}
 
       <div className="ml-auto flex items-center gap-5">
-        <Stat label="classifier decisions" value={String(decisions)} accent="#a78bfa" />
+        <Stat label="questions asked" value={String(decisions)} accent="#a78bfa" />
+        <Stat label="skipped (already known)" value={String(skipped)} accent="#22c55e" />
         <Stat label="turns" value={String(turns)} />
         <Stat label="compute" value={summary ? `${summary.compute_ms.toFixed(0)} ms` : "—"} />
         <Stat
@@ -40,11 +41,7 @@ export default function Hud() {
           value={String(summary?.tokens_generated ?? 0)}
           accent="#22c55e"
         />
-        <Stat
-          label="cost"
-          value={`$${(summary?.cost_usd ?? 0).toFixed(4)}`}
-          accent="#22c55e"
-        />
+        <Stat label="cost" value={`$${(summary?.cost_usd ?? 0).toFixed(4)}`} accent="#22c55e" />
         {routing && (
           <div className="flex flex-col leading-tight">
             <span className="text-[13px] font-semibold text-amber-300">{routing.queue}</span>

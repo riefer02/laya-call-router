@@ -80,11 +80,14 @@ function Canvas() {
   const rfNodes = useMemo<Node[]>(() => {
     const lanes: Node[] = turns.map((t) => {
       const r = laneRect(t);
+      const inTurn = Object.values(nodesMap).filter((n) => n.turn === t);
+      const skipped = inTurn.filter((n) => n.status === "skipped").length;
+      const questions = inTurn.filter((n) => n.kind === "decision" && n.status !== "skipped").length;
       return {
         id: `lane-${t}`,
         type: "lane",
         position: { x: r.x, y: r.y },
-        data: { turn: t },
+        data: { turn: t, questions, skipped },
         draggable: false,
         selectable: false,
         focusable: false,
@@ -105,19 +108,25 @@ function Canvas() {
 
   const rfEdges = useMemo<Edge[]>(
     () =>
-      Object.values(edgesMap).map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        type: "smoothstep",
-        label: e.label || undefined,
-        animated: e.kind === "branch" || e.kind === "terminal",
-        style: { stroke: EDGE_COLOR[e.kind] ?? EDGE_COLOR.flow },
-        labelStyle: { fill: "#94a3b8", fontSize: 9, fontFamily: "ui-monospace" },
-        labelBgStyle: { fill: "#0b1120" },
-        labelBgPadding: [3, 2] as [number, number],
-        labelBgBorderRadius: 3,
-      })),
+      Object.values(edgesMap).map((e) => {
+        const isSkip = e.kind === "skip";
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          type: "smoothstep",
+          label: e.label || undefined,
+          animated: e.kind === "branch" || e.kind === "terminal",
+          style: {
+            stroke: isSkip ? "#1e293b" : (EDGE_COLOR[e.kind] ?? EDGE_COLOR.flow),
+            strokeDasharray: isSkip ? "3 4" : undefined,
+          },
+          labelStyle: { fill: "#94a3b8", fontSize: 9, fontFamily: "ui-monospace" },
+          labelBgStyle: { fill: "#0b1120" },
+          labelBgPadding: [3, 2] as [number, number],
+          labelBgBorderRadius: 3,
+        };
+      }),
     [edgesMap]
   );
 
