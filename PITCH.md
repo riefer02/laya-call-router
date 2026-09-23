@@ -1,105 +1,112 @@
-# jev-classifier — elevator pitch
+# The elevator pitch
 
-## The pitch
+## In one sentence
 
-**What it is.** A call-routing switchboard for a car dealership that runs entirely on a laptop. A
-caller speaks; the system decides which department owns the call, whether anyone is stranded, whether
-a person should take it, and books a real appointment — in about 20 milliseconds, for nothing per
-call.
-
-**The new technology.** It is built on **Laya**, a *non-autoregressive* decision model. That is the
-interesting part: it does not generate text. You hand it a question and a set of options **defined at
-request time**, and it returns a typed, calibrated decision — `destination = service`,
-`is_safe_to_drive = false`, each with a probability attached. `tokens generated` stays at zero on
-every call, and that one property produces everything else:
-
-- no sampling → **deterministic**. Same input, same answer, every time.
-- no generation → **~20 ms instead of ~1.4 seconds**.
-- no API → **free and private**, on the machine it already runs on.
-- options supplied per request → a store can add a Fleet queue by editing a config file,
-  **with no retraining**.
-
-**What we built.** A working switchboard with a visual debugger: rows are conversation turns, columns
-are decisions, and clicking any box shows the question, every option with its probability, which
-checkpoint answered, and why it was routed there. The taxonomy, the question wording and the policy
-thresholds all live in one config file as *data*, because training and inference must ask the
-identical question — a copy drifted once and the model was asked something it had never seen.
-
-**What we did.** Fine-tuned Laya on ~6,500 question-and-answer items built from a frontier teacher,
-behind a high-precision filter: a candidate became training data only when two independently-worded
-labelling passes agreed with each other *and* with the intended target. Then measured it against
-`gpt-5.4-nano` and `deepseek-flash` on 81 hand-labelled routing cases, 27 scripted calls and 45
-safety cases.
-
-**The result.** Parity on routing — joint **0.876–0.926** against `deepseek-flash`'s 0.889–0.926 — at
-**23 ms instead of 1,430 ms, for $0 a call**. Our number has never moved; theirs swings ±3.8 points
-between *identical* runs. The honest claim is **parity with a stable number, not victory**.
-
-**And what we actually learned was about measurement, not models.** Three of our evaluations were
-reading their own training data. Every fine-tune had been scored partly on cases it trained on. Our
-safety precision was flattered by an eval set that is 40% positive when reality is nearer 2%. Seven
-silent failures now have tests — and that is the part I would trust most.
+A car-dealership phone switchboard that runs on a laptop, decides where a call should go in about
+20 milliseconds, costs nothing per call, and shows you every decision it made.
 
 ---
 
-## Cost breakdown
+## The problem
+
+A dealership's phone line has to work out, from what a caller says, whether they want Service or
+Sales or Parts, whether they're stranded on a motorway, whether they need a person rather than a
+booking, and then actually book them in. That is a routing problem, and the usual answer is to send
+every call to a large language model.
+
+That works. It is also slow, it costs money per call, and it gives you a different answer each time.
+
+## The technology
+
+This is built on **Laya**, and the interesting thing about Laya is what it *doesn't* do: **it never
+writes text.**
+
+You give it a question and a list of possible answers. It hands back one of them, with a
+probability. That's it.
+
+Everything good follows from that one property:
+
+| because it doesn't generate text | you get |
+| --- | --- |
+| nothing is sampled | **the same answer every time** |
+| nothing is written out | **~20 ms, not ~1.5 seconds** |
+| no API is called | **$0 per call, and the call never leaves the building** |
+| the answers are passed in per request | **a store can add a queue by editing a config file — no retraining** |
+
+That last row is the one people miss. The categories aren't baked into the model's weights. They're
+supplied with each question, so the taxonomy is *data* — which is what makes this work for a
+different dealership without rebuilding anything.
+
+## What we built
+
+A working switchboard and a debugger for it.
+
+The debugger is the part worth seeing. Every call is drawn as a grid: **rows are conversation turns,
+columns are decisions, left to right.** Click any box and it tells you the question it asked, every
+option it considered with the probability it gave each one, which model answered, and how long it
+took. Most boxes are marked `policy` or `regex`, because most decisions are simple rules — and the
+tool never pretends a model decided something a rule decided.
+
+## The result
+
+Fine-tuning took the model from **42 of 81** routing cases to **71 of 81.** That's the headline: a
+small local model that started out useless at this task and learned it.
+
+Against the frontier models, we are **level.** On the same 81 cases:
+
+| | ours | gpt-5.4-nano | deepseek-flash |
+| --- | --- | --- | --- |
+| routing cases | 71/81 | 72/81 | 73/81 |
+| per call | **21 ms** | 651 ms | 1.5 s |
+| per call | **$0** | $0.0025 | $0.010 |
+| same answer twice | **always** | 98% | 99% |
+
+**One case apart is not a difference** — on a set this size, the error bars are about six cases wide.
+So we don't claim to have won. We claim to be level with them, at roughly **70 times the speed, for
+nothing, with a number that never moves.** Their scores wobble by several points between identical
+runs; ours hasn't moved once.
+
+## What it costs
 
 | | |
 | --- | --- |
-| Teacher calls to build the routing data | ~$0.91 |
-| Teacher calls to build the safety data | ~$2.57 |
-| The register-experiment top-up | ~$0.79 |
-| Teacher validation + LLM eval arms (all runs) | ~$0.10 |
-| **Fine-tuning** | **$0** — Kaggle's free 2×T4 tier, ~40 min per run |
-| **Inference** | **$0 per call**, forever, on local hardware |
-| **Total for the whole project** | **~$4.40** |
+| Building the training data (teacher-model calls) | ~$3.40 |
+| Fine-tuning | **$0** — free cloud GPU, about 40 minutes |
+| Running it | **$0 per call**, forever, on a laptop |
+| **The whole project** | **~$4.40** |
 
-**The comparison that matters.** `deepseek-flash` costs **$0.0113 per call**. The entire project —
-data, training and every evaluation — cost about as much as **400 calls** to the frontier model. The
-next 400,000 cost nothing.
+`deepseek-flash` charges $0.010 a call. So the entire project — the data, the training, every
+experiment — cost about as much as **400 calls** to the frontier model. The next 400,000 cost nothing.
 
-Two honest footnotes: **$1.28 of that total is re-work** after a destructive bug of mine deleted a
-generated dataset, and re-generating it was cheaper than the lesson. And the teacher cost is
-one-time: it buys a checkpoint that then runs for free, so the cost per call *falls* with volume
-rather than rising.
+And the cost per call *falls* with volume, because the expensive part was one-off. It doesn't rise.
 
----
+## If someone asks how it works
 
-## If someone asks about the architecture
+**"Isn't it slow, asking the model about every box?"** No — and the node count is misleading. A real
+six-turn booking call draws 51 boxes, but it only asks **17 questions across 6 passes**, 191 ms in
+total. The questions are batched into a single pass per turn, because the transcript is the expensive
+part, not the questions. Seven questions against one transcript costs one pass; asking them one at a
+time would cost seven times as much for the same answer.
 
-**Is it one model call per decision box?** No. The backend computes the whole call eagerly —
-`events = list(session.advance())` — and returns an event list; play, pause, step and scrub are pure
-client-side animation. But the *compute* is far smaller than the node count: there is one
-`router.predict(...)` per turn, taking a **dict** of questions, so they are batched into a single
-forward pass.
+The rest of the boxes are policy and regex. They're free.
 
-A real six-turn booking call:
+## What we would not claim
 
-```
-51 decision boxes drawn in the UI
-17 classifier questions asked
- 6 forward passes (one per turn)
-191 ms of compute, 0 tokens generated, $0.00
-```
+- **Not "we beat them."** One case apart on 81 is not a result, and their own scores move more than
+  that between runs.
+- **Not "the safety classifier is fixed."** It catches every stranded caller, but the set we measure
+  it on is deliberately 40% emergencies when reality is nearer 2%, so most of its alarms would still
+  be false ones in a real switchboard.
+- **Not "the threshold is tuned."** The probabilities are so confident that moving the bar from 0.3
+  to 0.8 changes nothing. It isn't a dial we actually have.
+- **Not "1.000 booking accuracy"** without saying it's measured on phrasings the model hasn't read,
+  not on whole conversations it hasn't had.
 
-Most boxes in the graph are **policy** and **regex** nodes, which cost nothing — the UI colours them
-differently and badges them `policy` / `regex` so it never pretends a model decided something a rule
-decided. The question count also falls per turn, because settled facts are skipped: turn 1 asks all
-seven, and from turn 2 on only what is still open plus one change-detector.
+## The honest footnote
 
-**Why batch rather than call per decision?** Because the transcript is the expensive part, not the
-questions. Seven questions against one transcript costs one pass; seven passes would cost seven times
-the tokens for the same answer.
+Most of what we learned was about **measurement**, not models. Three of our own evaluations turned
+out to be reading the data they were trained on. Every checkpoint had been scored partly on cases it
+had already seen. Our safety numbers were flattered by the set they were measured on.
 
----
-
-## What not to claim
-
-- **Not "we beat deepseek."** Joint is a tie inside the noise, and the point estimate swings ±3.8
-  points across runs of *their* model. Say: parity, 60× faster, for nothing, with a stable number.
-- **Not "the safety classifier is fixed."** It catches every stranded caller and its false alarms fell
-  from 8 to 2, but at an assumed 2% hazard rate most dispatch flags would still be wrong.
-- **Not "1.000 booking accuracy"** without saying it is measured on held-out *reply phrasings*, not
-  held-out conversations.
-- **Not "the threshold is tuned."** The sweep is flat from 0.3 to 0.8 — the probabilities are
-  saturated, so the threshold is not a control we actually have.
+Eight of those silent mistakes now have tests. That is the part I'd actually defend — a number you
+can't trace is a number nobody can check.
