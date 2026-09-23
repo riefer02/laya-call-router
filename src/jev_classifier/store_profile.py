@@ -42,6 +42,15 @@ DEFAULT_QUESTIONS: Dict[str, str] = {
 }
 
 
+DEFAULT_NOUL: Dict[str, Dict[str, str]] = {
+    "is_safe_to_drive": {
+        "instructions": "Is it unsafe for this caller to drive the vehicle?",
+        "true": "the vehicle should not be driven: a hazard, damage, or it cannot be moved",
+        "false": "the vehicle is drivable and there is no hazard",
+    },
+}
+
+
 @dataclass(frozen=True)
 class Destination:
     key: str
@@ -72,6 +81,23 @@ class StoreProfile:
     questions: Dict[str, str] = field(default_factory=dict)
     facts: Dict[str, Any] = field(default_factory=dict)
     schedule: Dict[str, Any] = field(default_factory=dict)
+    noul: Dict[str, Dict[str, str]] = field(default_factory=dict)
+
+    def noul_question(self, key: str) -> Dict[str, Any]:
+        """A yes/no question, with its two option texts, from one place.
+
+        The model is choosing between two written options, not answering a bare prompt, so the
+        option text is doing most of the work of defining what the question means.
+
+        Note the key: the runtime API takes `criteria` (and `type`/`instructions`), while the
+        training builder takes `crit` (and `t`/`ins`). `build_items.py` does that translation.
+        """
+        spec = self.noul.get(key) or DEFAULT_NOUL.get(key) or {}
+        return {
+            "type": "noul",
+            "instructions": spec.get("instructions", key),
+            "criteria": {"false": spec.get("false", ""), "true": spec.get("true", "")},
+        }
 
     def question_text(self, key: str, **fmt: Any) -> str:
         """The instruction for a question, from one place.
@@ -191,6 +217,7 @@ def _load(path_str: str) -> StoreProfile:
         questions=dict(raw.get("questions", {})),
         facts=dict(raw.get("facts", {})),
         schedule=dict(raw.get("schedule", {})),
+        noul=dict(raw.get("noul", {})),
     )
     profile.validate()
     return profile

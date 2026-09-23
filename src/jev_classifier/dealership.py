@@ -80,17 +80,8 @@ SLOT_QUESTIONS: Dict = {
         ),
         "criteria": TIME_PREFERENCES,
     },
-    "is_safe_to_drive": {
-        "type": "noul",
-        "instructions": "Does the caller indicate the vehicle is unsafe to drive or stranded?",
-    },
-    "needs_human": {
-        "type": "noul",
-        "instructions": (
-            "Does this caller need a person rather than the automated booking flow — for "
-            "example because the request is unusual, a complaint, or outside routine booking?"
-        ),
-    },
+    "is_safe_to_drive": PROFILE.noul_question("is_safe_to_drive"),
+    "needs_human": PROFILE.noul_question("needs_human"),
 }
 
 # First pass each turn: destination + slots, all answerable without knowing the branch.

@@ -160,11 +160,30 @@ def test_the_unsafe_threshold_is_used_consistently():
         assert (D.next_action_for([], "service", prob) == "offer_transfer") is unsafe, prob
 
 
-def test_the_shipped_unsafe_threshold_is_safety_biased():
-    """Measured on the 45-case severity set: 0.3 raises recall of unsafe callers from 0.778 to
-    0.833 with precision still 1.000. A missed stranded caller is someone at the side of a road;
-    a false alarm is a wasted journey, so the bar sits low."""
-    assert D.unsafe_threshold() <= 0.35
+def test_the_safety_question_asks_about_the_hazard_not_the_statement():
+    """Regression guard on a wording that cost us 4 of 18 stranded callers.
+
+    The first version asked whether the caller "indicates" the vehicle is unsafe, so every implied
+    hazard was missed: "there is smoke coming from under the hood" scored p=0.00, because the
+    caller never said they had stopped. The model was answering the literal question correctly.
+    Asking about the vehicle instead of the statement moved recall 0.778 -> 1.000.
+    """
+    q = D.SLOT_QUESTIONS["is_safe_to_drive"]
+    assert "indicate" not in q["instructions"].lower()
+    assert "unsafe" in q["instructions"].lower()
+    # The model chooses between these two texts, so they carry the definition.
+    assert "should not be driven" in q["criteria"]["true"].lower()
+    assert "drivable" in q["criteria"]["false"].lower()
+
+
+def test_the_shipped_unsafe_threshold_matches_its_measured_operating_point():
+    """0.7, and it moved because the question moved.
+
+    On the 45-case severity set: old wording at 0.3 gave recall 0.833 / precision 1.000, missing 3
+    of 18. The reworded question at 0.7 gives recall 1.000 / precision 0.857, missing none. Three
+    unnecessary dispatches in exchange for never leaving a stranded caller on the road.
+    """
+    assert 0.6 <= D.unsafe_threshold() <= 0.8
 
 
 # --------------------------------------------------------------------------- profile as config
