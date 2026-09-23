@@ -119,6 +119,8 @@ def main() -> None:
         ("sub-queue accuracy", "subqueue_accuracy"),
         ("   ±95%", "_sub_ci"),
         ("joint accuracy", "joint_accuracy"),
+        ("queue accuracy", "queue_accuracy"),
+        ("   ±95%", "_queue_ci"),
         ("invalid labels", "invalid_labels"),
         ("other rate (sub-q)", "_other_rate"),
         ("misses -> other", "_other_miss"),
@@ -141,6 +143,8 @@ def main() -> None:
                 row.append(f"±{(s.get('destination_ci95') or {}).get('half_width', 0):.3f}")
             elif key == "_sub_ci":
                 row.append(f"±{(s.get('subqueue_ci95') or {}).get('half_width', 0):.3f}")
+            elif key == "_queue_ci":
+                row.append(f"±{(s.get('queue_ci95') or {}).get('half_width', 0):.3f}")
             elif key == "_other_rate":
                 rate = other.get("rate_of_subqueue_predictions")
                 row.append(f"{rate:.3f}" if rate is not None else "n/a")
@@ -149,7 +153,7 @@ def main() -> None:
                 row.append(f"{share:.0%}" if share is not None else "n/a")
             elif key == "determinism":
                 row.append(f"{s.get('determinism', 1.0):.2f}")
-            elif key in ("destination_accuracy", "subqueue_accuracy", "joint_accuracy"):
+            elif key in ("destination_accuracy", "subqueue_accuracy", "joint_accuracy", "queue_accuracy"):
                 row.append(f"{s[key]:.3f}")
             else:
                 row.append(str(s.get(key, "")))
@@ -171,6 +175,16 @@ def main() -> None:
             f" · when flagged {gate.get('accuracy_when_flagged')}"
         )
 
+    # ---- is confidence worth anything? --------------------------------------
+    # The escalation gate is only as good as this curve. A flat curve means no threshold works.
+    for arm_name in [a for a in arms if a in report["routing"]]:
+        cal = report["routing"][arm_name].get("calibration") or {}
+        if not cal:
+            continue
+        print(f"\nCONFIDENCE CALIBRATION ({arm_name}) — accuracy within each confidence band")
+        for band, row in cal.items():
+            print(f"  conf {band}   n={row['n']:>3}  accuracy {row['accuracy']:.3f}")
+
     # ---- where the errors actually go ---------------------------------------
     # Reading an accuracy number tells you how often we are wrong; it does not tell you whether the
     # errors are adjacent (tires -> roadside, a defensible near-miss) or random. The distinction
@@ -180,6 +194,7 @@ def main() -> None:
     for key, title, width in (
         ("destination_confusion", "DESTINATION", 12),
         ("subqueue_confusion", "SUB-QUEUE", 24),
+        ("queue_confusion", "QUEUE", 24),
     ):
         conf = pscore.get(key) or {}
         lines = []

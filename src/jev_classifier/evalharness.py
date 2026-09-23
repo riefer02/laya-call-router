@@ -322,10 +322,10 @@ def simulate_hybrid(
     for case in cases:
         laya = laya_by.get(case.id) or {}
         alt = llm_by.get(case.id) or {}
-        conf = laya.get("department_confidence")
+        conf = laya.get("destination_confidence")
         escalate = conf is None or conf < threshold
         got = alt.get("destination") if escalate else laya.get("destination")
-        correct = got == case.department
+        correct = got == case.destination
         ok += correct
         if laya.get("destination") != case.destination:
             errors_total += 1
@@ -446,6 +446,30 @@ def _confusion(pairs: Iterable[tuple]) -> Dict[str, Dict[str, int]]:
     return {k: dict(sorted(v.items(), key=lambda kv: -kv[1])) for k, v in sorted(out.items())}
 
 
+def _calibration(rows: Iterable[tuple], buckets: int = 5) -> Dict[str, Dict[str, Any]]:
+    """Accuracy by confidence band.
+
+    This is the question the escalation gate actually depends on: does the model's confidence
+    separate its right answers from its wrong ones? A model that is confidently wrong everywhere
+    has a flat curve, and no threshold can rescue it - which is what fine-tuning produced, with
+    0 of 81 cases flagged. A model whose low-confidence band is much worse than its high band has
+    a usable gate.
+    """
+    vals = [(float(c), bool(ok)) for c, ok in rows if c is not None]
+    if not vals:
+        return {}
+    out: Dict[str, Dict[str, Any]] = {}
+    for i in range(buckets):
+        lo, hi = i / buckets, (i + 1) / buckets
+        band = [ok for c, ok in vals if (lo <= c < hi) or (i == buckets - 1 and c >= hi)]
+        if band:
+            out[f"{lo:.1f}-{hi:.1f}"] = {
+                "n": len(band),
+                "accuracy": round(sum(band) / len(band), 3),
+            }
+    return out
+
+
 def score_routing(
     cases: Sequence[RoutingCase], results: Sequence[dict], *, model_ref: Optional[str] = None
 ) -> dict:
@@ -459,6 +483,8 @@ def score_routing(
     dest_pairs: List[tuple] = []
     sub_pairs: List[tuple] = []
     n_sub_predicted = n_sub_scored = n_sub_other = 0
+    queue_ok = 0
+    queue_pairs: List[tuple] = []
 
     for case in cases:
         row = by_id.get(case.id) or {}
@@ -474,6 +500,14 @@ def score_routing(
         dest_ok += d_ok
         sub_ok += s_ok
         joint_ok += d_ok and s_ok
+        # The label is internal; the queue is what the caller experiences. Two different labels can
+        # route to the same place (`front_desk` and `non_customer` both go to Front Desk), so a
+        # label miss is not automatically a routing miss. Reported alongside, never instead of.
+        want_queue = queue_from(case.destination, case.subqueue)
+        got_queue = queue_from(row["destination"], row.get("subqueue"))
+        q_ok = bool(want_queue) and got_queue == want_queue
+        queue_ok += q_ok
+        queue_pairs.append((want_queue, got_queue))
         dest_pairs.append((case.destination, row["destination"]))
         if case.subqueue is not None:
             n_sub_scored += 1
@@ -501,8 +535,11 @@ def score_routing(
         "destination_ci95": wilson_ci(dest_ok, n),
         "subqueue_ci95": wilson_ci(sub_ok, n),
         "joint_ci95": wilson_ci(joint_ok, n),
+        "queue_accuracy": round(queue_ok / n, 4),
+        "queue_ci95": wilson_ci(queue_ok, n),
         "destination_confusion": _confusion(dest_pairs),
         "subqueue_confusion": _confusion(sub_pairs),
+        "queue_confusion": _confusion(queue_pairs),
         "other": {
             "predicted_other": n_sub_other,
             "rate_of_subqueue_predictions": (
@@ -521,6 +558,7 @@ def score_routing(
         "cost_usd": round(cost, 8) if cost is not None else None,
         "cost_model": model_ref,
         "gate": gate_stats(gate_rows, 0.75),
+        "calibration": _calibration(gate_rows),
         "misses": misses,
     }
 

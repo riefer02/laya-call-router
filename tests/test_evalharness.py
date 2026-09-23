@@ -45,3 +45,67 @@ def test_agreement_defaults_to_destination():
         [{"id": "a", "destination": "service"}, {"id": "b", "destination": "body_shop"}],
     ]
     assert H.agreement(runs) == 0.5
+
+
+# --------------------------------------------------------------------------- calibration
+def test_calibration_bands_report_accuracy_per_confidence():
+    cal = H._calibration([(0.1, False), (0.15, False), (0.9, True), (0.95, True)])
+    assert cal["0.0-0.2"]["accuracy"] == 0.0
+    assert cal["0.8-1.0"]["accuracy"] == 1.0
+
+
+def test_calibration_exposes_a_flat_confident_curve():
+    """The fine-tune's actual failure: confident on everything, so one band holds every case and
+    no threshold can separate the errors. This is why the gate flagged 0 of 81."""
+    cal = H._calibration([(0.95, True)] * 9 + [(0.95, False)])
+    assert cal == {"0.8-1.0": {"n": 10, "accuracy": 0.9}}
+
+
+def test_calibration_ignores_cases_with_no_confidence():
+    assert H._calibration([(None, True), (None, False)]) == {}
+
+
+def test_calibration_counts_the_top_band_inclusively():
+    """A confidence of exactly 1.0 must not fall outside every band."""
+    cal = H._calibration([(1.0, True)])
+    assert cal["0.8-1.0"] == {"n": 1, "accuracy": 1.0}
+
+
+# --------------------------------------------------------------------------- queue accuracy
+def _cases(*pairs):
+    return [H.RoutingCase(id=f"c{i}", text="x", destination=d, subqueue=s) for i, (d, s) in enumerate(pairs)]
+
+
+def _results(*pairs):
+    return [
+        {"id": f"c{i}", "destination": d, "subqueue": s, "latency_ms": 1.0, "valid": True}
+        for i, (d, s) in enumerate(pairs)
+    ]
+
+
+def test_queue_accuracy_credits_a_label_miss_that_routes_the_same():
+    """`front_desk` and `non_customer` both route to Front Desk.
+
+    A label miss there is not a routing miss. Queue accuracy is reported *alongside* destination
+    accuracy, never instead of it, so a taxonomy disagreement stays visible.
+    """
+    cases = _cases(("front_desk", "general_question"))
+    results = _results(("non_customer", "wrong_number"))
+    score = H.score_routing(cases, results)
+    assert score["destination_accuracy"] == 0.0  # the label is wrong, and that is still shown
+    assert score["queue_accuracy"] == 1.0  # but it lands on the same queue
+
+
+def test_queue_accuracy_still_punishes_a_real_misroute():
+    cases = _cases(("service", "tires"))
+    results = _results(("sales", "new_vehicle"))
+    score = H.score_routing(cases, results)
+    assert score["queue_accuracy"] == 0.0
+
+
+def test_queue_confusion_is_reported():
+    cases = _cases(("service", "tires"), ("service", "tires"))
+    results = _results(("service", "tires"), ("service", "roadside_assistance"))
+    score = H.score_routing(cases, results)
+    assert score["queue_accuracy"] == 0.5
+    assert score["queue_confusion"]["Tire Bay"]["Roadside / Towing"] == 1
