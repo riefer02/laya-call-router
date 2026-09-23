@@ -15,7 +15,13 @@ than inferred, and the option texts contain the slot times, so a teacher's answe
 mapped back to a slot anyway — one more place to be wrong. Variety comes from many phrasings per
 class rather than from generation.
 
-    uv run python scripts/generate_acceptance.py --per-class 120
+**The split holds out phrasings, not rows.** Every reply here is a template, so a random row split
+would put "Yes, {t} works for me." in both train and dev and measure memorisation. The capability
+under test is *understanding a way of saying yes that it has not read before*, so the held-out
+reply phrasings are the only split that measures anything. `eval_acceptance.py` reads the dev file;
+a test asserts the two never share a reply.
+
+    uv run python scripts/generate_acceptance.py --per-class 130
 """
 
 from __future__ import annotations
@@ -34,7 +40,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from jev_classifier import dealership as D, store_profile as SP  # noqa: E402
 from jev_classifier.schedule import Scheduler, Slot, acceptance_options  # noqa: E402
 
-OUT = ROOT / "data" / "calls" / "acceptance_train.jsonl"
+TRAIN_OUT = ROOT / "data" / "calls" / "acceptance_train.jsonl"
+DEV_OUT = ROOT / "data" / "calls" / "acceptance_dev.jsonl"
 
 # What the caller says. `{t}` is the spoken form of the slot they mean, `{other}` one they do not.
 ACCEPT = [
@@ -69,6 +76,16 @@ UNCLEAR = [
     "I'd have to check with my wife.",
     "Can I let you know?",
 ]
+
+# Held out on a fixed stride, not at random, so the dev set is the same on every regeneration and
+# can be quoted. Every 4th phrasing: a spread across the list rather than a clump at one end.
+DEV_PHRASE_STRIDE = 4
+DEV_PHRASES = {
+    phrase
+    for phrases in (ACCEPT, REJECT, UNCLEAR)
+    for phrase in phrases[::DEV_PHRASE_STRIDE]
+}
+
 VEHICLES = ["car", "SUV", "truck", "van", "sedan"]
 OPENERS = [
     "I'd like to book my {v} in for {what}.",
@@ -98,12 +115,13 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--per-class", type=int, default=100, help="examples per acceptance class")
     ap.add_argument("--seed", type=int, default=11)
-    ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--train-out", default=str(TRAIN_OUT))
+    ap.add_argument("--dev-out", default=str(DEV_OUT))
     args = ap.parse_args()
 
     SP.clear_cache()
     profile = SP.load()
-    scheduler = Scheduler(profile, store_path=Path(args.out).with_suffix(".bookings.jsonl"))
+    scheduler = Scheduler(profile, store_path=Path(args.train_out).with_suffix(".bookings.jsonl"))
     rng = random.Random(args.seed)
 
     bookable = [
@@ -117,8 +135,12 @@ def main() -> int:
     rows = []
     start = date(2026, 9, 22)
     accept_i = 0
+    # Cycle the phrasing rather than sampling it, so every phrasing in a class gets the same number
+    # of rows. Sampling would leave some phrasings rare, and a rare phrasing held out of train is
+    # indistinguishable from one the model never had a chance to learn.
+    phrase_i = Counter()
     for _ in range(args.per_class):
-        for kind in ("accept", "reject", "unclear"):
+        for kind, phrases in (("accept", ACCEPT), ("reject", REJECT), ("unclear", UNCLEAR)):
             location = rng.choice(locations)
             subqueue = rng.choice(bookable)
             offered = scheduler.offer(
@@ -127,18 +149,20 @@ def main() -> int:
             if len(offered) < 3:
                 continue
             state = build_transcript(rng, location, subqueue, offered)
+            reply_template = phrases[phrase_i[kind] % len(phrases)]
+            phrase_i[kind] += 1
             if kind == "accept":
                 # cycle the slot rather than sampling it, so slot_1/2/3 stay balanced - they differ
                 # only by the time text, and an uneven split would teach a positional bias
                 idx = accept_i % 3
                 accept_i += 1
-                reply = rng.choice(ACCEPT).format(t=offered[idx].label())
+                reply = reply_template.format(t=offered[idx].label())
                 choice = f"slot_{idx + 1}"
             elif kind == "reject":
-                reply = rng.choice(REJECT)
+                reply = reply_template
                 choice = "none_of_these"
             else:
-                reply = rng.choice(UNCLEAR)
+                reply = reply_template
                 choice = "unclear"
             rows.append(
                 {
@@ -146,6 +170,7 @@ def main() -> int:
                     "choice": choice,
                     "offered": [s.key for s in offered],
                     "reply": reply,
+                    "reply_template": reply_template,
                 }
             )
 
@@ -154,12 +179,22 @@ def main() -> int:
         offered = [Slot(*k.split("T")) for k in row["offered"]]
         row["options"] = acceptance_options(offered)
 
-    out = Path(args.out)
-    out.write_text("".join(json.dumps(r) + "\n" for r in rows))
-    print(f"wrote {out} ({len(rows)} examples)")
-    print("by class:", dict(Counter(r["choice"] for r in rows)))
+    train = [r for r in rows if r["reply_template"] not in DEV_PHRASES]
+    dev = [r for r in rows if r["reply_template"] in DEV_PHRASES]
+
+    for path, subset in ((args.train_out, train), (args.dev_out, dev)):
+        if not subset:
+            raise SystemExit(f"refusing to write an empty {path}")
+        Path(path).write_text("".join(json.dumps(r) + "\n" for r in subset))
+        print(f"wrote {path} ({len(subset)} examples)")
+        print("  by class:", dict(Counter(r["choice"] for r in subset)))
+
+    held = sorted(DEV_PHRASES)
+    print(f"\nheld-out phrasings ({len(held)}):")
+    for p in held:
+        print("   ", p)
     print("\nexample:")
-    ex = rows[0]
+    ex = train[0]
     print("  state:", ex["text"].replace("\n", " | ")[:150])
     print("  choice:", ex["choice"], "| options:", list(ex["options"])[:3], "...")
     return 0

@@ -254,6 +254,27 @@ def rebalance(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 m[key] = row[key]
     final = list(merged.values())
 
+    # Drop training rows that contain a held-out eval utterance. `sev-04` ("there's smoke coming
+    # from under the hood.") appears verbatim inside two training rows, so the model credited with
+    # catching it had already read it. An exact-text check does not see that - the eval row is a
+    # *substring* of the longer training row - so the eval looked clean while it was not. Only
+    # utterances long enough not to match by accident are compared, and either direction counts.
+    eval_path = ROOT / "data" / "calls" / "severity.jsonl"
+    if eval_path.is_file():
+        held_out = [
+            json.loads(line)["text"]
+            for line in eval_path.read_text().splitlines()
+            if line.strip()
+        ]
+        if held_out:
+            before = len(final)
+            final = [r for r in final if not synthgen.echoes_heldout(r["text"], held_out)]
+            if before != len(final):
+                print(
+                    f"dropped {before - len(final)} training rows that contain a held-out "
+                    "eval utterance verbatim"
+                )
+
     rng = random.Random(3)
     keep = set(range(len(final)))
     for key in KEYS:

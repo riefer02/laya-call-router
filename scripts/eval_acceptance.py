@@ -27,14 +27,45 @@ import laya_mlx as laya  # noqa: E402
 
 from jev_classifier import store_profile as SP  # noqa: E402
 
-DATA = ROOT / "data" / "calls" / "acceptance_train.jsonl"
+# Held out, never the training file. This defaulted to `acceptance_train.jsonl` until it was caught
+# reporting 1.000 accuracy - which was the model reciting phrasings it had been trained on, not
+# understanding an acceptance. The split holds out reply phrasings, so generalising to a wording
+# the model has not read is the thing measured.
+DATA = ROOT / "data" / "calls" / "acceptance_dev.jsonl"
+TRAIN_DATA = ROOT / "data" / "calls" / "acceptance_train.jsonl"
 
 
-def load() -> List[dict]:
-    rows = [json.loads(line) for line in DATA.read_text().splitlines() if line.strip()]
+def load(path: Path) -> List[dict]:
+    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     if not rows:
-        raise SystemExit(f"no examples in {DATA}")
+        raise SystemExit(f"no examples in {path}")
     return rows
+
+
+def assert_held_out(rows: List[dict], train_path: Path = TRAIN_DATA) -> None:
+    """Refuse to score on anything the model was trained on.
+
+    The eval read the training file for a while and reported a perfect score, which is what a
+    leaky measurement looks like from the inside: plausible, flattering, and wrong.
+    """
+    if not train_path.exists():
+        return
+    train = load(train_path)
+    if any(r.get("reply_template") for r in train):
+        shared = {r["reply_template"] for r in rows} & {r["reply_template"] for r in train}
+        if shared:
+            raise SystemExit(
+                "the acceptance eval set shares reply phrasings with the training set, so it "
+                "cannot measure generalisation:\n  " + "\n  ".join(sorted(shared))
+            )
+    else:
+        # Older row format, no phrasing recorded: fall back to exact-text leakage.
+        shared = {r["text"] for r in rows} & {r["text"] for r in train}
+        if shared:
+            raise SystemExit(
+                f"the acceptance eval set shares {len(shared)} exact transcripts with the "
+                "training set"
+            )
 
 
 def run(rows: List[dict], router, profile) -> List[dict]:
@@ -88,14 +119,20 @@ def score(scored: List[dict]) -> Dict[str, object]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--finetuned", default="")
+    ap.add_argument("--data", default=str(DATA), help="held-out set (never the training file)")
     ap.add_argument("--out", default="results/acceptance.json")
     args = ap.parse_args()
 
     SP.clear_cache()
     profile = SP.load()
-    rows = load()
-    print(f"acceptance set: {len(rows)} examples")
-    print("  the question the switchboard asks after offering times\n")
+    data_path = Path(args.data)
+    if not data_path.is_absolute():
+        data_path = ROOT / data_path
+    rows = load(data_path)
+    assert_held_out(rows)
+    print(f"acceptance set: {len(rows)} examples from {data_path.relative_to(ROOT)}")
+    print("  the question the switchboard asks after offering times")
+    print("  held out by reply phrasing, so this measures a way of saying it it has not read\n")
 
     routers = {"base": laya.Router(max_loaded=2)}
     if args.finetuned:
@@ -109,7 +146,11 @@ def main() -> int:
             models={"english": (str(path), None)}, max_loaded=2
         )
 
-    report: Dict[str, object] = {"n": len(rows), "arms": {}}
+    report: Dict[str, object] = {
+        "n": len(rows),
+        "data": str(data_path.relative_to(ROOT)),
+        "arms": {},
+    }
     for name, router in routers.items():
         router.preload(["english", "multilingual"])
         scored = run(rows, router, profile)

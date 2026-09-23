@@ -1,0 +1,1254 @@
+{
+  "n": 45,
+  "positives": {
+    "is_safe_to_drive": 18,
+    "needs_human": 7
+  },
+  "arms": {
+    "base": {
+      "at_default": {
+        "is_safe_to_drive": {
+          "threshold": 0.5,
+          "accuracy": 0.9111,
+          "recall": 0.8333,
+          "precision": 0.9375,
+          "false_alarms": 1,
+          "missed": 3,
+          "missed_ids": [
+            "sev-03",
+            "sev-07",
+            "sev-09"
+          ],
+          "positives": 18,
+          "negatives": 27
+        },
+        "needs_human": {
+          "threshold": 0.5,
+          "accuracy": 0.9111,
+          "recall": 0.4286,
+          "precision": 1.0,
+          "false_alarms": 0,
+          "missed": 4,
+          "missed_ids": [
+            "sev-41",
+            "sev-42",
+            "sev-44",
+            "sev-45"
+          ],
+          "positives": 7,
+          "negatives": 38
+        }
+      },
+      "sweep": {
+        "is_safe_to_drive": [
+          {
+            "threshold": 0.3,
+            "accuracy": 0.6667,
+            "recall": 1.0,
+            "precision": 0.5455,
+            "false_alarms": 15,
+            "missed": 0,
+            "missed_ids": [],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.4,
+            "accuracy": 0.7778,
+            "recall": 1.0,
+            "precision": 0.6429,
+            "false_alarms": 10,
+            "missed": 0,
+            "missed_ids": [],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.5,
+            "accuracy": 0.9111,
+            "recall": 0.8333,
+            "precision": 0.9375,
+            "false_alarms": 1,
+            "missed": 3,
+            "missed_ids": [
+              "sev-03",
+              "sev-07",
+              "sev-09"
+            ],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.6,
+            "accuracy": 0.9111,
+            "recall": 0.7778,
+            "precision": 1.0,
+            "false_alarms": 0,
+            "missed": 4,
+            "missed_ids": [
+              "sev-03",
+              "sev-07",
+              "sev-08",
+              "sev-09"
+            ],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.7,
+            "accuracy": 0.7778,
+            "recall": 0.4444,
+            "precision": 1.0,
+            "false_alarms": 0,
+            "missed": 10,
+            "missed_ids": [
+              "sev-01",
+              "sev-03",
+              "sev-05",
+              "sev-06",
+              "sev-07",
+              "sev-08",
+              "sev-09",
+              "sev-14",
+              "sev-16",
+              "sev-45"
+            ],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.8,
+            "accuracy": 0.6444,
+            "recall": 0.1111,
+            "precision": 1.0,
+            "false_alarms": 0,
+            "missed": 16,
+            "missed_ids": [
+              "sev-01",
+              "sev-02",
+              "sev-03",
+              "sev-04",
+              "sev-05",
+              "sev-06",
+              "sev-07",
+              "sev-08",
+              "sev-09",
+              "sev-10",
+              "sev-12",
+              "sev-13",
+              "sev-14",
+              "sev-15",
+              "sev-16",
+              "sev-45"
+            ],
+            "positives": 18,
+            "negatives": 27
+          }
+        ],
+        "needs_human": [
+          {
+            "threshold": 0.3,
+            "accuracy": 0.9333,
+            "recall": 0.5714,
+            "precision": 1.0,
+            "false_alarms": 0,
+            "missed": 3,
+            "missed_ids": [
+              "sev-42",
+              "sev-44",
+              "sev-45"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.4,
+            "accuracy": 0.9333,
+            "recall": 0.5714,
+            "precision": 1.0,
+            "false_alarms": 0,
+            "missed": 3,
+            "missed_ids": [
+              "sev-42",
+              "sev-44",
+              "sev-45"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.5,
+            "accuracy": 0.9111,
+            "recall": 0.4286,
+            "precision": 1.0,
+            "false_alarms": 0,
+            "missed": 4,
+            "missed_ids": [
+              "sev-41",
+              "sev-42",
+              "sev-44",
+              "sev-45"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.6,
+            "accuracy": 0.8444,
+            "recall": 0.0,
+            "precision": null,
+            "false_alarms": 0,
+            "missed": 7,
+            "missed_ids": [
+              "sev-39",
+              "sev-40",
+              "sev-41",
+              "sev-42",
+              "sev-43",
+              "sev-44",
+              "sev-45"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.7,
+            "accuracy": 0.8444,
+            "recall": 0.0,
+            "precision": null,
+            "false_alarms": 0,
+            "missed": 7,
+            "missed_ids": [
+              "sev-39",
+              "sev-40",
+              "sev-41",
+              "sev-42",
+              "sev-43",
+              "sev-44",
+              "sev-45"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.8,
+            "accuracy": 0.8444,
+            "recall": 0.0,
+            "precision": null,
+            "false_alarms": 0,
+            "missed": 7,
+            "missed_ids": [
+              "sev-39",
+              "sev-40",
+              "sev-41",
+              "sev-42",
+              "sev-43",
+              "sev-44",
+              "sev-45"
+            ],
+            "positives": 7,
+            "negatives": 38
+          }
+        ]
+      },
+      "latency_ms": {
+        "p50": 10.9
+      },
+      "rows": [
+        {
+          "id": "sev-01",
+          "text": "My car won't start at all, I'm stuck in the parking lot and need help.",
+          "p_is_safe_to_drive": 0.691,
+          "p_needs_human": 0.297,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded: cannot move the vehicle"
+        },
+        {
+          "id": "sev-02",
+          "text": "I'm on the side of the highway with a flat tyre.",
+          "p_is_safe_to_drive": 0.714,
+          "p_needs_human": 0.225,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded on a highway"
+        },
+        {
+          "id": "sev-03",
+          "text": "The brakes just failed on me, I had to pull over onto the verge.",
+          "p_is_safe_to_drive": 0.454,
+          "p_needs_human": 0.093,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "brake failure while driving"
+        },
+        {
+          "id": "sev-04",
+          "text": "There's smoke coming from under the hood.",
+          "p_is_safe_to_drive": 0.766,
+          "p_needs_human": 0.092,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "fire risk"
+        },
+        {
+          "id": "sev-05",
+          "text": "The steering wheel is shaking so badly I can barely keep it in the lane.",
+          "p_is_safe_to_drive": 0.636,
+          "p_needs_human": 0.132,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "loss of control"
+        },
+        {
+          "id": "sev-06",
+          "text": "I was just in an accident, the front end is smashed in and it's not drivable.",
+          "p_is_safe_to_drive": 0.677,
+          "p_needs_human": 0.066,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "collision, not drivable"
+        },
+        {
+          "id": "sev-07",
+          "text": "The temperature gauge is in the red and I'm on the freeway.",
+          "p_is_safe_to_drive": 0.45,
+          "p_needs_human": 0.134,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "overheating mid-journey"
+        },
+        {
+          "id": "sev-08",
+          "text": "I hit a pothole and now the wheel is bent and the car pulls hard to one side.",
+          "p_is_safe_to_drive": 0.532,
+          "p_needs_human": 0.089,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "damaged wheel, unsafe tracking"
+        },
+        {
+          "id": "sev-09",
+          "text": "I've locked my keys in the car and the engine is still running.",
+          "p_is_safe_to_drive": 0.441,
+          "p_needs_human": 0.128,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "lockout, engine running"
+        },
+        {
+          "id": "sev-10",
+          "text": "I've run out of fuel and I'm stopped on the shoulder.",
+          "p_is_safe_to_drive": 0.715,
+          "p_needs_human": 0.228,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded"
+        },
+        {
+          "id": "sev-11",
+          "text": "There's a burning smell and smoke coming through the vents.",
+          "p_is_safe_to_drive": 0.81,
+          "p_needs_human": 0.145,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "fire risk"
+        },
+        {
+          "id": "sev-12",
+          "text": "The transmission just gave out while I was in traffic, it won't move.",
+          "p_is_safe_to_drive": 0.743,
+          "p_needs_human": 0.088,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "immobile in traffic"
+        },
+        {
+          "id": "sev-13",
+          "text": "The tyre blew out and I'm on the hard shoulder.",
+          "p_is_safe_to_drive": 0.761,
+          "p_needs_human": 0.236,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded on a shoulder"
+        },
+        {
+          "id": "sev-14",
+          "text": "The accelerator stuck open and I had to shut the engine off to stop.",
+          "p_is_safe_to_drive": 0.65,
+          "p_needs_human": 0.093,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "unintended acceleration"
+        },
+        {
+          "id": "sev-15",
+          "text": "The engine died at the side of the road and it won't restart.",
+          "p_is_safe_to_drive": 0.791,
+          "p_needs_human": 0.156,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded"
+        },
+        {
+          "id": "sev-16",
+          "text": "I hit black ice and went into a ditch, the car is stuck.",
+          "p_is_safe_to_drive": 0.608,
+          "p_needs_human": 0.126,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "off the road"
+        },
+        {
+          "id": "sev-17",
+          "text": "The wheel came loose and I've stopped, I'm not driving it anywhere.",
+          "p_is_safe_to_drive": 0.816,
+          "p_needs_human": 0.142,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "wheel detachment risk"
+        },
+        {
+          "id": "sev-18",
+          "text": "I'd like to book an oil change for next week please.",
+          "p_is_safe_to_drive": 0.179,
+          "p_needs_human": 0.074,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "routine scheduled work"
+        },
+        {
+          "id": "sev-19",
+          "text": "Do you have a replacement wing mirror in stock for a 2019 Civic?",
+          "p_is_safe_to_drive": 0.243,
+          "p_needs_human": 0.167,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "parts enquiry"
+        },
+        {
+          "id": "sev-20",
+          "text": "I'm interested in looking at the new electric SUVs.",
+          "p_is_safe_to_drive": 0.296,
+          "p_needs_human": 0.124,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "sales enquiry"
+        },
+        {
+          "id": "sev-21",
+          "text": "My check engine light came on yesterday but it's driving perfectly normally.",
+          "p_is_safe_to_drive": 0.151,
+          "p_needs_human": 0.114,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "warning light, still drivable"
+        },
+        {
+          "id": "sev-22",
+          "text": "There's a small scratch on the passenger door I'd like looked at.",
+          "p_is_safe_to_drive": 0.146,
+          "p_needs_human": 0.19,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "cosmetic"
+        },
+        {
+          "id": "sev-23",
+          "text": "I need my winter tyres swapped over before the season.",
+          "p_is_safe_to_drive": 0.489,
+          "p_needs_human": 0.14,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "routine"
+        },
+        {
+          "id": "sev-24",
+          "text": "The air conditioning isn't blowing cold air any more.",
+          "p_is_safe_to_drive": 0.307,
+          "p_needs_human": 0.096,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "comfort, not safety"
+        },
+        {
+          "id": "sev-25",
+          "text": "I'd like to book a full valet and interior clean.",
+          "p_is_safe_to_drive": 0.218,
+          "p_needs_human": 0.251,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "cosmetic"
+        },
+        {
+          "id": "sev-26",
+          "text": "The radio has stopped working since the last service.",
+          "p_is_safe_to_drive": 0.455,
+          "p_needs_human": 0.232,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "non-safety"
+        },
+        {
+          "id": "sev-27",
+          "text": "Can I move my appointment from Tuesday to Thursday?",
+          "p_is_safe_to_drive": 0.273,
+          "p_needs_human": 0.218,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "admin"
+        },
+        {
+          "id": "sev-28",
+          "text": "The paint is peeling on the roof of my car.",
+          "p_is_safe_to_drive": 0.428,
+          "p_needs_human": 0.199,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "cosmetic"
+        },
+        {
+          "id": "sev-29",
+          "text": "There's a rattle coming from the back seat over bumps.",
+          "p_is_safe_to_drive": 0.372,
+          "p_needs_human": 0.157,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "minor noise"
+        },
+        {
+          "id": "sev-30",
+          "text": "The windscreen has a small stone chip, not in the driver's line of sight.",
+          "p_is_safe_to_drive": 0.464,
+          "p_needs_human": 0.076,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "minor, drivable"
+        },
+        {
+          "id": "sev-31",
+          "text": "I'd like a quote for a new set of tyres.",
+          "p_is_safe_to_drive": 0.458,
+          "p_needs_human": 0.237,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "quote"
+        },
+        {
+          "id": "sev-32",
+          "text": "The boot release is sticky and takes a few tries.",
+          "p_is_safe_to_drive": 0.355,
+          "p_needs_human": 0.049,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "minor"
+        },
+        {
+          "id": "sev-33",
+          "text": "The tyre pressure light is on but all the tyres look fine to me.",
+          "p_is_safe_to_drive": 0.173,
+          "p_needs_human": 0.13,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "warning only, driveable"
+        },
+        {
+          "id": "sev-34",
+          "text": "There's a squealing noise when I brake but the car stops fine.",
+          "p_is_safe_to_drive": 0.152,
+          "p_needs_human": 0.093,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "brake noise, still stopping"
+        },
+        {
+          "id": "sev-35",
+          "text": "The car pulls to the left a little on the motorway.",
+          "p_is_safe_to_drive": 0.148,
+          "p_needs_human": 0.047,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "tracking, driveable"
+        },
+        {
+          "id": "sev-36",
+          "text": "My battery went flat this morning but I got a jump start and it's running now.",
+          "p_is_safe_to_drive": 0.366,
+          "p_needs_human": 0.107,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "resolved, moving"
+        },
+        {
+          "id": "sev-37",
+          "text": "The ABS warning light came on this morning.",
+          "p_is_safe_to_drive": 0.395,
+          "p_needs_human": 0.099,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "warning light, driveable"
+        },
+        {
+          "id": "sev-38",
+          "text": "The driver's seat won't slide forward any more.",
+          "p_is_safe_to_drive": 0.278,
+          "p_needs_human": 0.133,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "minor"
+        },
+        {
+          "id": "sev-39",
+          "text": "I want to make a complaint about how my last service was handled.",
+          "p_is_safe_to_drive": 0.219,
+          "p_needs_human": 0.517,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "complaint, needs a person"
+        },
+        {
+          "id": "sev-40",
+          "text": "I'd like to speak to the service manager please.",
+          "p_is_safe_to_drive": 0.513,
+          "p_needs_human": 0.595,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "explicit escalation"
+        },
+        {
+          "id": "sev-41",
+          "text": "I've been charged twice for the same repair and I want it sorted out.",
+          "p_is_safe_to_drive": 0.462,
+          "p_needs_human": 0.434,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "billing dispute"
+        },
+        {
+          "id": "sev-42",
+          "text": "This is the third time I've called about this and nobody has called me back.",
+          "p_is_safe_to_drive": 0.493,
+          "p_needs_human": 0.165,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "repeated failure, frustration"
+        },
+        {
+          "id": "sev-43",
+          "text": "I need to talk to someone about a legal matter to do with my vehicle.",
+          "p_is_safe_to_drive": 0.419,
+          "p_needs_human": 0.556,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "legal, needs a person"
+        },
+        {
+          "id": "sev-44",
+          "text": "The repair you did last month hasn't fixed the problem and I'm not happy.",
+          "p_is_safe_to_drive": 0.461,
+          "p_needs_human": 0.275,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "rework complaint"
+        },
+        {
+          "id": "sev-45",
+          "text": "Someone was injured in the accident, the car is undriveable.",
+          "p_is_safe_to_drive": 0.674,
+          "p_needs_human": 0.217,
+          "is_safe_to_drive": 1,
+          "needs_human": 1,
+          "why": "injury plus stranded: both flags"
+        }
+      ]
+    },
+    "fine-tuned": {
+      "at_default": {
+        "is_safe_to_drive": {
+          "threshold": 0.5,
+          "accuracy": 0.8,
+          "recall": 1.0,
+          "precision": 0.6667,
+          "false_alarms": 9,
+          "missed": 0,
+          "missed_ids": [],
+          "positives": 18,
+          "negatives": 27
+        },
+        "needs_human": {
+          "threshold": 0.5,
+          "accuracy": 0.4667,
+          "recall": 0.8571,
+          "precision": 0.2069,
+          "false_alarms": 23,
+          "missed": 1,
+          "missed_ids": [
+            "sev-40"
+          ],
+          "positives": 7,
+          "negatives": 38
+        }
+      },
+      "sweep": {
+        "is_safe_to_drive": [
+          {
+            "threshold": 0.3,
+            "accuracy": 0.8,
+            "recall": 1.0,
+            "precision": 0.6667,
+            "false_alarms": 9,
+            "missed": 0,
+            "missed_ids": [],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.4,
+            "accuracy": 0.8,
+            "recall": 1.0,
+            "precision": 0.6667,
+            "false_alarms": 9,
+            "missed": 0,
+            "missed_ids": [],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.5,
+            "accuracy": 0.8,
+            "recall": 1.0,
+            "precision": 0.6667,
+            "false_alarms": 9,
+            "missed": 0,
+            "missed_ids": [],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.6,
+            "accuracy": 0.8,
+            "recall": 1.0,
+            "precision": 0.6667,
+            "false_alarms": 9,
+            "missed": 0,
+            "missed_ids": [],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.7,
+            "accuracy": 0.8,
+            "recall": 1.0,
+            "precision": 0.6667,
+            "false_alarms": 9,
+            "missed": 0,
+            "missed_ids": [],
+            "positives": 18,
+            "negatives": 27
+          },
+          {
+            "threshold": 0.8,
+            "accuracy": 0.8222,
+            "recall": 1.0,
+            "precision": 0.6923,
+            "false_alarms": 8,
+            "missed": 0,
+            "missed_ids": [],
+            "positives": 18,
+            "negatives": 27
+          }
+        ],
+        "needs_human": [
+          {
+            "threshold": 0.3,
+            "accuracy": 0.4667,
+            "recall": 0.8571,
+            "precision": 0.2069,
+            "false_alarms": 23,
+            "missed": 1,
+            "missed_ids": [
+              "sev-40"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.4,
+            "accuracy": 0.4667,
+            "recall": 0.8571,
+            "precision": 0.2069,
+            "false_alarms": 23,
+            "missed": 1,
+            "missed_ids": [
+              "sev-40"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.5,
+            "accuracy": 0.4667,
+            "recall": 0.8571,
+            "precision": 0.2069,
+            "false_alarms": 23,
+            "missed": 1,
+            "missed_ids": [
+              "sev-40"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.6,
+            "accuracy": 0.4667,
+            "recall": 0.8571,
+            "precision": 0.2069,
+            "false_alarms": 23,
+            "missed": 1,
+            "missed_ids": [
+              "sev-40"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.7,
+            "accuracy": 0.4667,
+            "recall": 0.8571,
+            "precision": 0.2069,
+            "false_alarms": 23,
+            "missed": 1,
+            "missed_ids": [
+              "sev-40"
+            ],
+            "positives": 7,
+            "negatives": 38
+          },
+          {
+            "threshold": 0.8,
+            "accuracy": 0.4667,
+            "recall": 0.8571,
+            "precision": 0.2069,
+            "false_alarms": 23,
+            "missed": 1,
+            "missed_ids": [
+              "sev-40"
+            ],
+            "positives": 7,
+            "negatives": 38
+          }
+        ]
+      },
+      "latency_ms": {
+        "p50": 10.5
+      },
+      "rows": [
+        {
+          "id": "sev-01",
+          "text": "My car won't start at all, I'm stuck in the parking lot and need help.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded: cannot move the vehicle"
+        },
+        {
+          "id": "sev-02",
+          "text": "I'm on the side of the highway with a flat tyre.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded on a highway"
+        },
+        {
+          "id": "sev-03",
+          "text": "The brakes just failed on me, I had to pull over onto the verge.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "brake failure while driving"
+        },
+        {
+          "id": "sev-04",
+          "text": "There's smoke coming from under the hood.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "fire risk"
+        },
+        {
+          "id": "sev-05",
+          "text": "The steering wheel is shaking so badly I can barely keep it in the lane.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "loss of control"
+        },
+        {
+          "id": "sev-06",
+          "text": "I was just in an accident, the front end is smashed in and it's not drivable.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "collision, not drivable"
+        },
+        {
+          "id": "sev-07",
+          "text": "The temperature gauge is in the red and I'm on the freeway.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "overheating mid-journey"
+        },
+        {
+          "id": "sev-08",
+          "text": "I hit a pothole and now the wheel is bent and the car pulls hard to one side.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "damaged wheel, unsafe tracking"
+        },
+        {
+          "id": "sev-09",
+          "text": "I've locked my keys in the car and the engine is still running.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "lockout, engine running"
+        },
+        {
+          "id": "sev-10",
+          "text": "I've run out of fuel and I'm stopped on the shoulder.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded"
+        },
+        {
+          "id": "sev-11",
+          "text": "There's a burning smell and smoke coming through the vents.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "fire risk"
+        },
+        {
+          "id": "sev-12",
+          "text": "The transmission just gave out while I was in traffic, it won't move.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "immobile in traffic"
+        },
+        {
+          "id": "sev-13",
+          "text": "The tyre blew out and I'm on the hard shoulder.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded on a shoulder"
+        },
+        {
+          "id": "sev-14",
+          "text": "The accelerator stuck open and I had to shut the engine off to stop.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "unintended acceleration"
+        },
+        {
+          "id": "sev-15",
+          "text": "The engine died at the side of the road and it won't restart.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "stranded"
+        },
+        {
+          "id": "sev-16",
+          "text": "I hit black ice and went into a ditch, the car is stuck.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "off the road"
+        },
+        {
+          "id": "sev-17",
+          "text": "The wheel came loose and I've stopped, I'm not driving it anywhere.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 0,
+          "why": "wheel detachment risk"
+        },
+        {
+          "id": "sev-18",
+          "text": "I'd like to book an oil change for next week please.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "routine scheduled work"
+        },
+        {
+          "id": "sev-19",
+          "text": "Do you have a replacement wing mirror in stock for a 2019 Civic?",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "parts enquiry"
+        },
+        {
+          "id": "sev-20",
+          "text": "I'm interested in looking at the new electric SUVs.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "sales enquiry"
+        },
+        {
+          "id": "sev-21",
+          "text": "My check engine light came on yesterday but it's driving perfectly normally.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "warning light, still drivable"
+        },
+        {
+          "id": "sev-22",
+          "text": "There's a small scratch on the passenger door I'd like looked at.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "cosmetic"
+        },
+        {
+          "id": "sev-23",
+          "text": "I need my winter tyres swapped over before the season.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "routine"
+        },
+        {
+          "id": "sev-24",
+          "text": "The air conditioning isn't blowing cold air any more.",
+          "p_is_safe_to_drive": 0.999,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "comfort, not safety"
+        },
+        {
+          "id": "sev-25",
+          "text": "I'd like to book a full valet and interior clean.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "cosmetic"
+        },
+        {
+          "id": "sev-26",
+          "text": "The radio has stopped working since the last service.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "non-safety"
+        },
+        {
+          "id": "sev-27",
+          "text": "Can I move my appointment from Tuesday to Thursday?",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "admin"
+        },
+        {
+          "id": "sev-28",
+          "text": "The paint is peeling on the roof of my car.",
+          "p_is_safe_to_drive": 0.708,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "cosmetic"
+        },
+        {
+          "id": "sev-29",
+          "text": "There's a rattle coming from the back seat over bumps.",
+          "p_is_safe_to_drive": 0.998,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "minor noise"
+        },
+        {
+          "id": "sev-30",
+          "text": "The windscreen has a small stone chip, not in the driver's line of sight.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "minor, drivable"
+        },
+        {
+          "id": "sev-31",
+          "text": "I'd like a quote for a new set of tyres.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "quote"
+        },
+        {
+          "id": "sev-32",
+          "text": "The boot release is sticky and takes a few tries.",
+          "p_is_safe_to_drive": 0.999,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "minor"
+        },
+        {
+          "id": "sev-33",
+          "text": "The tyre pressure light is on but all the tyres look fine to me.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "warning only, driveable"
+        },
+        {
+          "id": "sev-34",
+          "text": "There's a squealing noise when I brake but the car stops fine.",
+          "p_is_safe_to_drive": 0.092,
+          "p_needs_human": 0.006,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "brake noise, still stopping"
+        },
+        {
+          "id": "sev-35",
+          "text": "The car pulls to the left a little on the motorway.",
+          "p_is_safe_to_drive": 0.004,
+          "p_needs_human": 0.993,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "tracking, driveable"
+        },
+        {
+          "id": "sev-36",
+          "text": "My battery went flat this morning but I got a jump start and it's running now.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "resolved, moving"
+        },
+        {
+          "id": "sev-37",
+          "text": "The ABS warning light came on this morning.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 0.999,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "warning light, driveable"
+        },
+        {
+          "id": "sev-38",
+          "text": "The driver's seat won't slide forward any more.",
+          "p_is_safe_to_drive": 0.998,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 0,
+          "why": "minor"
+        },
+        {
+          "id": "sev-39",
+          "text": "I want to make a complaint about how my last service was handled.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "complaint, needs a person"
+        },
+        {
+          "id": "sev-40",
+          "text": "I'd like to speak to the service manager please.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 0.001,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "explicit escalation"
+        },
+        {
+          "id": "sev-41",
+          "text": "I've been charged twice for the same repair and I want it sorted out.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "billing dispute"
+        },
+        {
+          "id": "sev-42",
+          "text": "This is the third time I've called about this and nobody has called me back.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "repeated failure, frustration"
+        },
+        {
+          "id": "sev-43",
+          "text": "I need to talk to someone about a legal matter to do with my vehicle.",
+          "p_is_safe_to_drive": 0.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "legal, needs a person"
+        },
+        {
+          "id": "sev-44",
+          "text": "The repair you did last month hasn't fixed the problem and I'm not happy.",
+          "p_is_safe_to_drive": 0.98,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 0,
+          "needs_human": 1,
+          "why": "rework complaint"
+        },
+        {
+          "id": "sev-45",
+          "text": "Someone was injured in the accident, the car is undriveable.",
+          "p_is_safe_to_drive": 1.0,
+          "p_needs_human": 1.0,
+          "is_safe_to_drive": 1,
+          "needs_human": 1,
+          "why": "injury plus stranded: both flags"
+        }
+      ]
+    }
+  }
+}

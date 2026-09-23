@@ -301,6 +301,15 @@ def main():
         cfg["fine_tuned"] = True
         cfg["model_name"] = "laya-dealership-routing"
         cfg["temperature"] = fitted_temps
+        # `temperature_by_options` is inherited from the base checkpoint and *takes precedence* over
+        # the vector fitted just above (laya_mlx/agent.py: `temperature_by_options.get(bucket, ...)`,
+        # the fitted value only as fallback). Every bucket our questions occupy - noul:2, choice:2,
+        # choice:3-5, choice:6-10 - is present in that inherited map, so the fitted temperatures were
+        # never applied to a single question. The step the comment above calls "what makes the
+        # confidence usable" was a no-op for this task. Measured on the v5 checkpoint: removing the
+        # map moves a noul probability from 1.000 to 0.996, so this is a correctness fix rather than
+        # a rescue - the trained logits are extreme in their own right.
+        cfg.pop("temperature_by_options", None)
         with open(os.path.join(output_dir, "rl_agent_config.json"), "w") as f:
             json.dump(cfg, f, indent=2)
         print(f"Model successfully saved to {output_dir}!")

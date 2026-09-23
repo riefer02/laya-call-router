@@ -162,6 +162,35 @@ def jaccard(a: Set[str], b: Set[str]) -> float:
     return len(a & b) / len(a | b)
 
 
+def contains(a: Set[str], b: Set[str]) -> bool:
+    """True when one text's shingles sit wholly inside the other's.
+
+    Jaccard cannot see this: a short query embedded in a long sentence scores low because the union
+    is large. "what time do you open on saturdays?" (7 words) inside a 14-word training row scores
+    0.50 against a 0.6 guard, so it passed — while the held-out case was, in effect, trained on.
+    """
+    small, large = (a, b) if len(a) <= len(b) else (b, a)
+    return bool(small) and small <= large
+
+
+def echoes_heldout(text: str, protected: Iterable[str], *, min_words: int = 5) -> bool:
+    """True when `text` swallows a held-out case, or is swallowed by one.
+
+    One rule, used in three places: the generator's deduper, the severity rebalance, and the trim
+    step that cleans datasets produced before the rule existed. Short strings are ignored because
+    they match by accident.
+    """
+    if len(_WORD.findall(text)) < min_words:
+        return False
+    sh = shingles(text)
+    for other in protected:
+        if len(_WORD.findall(other)) < min_words:
+            continue
+        if contains(sh, shingles(other)):
+            return True
+    return False
+
+
 class Deduper:
     """Rejects exact repeats, near-duplicates within the corpus, and anything close to the
     held-out hand-labelled set (which must never leak into training).
@@ -185,7 +214,7 @@ class Deduper:
             if fp in self.seen:
                 return "exact-duplicate"
             for other, osh in self.protected:
-                if jaccard(sh, osh) >= self.threshold:
+                if jaccard(sh, osh) >= self.threshold or contains(sh, osh):
                     return f"near-duplicate-of-heldout:{other[:40]}"
             for other, osh in self.seen.items():
                 if jaccard(sh, osh) >= self.threshold:

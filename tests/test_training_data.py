@@ -162,3 +162,58 @@ def test_the_notebook_copies_every_file_the_dataset_ships():
     assert shipped <= _wanted(generator), (
         f"the dataset ships {sorted(shipped - _wanted(generator))} but the notebook does not copy it"
     )
+
+
+# --------------------------------------------------------------------------- held-out measurement
+def _norm(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def test_the_acceptance_eval_set_holds_out_its_phrasings():
+    """The acceptance eval read the training file and reported 1.000 accuracy.
+
+    Every reply is a template, so a row-level split would still leak - "Yes, {t} works for me."
+    would sit in both halves. The split holds out whole phrasings; this asserts the two files never
+    share one.
+    """
+    train = rows("acceptance_train.jsonl")
+    dev = rows("acceptance_dev.jsonl")
+    train_phrases = {r["reply_template"] for r in train}
+    dev_phrases = {r["reply_template"] for r in dev}
+    assert not (train_phrases & dev_phrases), sorted(train_phrases & dev_phrases)
+    assert dev_phrases, "the dev split is empty, which measures nothing"
+
+
+def test_the_acceptance_eval_does_not_default_to_the_training_file():
+    """A default pointing at the training set is a leak waiting to be reported as a win."""
+    src = (ROOT / "scripts" / "eval_acceptance.py").read_text()
+    assert 'DATA = ROOT / "data" / "calls" / "acceptance_dev.jsonl"' in src
+    assert "assert_held_out(" in src
+
+
+def test_no_eval_set_is_a_substring_of_a_training_row():
+    """Exact-text disjointness is not enough, which is how `sev-04` hid.
+
+    "there's smoke coming from under the hood." is a held-out severity case *and* a substring of two
+    training rows. The exact-text check passed while the case was effectively trained on. Either
+    direction counts as leakage, and short utterances are ignored because they match by accident.
+    """
+    for eval_name, train_name in (
+        ("routing.jsonl", "synthetic.jsonl"),
+        ("severity.jsonl", "severity_train.jsonl"),
+    ):
+        ev = [_norm(r["text"]) for r in rows(eval_name)]
+        tr = [_norm(r["text"]) for r in rows(train_name)]
+        tr_set = set(tr)
+        assert not (set(ev) & tr_set), f"{eval_name} has exact-text overlap with {train_name}"
+
+        leaked = [
+            (e, t)
+            for e in ev
+            if len(e) >= 20
+            for t in tr
+            if e in t
+        ]
+        assert not leaked, (
+            f"{eval_name} cases appear inside {train_name} rows: {leaked[:3]}"
+        )

@@ -1,7 +1,6 @@
 {"text": "I'm not sure if this is the dealership, but my temperature gauge is in the red and steam is pouring out while I'm stopped on the shoulder, so should I try to bring it in?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "You replaced my transmission last week and now it's leaking fluid all over my driveway, so someone needs to fix this immediately.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My front tyre is flat and the wheel is bent after I hit the curb, the car is pulling hard to one side.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "So my car won't start at all. When I turn the key, it just clicks really fast and nothing happens. The lights come on, but the engine doesn't even try to turn over.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "I'm not sure if I've reached the right place, but one of my tyres just blew out and the wheel is grinding and wobbling, and I don't know if I can drive it to you.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The hood latch on the used whip I bought here popped open on the highway and smashed my windshield, cutting my hand pretty bad, so I need to file an injury claim.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The car will not move at all, when I put it in drive it just make a loud noise and no go, it is in my driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -18,46 +17,37 @@
 {"text": "I blew a tire and the wheel is grinding on the pavement.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal is going all the way down to the floor and the car is not stopping when I push it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The accelerator on my 2019 Subaru Outback stuck down on the highway, so I'm on the shoulder with the engine still racing.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The temperature gauge is pegged in the red and steam is pouring out from the front.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Sorry to bother you\u2014is this the dealership, because I hit a curb pretty hard and now the whole side is crumpled and one wheel is pushed in, and I don\u2019t know if you handle this kind of thing?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal is stuck down on its own and the engine is screaming while I'm parked, so stop wasting my time and tell me what to do.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The rear tire's shredded and the car won't move.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm not sure if you can help, but I smell something burning and the car is stopped on the shoulder\u2014is this the dealership?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Somebody rear-ended me and the back bumper is shoved into the tyre.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I\u2019m not sure if this is where I should call, but my front wheel is kind of folded under the car and the tyre is shredded, and I\u2019m just staring at it in a parking lot?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "After about ten minutes of driving, the temperature gauge climbed all the way up past the H and steam started rolling out from under the hood, so I turned around and crept back home, and now it's sitting in the yard.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "A tyre blew out and the wheel is shredded, and I'm sitting on the side of the road waiting for a tow.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, I'm not sure if this is the right place, but my car won't move at all, it just clicks when I try to start it, and I'm stuck in my driveway - is this the right place?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, how are you today\u2014I was just telling my neighbor about your service department, and my steering wheel suddenly got really stiff and I can hardly turn it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The car is in my driveway but it will not move when I put in drive or reverse, engine start normal but nothing happen.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Sorry, is this the dealership? After a fender bender the front of my car is crumpled and leaking fluid, and I'm not sure if I should try to drive it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal on my 2018 Chevrolet Silverado got stuck down on the highway and the truck kept accelerating even after I lifted my foot, so I shut it off and coasted to the median.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The temp gauge pegged hot and there's steam hissin' outta the rad cap.", "src": "generated", "is_safe_to_drive": true}
 {"text": "My 2018 Ford F-150 is pouring smoke from under the hood and smells like burning plastic, so I pulled into the dealership lot and shut it off.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I am stopped on the hard shoulder because the temperature gauge is in the red and steam is coming from under the bonnet.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal went straight to the floor when I tried to slow down, and now the steering feels like it's fighting me, so I'm parked at a gas station.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Is this the right number for the dealership? I don't know much about cars, but the temperature gauge went all the way up and steam is pouring out, so I pulled over\u2014am I calling the right place?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I need to talk to a manager about the loaner car, it had a bad wheel bearing and a missing gas cap, and your booking bot keeps sending me in circles.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The rear tyre blew apart and the wheel is digging into the road, and I'm pulled over.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal on my 2015 Honda Accord just went straight to the floor and the car barely slows down, so I\u2019m parked at a gas station.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I'm pulled over and there's smoke coming from under the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Is this the dealership? I'm not sure, but my temperature gauge is all the way in the red and steam is coming out, and I'm stopped on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The car will not start or move at all, the gear shift not go into drive, and I am stuck in the parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The accelerator on my 2016 Chevrolet Silverado got stuck down on the highway and the engine kept revving even after I shifted into neutral.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "There's smoke coming from under the hood and a burning smell, and I've pulled over on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal just went straight to the floor and I had to pump it to get any stopping power.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The car is overheating and steam is pouring out, so I've pulled over and I'm waiting for a tow because I'm not risking a fire.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal is stuck down by itself and engine is making loud noise even my foot is not on it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Put the service manager on the phone, because the kid at your counter left my lug nuts loose and I'm not talking to a machine about it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a curb hard and now the front wheel is shoved back and the fender's crushed into it, so I'm not driving this mess anywhere.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel on my 2019 Toyota Camry suddenly locked up while I was turning into a parking lot, so I stopped and left it right there.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I think I picked up a nail or something. There's a screw stuck in my tire. I can see it right there in the tread. It's not flat yet, but it's been losing air. I've been putting air in it every couple of days. I don't know if it can be fixed or if I need a new tire. I'm not sure what to do.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Well, I was just backing out of the driveway, not going but a few feet, when I noticed a kind of grayish haze coming up from around the hood, and there's this sharp, hot, electrical sort of smell that's been hanging in the air ever since, so I turned it off and left it right there.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The brake pedal on my 2016 Toyota Camry went all the way to the floor and it won't stop, so I'm stopped at a gas station.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was in the grocery store parking lot and somebody backed into my front fender, and now the hood is crumpled and there's a piece of metal hanging down near the tire, and I just drove it a few feet to a parking space but I'm afraid to take it anywhere else.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a big rock on the road and now the bumper is smashed and fluid is leaking under the car, I am stop on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My steering wheel just locked up going around a corner and I managed to coast to the curb.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hello, my car tire is flat. It is completely down. Can I bring to you for repair?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "There's smoke rolling out from under the bonnet and a real burnt smell, so I've pulled over at the gas station.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I clipped a guardrail and now the front fender is smashed into the tyre and the door won't open.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi there, hope you're having a good morning\u2014I was just on my way to work when I noticed smoke coming from under the hood and a burning smell, so I pulled over on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -65,7 +55,6 @@
 {"text": "Hi there, hope you're having a good morning\u2014I was just telling my wife how much we love the coffee at your service counter, and now there's thick gray smoke and a hot burning smell coming from under the hood of my sedan, so I pulled into a gas station and shut it off.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Ran out of petrol on the highway. Do you deliver fuel? I'm about a mile past exit 5.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, hope you're having a good week\u2014I noticed the temperature gauge shot up into the red and steam started pouring out from under the hood after I drove a few blocks.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "There's a weird grinding noise coming from the front of my 2018 Subaru Outback whenever I turn the wheel. It's getting worse.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "My front tyre blew out and I'm stopped on the rim in the middle of the road, so I need somebody to get out here now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I smacked a deer and the front end is all crumpled into the radiator, with the hood buckled up and fluid leakin' out.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I am stranded with a flat tire and no spare, so I need a tow to a repair shop.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
@@ -84,9 +73,7 @@
 {"text": "I was adjusting the climate control, and suddenly the steering wheel became very hard to turn and the car started drifting into the next lane.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel just locked up while I was going around a curve and I managed to coast into a ditch, so I'm standing outside it now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The skinny pedal got stuck to the mat and the motor screamed up to redline before I shut it off.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I'm confused about who to contact, but my car got hit and the front end is crumpled with something hanging down - is this the right place?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm interested in a trade-in value for my old sedan, but the engine started revving wide open on its own and won't come back down even with my foot off the pedal.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Quick question is the radiator for a 2015 Chevy Malibu something you have on hand I am leaking coolant and need one today", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "I had a little mishap, I guess you'd call it. It was raining, and I was coming around that bend near the school, and I don't know if I hit a patch of something or what, but the car went sideways on me and the front end is a mess. The light's hanging out and the bumper's kind of folded up underneath there. I've been driving for fifty years and never had anything like this happen before, so I'm not sure where to even start.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was checking whether you had any 2025 SUVs in stock for my brother-in-law who's visiting next month, but the oil leak your service department was supposed to fix on my truck is worse and the advisor who had it has stopped returning my calls.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The binders went soft to the floor when I tried to slow down for a light, and now the car's sittin' in a parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -96,7 +83,6 @@
 {"text": "The temperature gauge is in the red and steam is coming out from the hood, so I pull over on the highway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I wanted to ask about your loaner car policy for next week, and by the way my sedan is sitting in the driveway with the brake pedal going straight to the floor and no stopping power.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The car won't move at all, it's stuck in the middle of the intersection.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "When I press the brake pedal, it go down to the floor and the car not slow down, I am driving slow now but scared.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I need to have the rear window of my car replaced because it is completely shattered.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "The steering wheel just locked up while I was turning and I nearly went into oncoming traffic, so don't tell me to drive it in.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Good morning! How are you doing today? I was just getting ready to head to work and noticed a nail stuck in my tire. It's not completely flat yet, but I can hear air hissing out. Can I bring it in to get it patched up?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
@@ -113,7 +99,6 @@
 {"text": "The gas pedal is stuck down and the engine is roaring very loud.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The vehicle will not start and cannot be shifted out of park, so it is currently immobile in my driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a curb in my 2020 Nissan Altima and now the front wheel is bent sideways with the tyre flat.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The back glass on my 2020 Subaru Outback exploded when I closed the hatch. Is that something you guys can fix today?", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "I was just admiring the new electric SUVs on your website, and I need to book my 2018 Golf in for a service because the brake pedal has started feeling a bit soft.", "src": "generated", "is_safe_to_drive": true, "needs_human": false}
 {"text": "The steering wheel suddenly feels loose and disconnected, and I have to fight it to keep the car going straight, even at slow speeds, which is not something I remember ever happening before.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My brakes are making a horrible grinding noise every time I step on the pedal and the car pulls to the left and the pedal feels really soft", "src": "synthetic", "is_safe_to_drive": true}
@@ -126,8 +111,6 @@
 {"text": "The temperature gauge is in the red zone and steam is venting from beneath the bonnet while the vehicle is stopped on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Temperature gauge is pegged in the red with steam coming out and I pulled over.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The vehicle will not move when I place the transmission in drive or reverse, even with the engine running.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Car won't move at all and it just revs in gear in my driveway.", "src": "generated", "is_safe_to_drive": true}
-{"text": "Gas pedal stuck, engine's racing.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal on my 2015 Toyota Camry sinks all the way to the floor with no resistance, and I'm stopped at the curb right now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I need a tow for my 2016 Toyota Camry, it just died on the highway.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "Sorry to bother you\u2014I'm not sure this is the right place, but my car won't move at all, it just makes a grinding noise when I try, so is this who I should call?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -138,13 +121,11 @@
 {"text": "I hit a big pothole and now the car is leaking something and the bumper is hang down, so I stop to check.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My 2021 Jeep Grand Cherokee is stuck on the highway, the engine quit and I need a tow.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Sorry to bother you, but is this the dealership? I think my tyre blew out on the highway and now the wheel is grinding really bad, so I limped it to a side street\u2014am I through to the right people?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I was at the store earlier and when I came out, my car was leaning to one side. At first I thought maybe I was just imagining it, but it's definitely lower. I don't know if it's a flat or just low on air. I haven't driven it since. I just came home and thought I'd better call you.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "It won't budge out of park, the engine races but she don't move, and I'm stuck in my driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal just went to the floor and I can't stop.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I had my gearbox replaced at your shop and now it's slipping worse than before, so I want to speak to whoever did the work.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My 2021 Subaru Outback is overheating and the temperature gauge is pegged in the red with steam coming from the grille.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I took my dog to the vet this morning, and on the way back, a bunch of warning lights came on. The check engine light is flashing, and the traction control light is on too. The car seems to be running rough.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The back window on my car is shattered. I need it taken care of. Can you get me in or not?", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "Pulled over on the highway, smoke is pouring out from under the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal is jammed down and the engine is screaming even with my foot off it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal in my 2016 Ford Fusion goes all the way to the floor with no resistance when I press it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -154,18 +135,15 @@
 {"text": "You fix my brakes but now car pull to one side and I almost have accident, I need talk to someone in charge.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was pulling out of the driveway when the gas pedal seemed to stick down on its own and the engine started roaring something fierce, so I jammed it into park and shut it off right there in front of the house, and I haven't touched it since.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My brake pedal just went clean to the floor when I tried to stop, and I'm sittin' here afraid to move it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Yeah, I need someone to fix my car. Some idiot rear-ended me yesterday and the whole back end is smashed in.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I backed into a concrete post at the grocery store and there's a big crunch in the rear quarter panel, the trunk won't latch right, and I can hear something scraping underneath when I try to roll forward, though I'm not much of a judge about that sort of thing.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm on the side of the road and the steering wheel won't turn.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Got a flat tyre on my truck and no spare. Need a tow. I'm on County Road 12 near the gas station.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, sorry, I'm not sure if I'm calling the right place, but there's smoke coming out from under my hood and a burning smell, and I don't know what to do\u2014is this the dealership?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal in my 2019 Toyota Camry went all the way to the floor when I tried to slow down for the exit, and now I'm stopped on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Excuse me, I need to ask about my rear glass. It is shattered. Someone break it. Can I come today?", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "There's smoke pouring out from under the hood and a real sharp burning smell, so I pulled over and I'm on the shoulder right now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel is very hard to turn and sometimes it feel like not connected to the wheels.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I struck a kerb and now the front bumper is displaced, the headlight is broken, and there is a scraping noise from underneath when the vehicle moves.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was wondering if my husband's truck is ready, and my temperature gauge is pinned in the red with steam coming out from the front, so I pulled over on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I was just at the grocery store and I ran into my old neighbor, and we chatted for a bit. When I came back to my car, I saw that the back window is shattered.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "I'm returning your call about the trade-in estimate, and on my way here the gas pedal stuck down on its own, so I shut it off and coasted into the lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel went loose and I can't keep this thing pointed straight, so don't give me the runaround about bringing it in.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal got stuck to the floor mat and the motor was revvin' wide open till I finally killed the ignition.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -174,13 +152,9 @@
 {"text": "The accelerator pedal remains depressed and does not return to its resting position when I remove my foot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel suddenly locked up and I can't turn it, and I'm sitting at an intersection.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel won't turn at all.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I ran out of gas on the highway. I need fuel delivered. Now. I'm on the shoulder and it's dangerous.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The sunroof on my 2022 Tesla Model 3 got hit by a rock and now it's shattered. I need to get it fixed, preferably with OEM glass.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Hi, yes, I'm calling about my car. The back window, the one in the rear, it's all cracked. It looks like a spiderweb. I don't know how it happened. Maybe a tree branch fell on it? Or maybe it was the cold? I'm not sure. But it's cracked all over, and I'm afraid it's going to fall apart. I need to get it replaced. Can you do that?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Sorry, I might have the wrong number, but when I press the brake pedal it just goes all the way to the floor and the car barely slows down, so I'm parked at a gas station now\u2014is this the service department?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a curb and the front wheel is pushed in.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I got rear-ended at a stoplight yesterday and the whole back end is smashed in. Can I bring it by to get an estimate?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
-{"text": "So I was on hold with my insurance company for like an hour, and then I finally hung up. But the reason I was calling them is because my windshield has a huge crack in it from a rock.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "My front tyre blew out and the rim's grindin' on the pavement, so I'm waitin' on a tow.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Before I forget, do you validate parking for service appointments, because my hatchback has a stuck accelerator that keeps revving even when I take my foot off the gas.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was in an accident. The front end is crumpled and the headlight's hanging out. How soon can I get this thing in?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
@@ -215,23 +189,18 @@
 {"text": "I've called four times about the grinding noise in my front end and nobody's returned my calls, so I'm trying again before I file a complaint with the state.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was calling about the oil change special, but my car is smoking from under the hood and smells like burnt rubber, so I stopped at a gas station.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal is stuck and the car keeps accelerating.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hey, so my brother borrowed my car last weekend and I just got it back. He mentioned he thought the brakes felt a little soft. But when I walked around it, I saw a ding on the rear quarter panel \u2014 looks like a shopping cart got it. Is that something you can look at?", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "When I push the brake pedal it go all the way to the floor and the car not stop, so I am stopped at the corner.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steerin' wheel went all loose and I can't keep the front end pointed straight, so I stopped in a parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I just had the oil changed last week, and now I'm on the side of the road because the front tire blew out and the rim is grinding on the asphalt.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Um, I might be calling the wrong place, but my car won't move at all and it just makes a grinding noise when I put it in gear, so is this who I should ask?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Well, I was just pulling out of the grocery store parking lot, you know, the one over on the corner there, and the next thing I knew there was this awful crunching noise and my whole back end is all pushed in. I don't know what happened exactly, it all happened so fast. Somebody must've backed into me. Anyway, the trunk won't even close now and there's glass all over the back seat and I just don't know what to do about it.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "When I apply the brake pedal, it sinks all the way to the floor and the vehicle does not reduce speed.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The temperature gauge climbs past the top and there's a sweet, steamy smell, and it keeps happening even after I let it cool down and drive just a little ways.", "src": "generated", "is_safe_to_drive": true}
-{"text": "Following a collision, the front bumper is crushed inward and the radiator is leaking onto the ground.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hello? Is this the place that can help with cars? I hope so, because I'm stuck at the grocery store parking lot on the corner of... well, I don't remember the street names, but it's the big one with the pharmacy inside. My car is a 2005 Buick, and it just won't start. It makes a clicking sound and then nothing. I tried it a few times and now I'm afraid I've flooded it or something. I've been sitting here for about an hour and I don't know what to do. My son usually helps me with these things but he's out of town. I think it might need to be towed to your shop. Can you send someone?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I am stopped on the roadway after a collision with a guardrail that pushed in the front end and displaced the left headlight assembly.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The temperature gauge has moved into the red zone, and steam is escaping from beneath the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My front tyre blew out and the rim's grindin' on the pavement, so I'm stopped on the side of the road.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Please have the general manager or dealership owner call me back regarding a repair that has now failed three times and remains unsafe to drive.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The engine began racing by itself after start-up and the accelerator pedal stayed down when I removed my foot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm due for my 30,000-mile service soon, and the temperature gauge is pinned in the red with steam coming out from the front of the car.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The temperature gauge is pegged in the red.", "src": "generated", "is_safe_to_drive": true}
 {"text": "My lawyer told me to call because you sold me a car with a rolled-back odometer and a shot tranny, and we're preparing a lawsuit unless I hear from your legal team today.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The front right tire on my 2016 Nissan Altima blew out and shredded apart on I-95, and the car is sitting on the rim now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I am on shoulder now because the front tyre blow out and the wheel is making scraping sound on road.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -242,15 +211,12 @@
 {"text": "The steering wheel just spun loose in my hands like the column wasn't hooked up while I was going around a bend.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal went all the way to the floor when I tried to stop, so I'm stopped in a parking lot now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm not sure if this is the right number, but your repair shop forgot to tighten my wheel and I got into an accident, so I need to speak to someone about that.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hi, I might have the wrong place\u2014I hit a curb and now the front end is dragging and one wheel is bent sideways, and the car is stuck in a parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "There's smoke coming from under the hood and a burning smell, and I've pulled over.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The front tire shredded on the highway and the wheel is digging into the pavement, so I'm on the shoulder and I need somebody out here now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm not sure if this is the right number, but I hit a curb and now the front of my car is crumpled and leaking something, so should I be calling a dealership?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The accelerator pedal is stuck in the depressed position, and the engine speed remains high even when I am not pressing it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel suddenly became very heavy and unresponsive while I was driving, and I had difficulty keeping the vehicle in its lane.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I smell something burning right now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Every time I mash the brake pedal it goes clean to the floor and I have to pump it to get any stopping at all.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I'm interested in a new vehicle, but I need one with a strong engine because my old car's tranny just went out.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Windscreen's cracked. Can you sort it today?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "There's smoke pouring out of the vents and it smells like burning wires every time I turn on the heat, and I'm not driving this thing until you fix it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel just spins loose and don't turn the wheels no more, and I'm sittin' in a parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -261,20 +227,16 @@
 {"text": "I heard an awful bang and felt the whole car drop down on one side, and when I got out the tire was flat as a pancake and the rim was grinding on the pavement, so I left it right where it was on the shoulder and called my grandson to come get me.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "There's a burning smell coming through the vents and the brakes are grinding so bad I can feel it in the floor, and I'm done driving it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a curb and now the front tyre is flat and the wheel is bent, and I'm stopped in a lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hey, my tire's flat. Can I bring it in now?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Sorry, I'm not sure if I dialed the right number, but my brake pedal went all the way to the floor and the steering wheel is really hard to turn, is this where I should be calling?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The car won't move at all, not in gear or neutral, and it's blocking my driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hey, my 2020 Toyota Camry won't start. I'm pretty sure it's the battery. Can you come jump it? I'm in a parking garage.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My car is making white smoke from the engine and it smell like burning rubber, so I stop on the side of the road now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was pulling into a spot and the steering wheel just spun loose like it wasn't hooked to anything, so I stopped right there.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit the curb very hard and now the front wheel is bent and the car make scraping noise, I am not sure if I can drive to you.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Excuse me, I have puncture in my tire from a nail. I want to bring car to you for fix. Is it possible today?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
-{"text": "I was rear-ended in my 2013 BMW 328i and the rear wheel is pushed into the fender, so I'm waiting on the side of the road.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I don't know if this is the right number, but my car's engine started racing on its own and wouldn't slow down even when I took my foot off the gas, and now I'm stopped at a light shaking.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal is stuck down and the car's still running.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a deer last night. There's damage to the hood, grill, and windshield. Is this something you handle?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My car's still under warranty and the damn thing keeps stalling. I brought it in before and you told me it was fine. It's not fine. I want it fixed and I'm not paying a cent.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I was driving past your place yesterday and noticed you had a bunch of tires out front. That reminded me\u2014I need a front brake caliper for a 2010 Toyota Camry. Do you have any in stock?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Can you tell me if you have the all-weather mats in stock, because the steering wheel turned but the front wheels didn't and I'm stopped against the curb.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My 2018 Ford F-150 won't start, I think the battery is dead. Can you send someone to give me a jump?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The engine is overheating and steam is everywhere.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -300,7 +262,6 @@
 {"text": "The temperature gauge is pegged. Steam is coming out from under the hood.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I wanted to ask about financing rates, and on the way here my steering wheel suddenly locked and I couldn't turn it, so I'm parked on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Good morning, I hope you're doing well\u2014I was just thinking about how reliable my car has been, but now it won't go into gear or roll at all, so it's sitting in my driveway blocking everyone in.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "It's parked in the driveway and when I turn the key it makes a click and nothing else happens, the gearshift won't budge out of park, and it just sits there no matter what I try, so I've been taking the bus.", "src": "generated", "is_safe_to_drive": true, "needs_human": false}
 {"text": "I am calling to report that the repair your technician performed on my vehicle was defective and has caused additional damage to the engine.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "One front wheel is no longer aligned with the vehicle, and the tyre appears to have separated from the rim.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The check engine light is on, and it's flashing. Also the oil light came on. Is it safe to drive?", "src": "synthetic", "is_safe_to_drive": true}
@@ -325,19 +286,16 @@
 {"text": "The brake pedal just went straight to the floor and I'm stopped at a light.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a curb hard and now the front end is crumpled and leaking fluid all over the place, so I need a tow, not a lecture.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was rear-ended and the back end is crumpled into the tyre, so it's stuck in the middle of an intersection.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I hit a curb hard enough to smash the front end and now it's pulling like crazy to one side, so I need you to look at it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm on the shoulder with my rear tyre blown out and the rim grinding on the pavement.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My front tire is flat and there is a big noise from the wheel.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hey, my car died on the interstate and I think it's the alternator. Can you send a wrecker to tow it to your shop?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My rear window's shattered. How much to replace?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "My car is making smoke from the front and it smell like burning plastic, so I am stop on the side of the road now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "My car won't start. When I turn the key, it just goes click-click-click. Could be the battery or the starter, I don't know.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "I am stopped on side of road because smoke is coming from under the hood and it smell like burning.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My motor won't crank. I think the starter's gone. Can you come give me a jump? I'm in the Walmart parking lot.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The front tire blew out and the wheel is grinding on the pavement, so I'm on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The temperature gauge is at the maximum mark and steam is escaping from the front of the vehicle, although I have not yet stopped.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The mechanic say he fix the engine, but car still not start and I waste my whole day.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hi, I've got a 2019 Honda Civic and the rear passenger window is completely shattered. I need to get it replaced as soon as possible.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Hi, um, is this the dealership? I'm a little confused because my car started speeding up on its own and the gas pedal felt stuck down, so I shut it off in a parking lot\u2014should I be talking to you?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was turning onto Oak Street when I heard this awful bang and the car started dragging to one side, and when I looked out the window the tire was flat as a pancake and kind of shredded.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The temperature gauge is pegged in the red and steam is pouring out from under the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -351,15 +309,12 @@
 {"text": "The engine speed increased on its own and the accelerator pedal remained depressed after I removed my foot, so I placed the transmission in neutral and came to a stop.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The check engine light came on and now it's blinking. The car's running rough, like it's missing.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "There's a loud whining noise coming from the front of my 2021 Honda CR-V, and it gets worse when I turn.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I'm pulled over in my 2018 Honda CR-V because there's smoke coming from under the hood and a burning smell inside the cabin.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Every time I hit the brakes, there's a horrible grinding noise coming from the front. And the pedal feels kind of soft, like it goes almost to the floor.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal went straight to the floor and the car hardly slows down, so I parked it at the curb.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, is this the dealership, because my temperature gauge is pegged in the red and there\u2019s steam rolling out from the front, and I don\u2019t know if I\u2019m supposed to call you or a tow truck?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "When I pick up my car, the door fall on my foot and now I have pain, who I speak to about this?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Um, hi, my car is stopped in the middle of the road and there's smoke coming from under the hood, so is this the dealership?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel locked up and I almost went off the road.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I have run out of fuel and require a gasoline delivery to my current position.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
-{"text": "There is a flat tire on my 2019 Chevrolet Malibu that needs to be repaired or replaced. I would like to bring it in today if possible.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "A deer jumped out in front of me on the highway and I couldn't stop in time and now the hood is bent and the headlight is shattered", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I went to press the brake pedal at the end of my street and it went most of the way down to the floor with hardly any resistance, and I had to pump it a few times and sort of coast to a stop by the curb, and my heart is still racing, so I thought I had better call you before I try to move it again.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal got jammed under the floor mat and the engine kept roaring after I took my foot off, so I shut it off on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -386,7 +341,6 @@
 {"text": "The front tyre blew out and the rim is grinding on the pavement, so I'm stopped in the middle of the lane.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I ran out of gas and I'm on the highway. Can you help me with that, or is this not the right number?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The vehicle will not come out of park and cannot be moved from its present position in the driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Something is wrong with my car it keeps stalling at red lights and idles really rough like it is going to die and there is a strong smell of gas", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "Coming home on the highway, the temperature gauge went all the way past the red and I saw steam rolling out from under the front, so I pulled onto the shoulder and let it sit there, and I have not dared start it again.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I went out to start it this morning like always, and it made a funny clunk and then nothing, and now it won't go into gear or roll at all, so it's just sitting in my driveway blocking the whole side.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi folks, sorry to call out of the blue\u2014I was just catching up with a friend about your great service, and on the way home my brake pedal went all the way to the floor with no resistance and I had to pump it to get any stopping power at all.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -408,37 +362,29 @@
 {"text": "I was just telling my wife how much I love the heated seats, and now there's smoke pouring out of the dashboard.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The temperature gauge is pegged in the red and there's steam rolling out, so don't tell me to drive it in.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a curb and now the front tyre is flat and the rim is all chewed up.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I've got a nail in my tire. Need it fixed today.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "My 2020 Jeep Grand Cherokee was hit in the driver\u2019s door and the airbags went off, and now the front end is crumpled.", "src": "generated", "is_safe_to_drive": true}
 {"text": "My foot slipped off your defective brake pedal and I got hurt in your parking lot, so I need to talk to a manager about liability before I file a report.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The steering wheel all of a sudden got stiff as a board and I can't hardly turn it, so I stopped in a parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My 2014 Jeep Grand Cherokee is overheating and steam is coming out from under the hood while I'm idling in the pickup line.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I was in a fender bender this morning. The front bumper is hanging off and the headlight is cracked. How soon can you look at it?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Hey folks, sorry to bother you on a busy Monday\u2014I know you're slammed with appointments, but my steering wheel suddenly got super heavy and the car wandered into the next lane when I tried to turn, and I managed to stop it against the curb near my house.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The temp gauge is pegged in the red and steam's pourin' out the radiator.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I press the brake pedal but it go all the way down to the floor and the car not stopping, so now I am parked at gas station.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My front tire is shredded and the wheel is wobbling so bad I can barely steer, and I'm not driving this piece of junk another mile.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My 2016 Chevrolet Silverado keeps stalling at stop signs and sometimes dies when I'm idling in traffic.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The check engine light started flashing this morning, and now it's running really rough. It feels like it's shaking and doesn't want to accelerate.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "Hi, good morning\u2014hope you're doing okay; I was just heading to work when I started smelling something burning and saw smoke coming from under the hood, so I pulled over on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hello, I hope you're having a nice day, I was just driving when I heard a loud bang and the car started pulling hard to the right, and I can see the rear tyre is completely flat and shredded, so I've pulled over to a safe spot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "A rock hit my windscreen and caused a chip that has now cracked across the entire pane.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "My 2018 Honda Accord started accelerating on its own and the gas pedal is stuck down.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, I've got a flat tyre and I'm stuck on the shoulder. Can you send someone to change it?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I've left three messages about my faulty fuel pump and nobody's called me back, so I'm trying again and I need a real person to acknowledge this.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Sorry, I might have the wrong number, but my brake pedal went all the way to the floor when I tried to stop and I'm pulled over now - is this the right place?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "When I press the brake pedal it goes all the way to the floor with almost no resistance and the vehicle does not slow as it should.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "It won't move at all\u2014the engine starts, but it just revs and the car stays put, and now it's stuck halfway out of my driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hi, I'm in the market for a new car, and I need one with a windscreen that actually works\u2014mine's all cracked.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "I hit a kerb and now the front end is smashed in and the wheel is shoved back, so I'm stopped and this thing isn't going anywhere.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My 2016 BMW 328i was hit in the driver's door and the airbags went off, but it still starts and I'm sitting in it with the engine running.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I wanted to ask about the winter tire promotion you're running, and also the steering wheel suddenly got very hard to turn and I ended up on the curb.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hello, how are you today\u2014sorry to bother you, but I was backing out of my driveway when the brake pedal went all the way to the floor and I coasted to a stop against the curb.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, good morning, I hope you're having a great day, I was just driving to the store when I noticed smoke coming from under the hood and a strong burning smell, so I immediately pulled over to the side of the road.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal goes straight to the floor and the car just keeps rolling, so I'm stopped on the hard shoulder and you need to get someone out here.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Just wondering if you have any used cars. I'm looking for something with a quiet silencer and a good exhaust. Mine fell off.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "I'm on the shoulder\u2014smoke's pouring out from under the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "My 2019 Toyota Camry won't start. The lights come on but it just clicks.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "The brake pedal just goes to the floor and the steering feels like it's not connected to anything, and I'm not moving it another inch.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My car will not move at all, the engine start but when I put in gear nothing happen, I am stuck here.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Brake pedal goes to the floor, can't stop.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -459,7 +405,6 @@
 {"text": "The gas pedal got stuck down by itself and the engine is screaming loud and I cannot make it slow.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The accelerator is stuck to the floor and the engine is screaming even while I'm standing on the brake, so tell me how to shut this thing off before it kills somebody.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "You guys had my car for a week and it's still making that grinding noise, and now the check engine light is on\u2014I want to talk to whoever worked on it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hello! Hope you're having a nice day. I've got a rear window that's completely shattered. I think it might have been the heat or something, but it just exploded while I was driving. I need to get it fixed as soon as possible. Can you help?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "I had just picked up my dry cleaning, and when I pressed the brake pedal it went straight to the floor with no resistance.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My son borrowed one of your cars and had an accident and now I'm getting all these bills for towing and storage and I don't understand any of it and the automated system doesn't have an option so I need a real person to explain this to me.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I think I may have the wrong department, but my front tire blew out and the wheel is grinding on the road, and I'm stopped on the shoulder - is this the dealership?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -467,7 +412,6 @@
 {"text": "Is this the car dealership? My temperature gauge shot all the way up and steam is coming out, so I pulled into a gas station and I'm not sure if I should try to drive it anywhere.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I pressed the brake pedal coming up to the light and it went most of the way to the floor before anything happened, and then it sort of grabbed at the last second, so I coasted into the church parking lot and left it there because I didn't want to find out what happens next.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hello, good morning, I hope your day is going well, I wanted to mention that every time I press the brake pedal it just goes all the way to the floor without slowing the car down, which is a little concerning.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hi, how are you doing today? I hope you're having a good one. I'm trying to get my car back on the road, and I'm in need of a new alternator. Do you happen to have one in stock? I just wanted to check before I make the trip.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "There's smoke pouring out from under the bonnet and it smells like burning wiring, so I've pulled over and I'm not driving this thing another inch\u2014sort it out.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal is stuck down by itself and the engine is screaming loud, I turn off the key quick.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My car's dead in the parking lot. I need a jump. How long is this gonna take? I don't have all day.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
@@ -477,7 +421,6 @@
 {"text": "I was asking about financing options for a new sedan, and my current car won't go into gear or roll at all, so it's sitting in the garage.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The car won't shift out of park and it's stuck in my garage.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal went straight to the floor when I tried to stop, and now I'm stopped in a parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "My car's been sitting here wrecked for a week. I need somebody to actually look at it and tell me what it's gonna cost. Don't transfer me around.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "The brake pedal goes all the way to the floor with no resistance.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "After few minutes driving, the temperature gauge go to red and steam come out from front, so I stop on the shoulder now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was in a collision and the front end is smashed in, and I'm on the shoulder waiting.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -487,13 +430,10 @@
 {"text": "I'm checking on the status of my parts order, and also the steering wheel suddenly got very hard to turn and the car wandered into the next lane.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal got stuck to the floor mat and the engine was revvin' like crazy.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Um, is this the dealership? I just got my car back from a repair and there's a puddle of fluid under it\u2014I need to talk to someone about this.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I've got a flat, can I bring it in today?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "My 2015 Nissan Altima's front left tire blew out and the wheel is grinding on the pavement.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was calling to confirm my oil change for next week, and the brake pedal goes all the way to the floor when I press it, so I'm sitting in the driveway right now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "There's a nail in my tire and it's losing air. Can I bring it in or do I have to make an appointment a week out?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "It won't go into gear or roll at all, even in neutral, and it's blocking my driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi there, hope you're having a good week\u2014I've been meaning to call about a tune-up, but now I'm pulled over on the shoulder because I'm getting smoke and a burning smell from the front of the car.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I need new tires. These are bald and I'm sliding all over the road. How soon can you get me in?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Steering wheel locked up, can't turn.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a deer last night.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The left rear wheel has separated from the vehicle and the tyre is completely flat.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -509,9 +449,7 @@
 {"text": "The temperature gauge is in the red and there is steam coming out, I am stopped at a gas station.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The front tyre shredded and the rim is grinding into the tarmac, so I'm stopped on the side of the road and I'm not driving it anywhere.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel just spins freely and I can't get the car to turn, and it's sitting in a parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hit a curb hard, now it's dragging and pulling.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The car will not start and the gear shift is stuck in park.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I pulled over because there's smoke coming from under the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "There's a real strong burny smell comin' up through the dash and a wisp of smoke pokin' out from under the bonnet.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My hooptie came back from your shop with a busted fender and the tranny slipping worse than when I dropped it off, so I need to talk to someone about this right now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "There's smoke pouring out from under the hood and it smells like something's burning, so you need to come get this thing before I leave it right here.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -525,20 +463,16 @@
 {"text": "I hit a curb hard and now the front end is smashed up with the wheel cocked sideways.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "There's smoke pourin' out from under the bonnet and a burnin' smell like somethin's fryin', so I pulled over on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The temp gauge is pegged in the red and steam's blowing out the radiator, so I shut it off at the side of the road.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hey I need a brake rotor for a 2020 Nissan Rogue can you check if you have it I am hearing grinding when I stop", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "My car won't start. I need a jump start. This is the third time this month. Can you just get someone out here?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The accelerator pedal is stuck in the depressed position and the engine continues to rev even after I remove my foot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The free car wash was a nice touch after my last visit, but the mechanic forgot to reconnect the battery cable and my car died in the middle of the intersection.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, this might be a strange question, but my engine started racing on its own and I had to shut it off, is this the dealership?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My 2017 Subaru Outback is overheating and the temperature gauge is in the red with steam pouring out from under the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Brake pedal just went to the floor, no brakes at all.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "There's a nail in my tire and it's losing air fast.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "The steering wheel feel very loose and when I turn it the car go not where I want.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Is this the dealership, because I think my front tire blew out and the wheel is wobbling really bad, so I'm stopped on the shoulder and I'm not sure if I should even try to drive it?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel rotates without changing the vehicle's direction, and I am currently stopped in a parking bay.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel turns freely without changing the direction of the front wheels.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I'm on the shoulder after hitting a curb and the wheel is bent.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hi, um, I don't know if I'm calling the right number or not. My car won't start at all, it just clicks when I turn the key. Is this where I can get that looked at?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "The temp gauge is pegged clear past the red and there's steam rolling out from under the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I might have the wrong number, but my steering wheel suddenly got really stiff and I almost couldn't turn, so is this where I should bring it?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was on the highway for about twenty minutes, minding my own business, and the temperature gauge climbed all the way up and this steam started pouring out from the front, so I pulled over to the shoulder and I've been waiting for my son to come get me.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -547,9 +481,7 @@
 {"text": "Hi, good morning, I hope you're having a good day, I was just trying to leave the grocery store and my car won't shift out of park, the gear lever is stuck, so I'm sitting here in the parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I have stopped the vehicle at the roadside because there is a continuous burning smell and grey smoke coming from under the bonnet.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The front end of the vehicle is severely crumpled following a collision with a concrete barrier.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "After I drive for ten minutes the temperature gauge go to hot and steam come out from front.", "src": "generated", "is_safe_to_drive": true, "needs_human": false}
 {"text": "I was just in a little accident and my car needs to be towed. I'm not sure if I should be calling you guys or my insurance company. Is this the right place for a tow?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I have a flat tire on my car right now and I need to get it fixed or replaced can you help me with that today", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "The windshield on my vehicle has a large crack running from the bottom corner up the passenger side.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "Hi there, hope you're having a lovely afternoon, I was just driving down the highway when I noticed a bit of smoke coming from under the hood and a funny burning smell, so I pulled over to the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm not sure if this is the right place, but my car is smoking and smells like something's burning, and I'm pulled over wondering if I should even try to drive it to you.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -562,16 +494,12 @@
 {"text": "The gas pedal is stuck down.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Um, this might be a weird call, but my car won\u2019t move at all\u2014it starts but won\u2019t go into gear or roll\u2014and I\u2019m wondering if this is the right place to ask about that?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm parked at the Quick Mart and there's smoke rolling out from under the bonnet and it smells like burning wiring.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I was hoping you could give me a quote for some work on my car, but I'm not exactly sure what needs doing, you see, there's this noise that comes and goes, and sometimes the pedals feel a bit funny, and my neighbor said it might be the brakes, but I don't know, so I thought if I brought it in you could tell me what it needs and how much it might cost, roughly, because I'm on a fixed income and all.", "src": "generated", "is_safe_to_drive": true, "needs_human": false}
 {"text": "My car keeps stalling when I come to a stop. It starts right back up, but it's died on me three times today at red lights.", "src": "synthetic", "is_safe_to_drive": true}
-{"text": "My truck won't start. I turn the key and it just clicks. The battery's new, so I'm stumped.", "src": "synthetic", "is_safe_to_drive": true}
-{"text": "The tires on my car are looking pretty bald. I noticed it when I was checking the pressure last week. I don't know much about tires, but I think they might need to be replaced. I'd like to get some new ones, but I don't know what kind I need. Can you help me with that?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "The gas pedal is stuck down and the engine is racing.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal just went all the way to the floor when I tried to slow down for the exit, and I had to coast onto the grass.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I blew a tyre and the wheel is grinding on the pavement.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steerin' wheel just spun loose in my hands like a teacup ride and I'm parked at the kerb.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I am stopped at the roadside because there is visible smoke and a burning odor coming from under the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I'm on the shoulder of I-95 and my 2018 Ford Escape just died. I think it needs a tow.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "Hey, I just got back from a weekend trip to the lake, and the car was fine, but now every time I hit the brakes there's this grinding noise. The pedal also feels really soft and goes almost to the floor.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The brake pedal went straight to the floor when I tried to stop, and now I'm parked on the side of the road.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hey, good morning\u2014hope you folks aren't too busy; I was on my way to work when all of a sudden the gas pedal stuck down on its own and the engine kept revving even after I lifted my foot, so I shut it off and coasted to the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -579,17 +507,13 @@
 {"text": "Hey, good afternoon\u2014hope all is well, I was about to leave for an appointment when my car wouldn't shift out of park and it just won't roll at all, even with a push.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I wanted to see if you have the truck I saw online, but my car won't shift out of park or move at all from my driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, nice to talk to you, I hope all is well, I was on my way to work when the temperature gauge shot up into the red and steam started pouring out from under the hood, so I pulled over.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "There's a knocking sound coming from the motor. Gets faster when I rev it. Scares me a bit.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was just calling to see if you have any openings for an oil change next week, and also there's a sort of electrical burning smell coming through the vents and some smoke from under the hood when I stopped at the light.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The car won't start and it's stuck in gear, so I can't even push it out of the way and you need to come get it.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm not sure if this is the right number, but my car keeps speeding up even when I'm not pressing the gas, and I can't tell if I should drive it to you.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The front wheel is bent and the tyre is shredded, and I'm sitting on the shoulder waiting for a tow.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I don't know if I've reached the right people, but my temperature gauge is maxed out and there's steam pouring out, and I've pulled over\u2014is this the dealership?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I blew a tyre and the wheel is grinding, I'm on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The wrench monkey said he replaced my brake pads and rotors, but the pedal still goes to the floor and the whip pulls hard to the left.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "My 2014 Dodge Grand Caravan won't move at all, it starts but won't go into gear and it's sitting in my driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel locked up on me.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "There's a crack in my windscreen that's getting bigger. I need it sorted. Can you help me or not?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "The engine started racing on its own and the gas pedal is stuck down, so I've got it shut off in a parking lot but I'm afraid to start it again.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi, sorry to disturb you, I was just backing out of my driveway and I hit a pole, and now the front bumper is hanging off and there's fluid leaking everywhere.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My brakes went straight to the floor and I'm stopped on the highway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -614,18 +538,14 @@
 {"text": "Hi, um, I'm not sure if I'm calling the right place. My car won't start and I think I need a jump. Can you help with that?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hi my car will not start it just makes a clicking sound when I turn the key and all the lights on the dash are flickering and I already tried jump starting it but that did not help", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hey there, hope you're having a nice day\u2014I was pulling into a parking spot and the gas pedal stuck down on its own, so I had to shut the engine off while it was still revving.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I hit a pothole and now the front tyre is shredded off the rim and the car is draggin' on one corner.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a curb hard and now the car is making a terrible grinding noise and pulling to one side.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal stick down when I push it and the engine keep racing very loud even after I take my foot off, so I pull over and turn off the car.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel became unusually heavy and then offered no resistance, so I brought the vehicle to a stop in a car park.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My wife got hurt because your mechanic didn't tighten the lug nuts, and I need to talk to someone before I call the cops.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The thing won't even go into gear or roll, so it's dead in my driveway and I need it gone.", "src": "generated", "is_safe_to_drive": true}
 {"text": "The steering wheel on my 2021 Hyundai Elantra suddenly locked up while I was going around a curve, so I pulled to the curb and stopped.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was wondering if you buy used cars, and also my car won't move at all - it just revs when I put it in gear, so it's sitting in my driveway.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I need a tow truck sent to my location because my vehicle has broken down and cannot be driven.", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "Um, is this the dealership? I was driving and the brake pedal just went all the way to the floor, so I coasted to the side of the road and I'm not sure what to do.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The temperature gauge is almost in the red, and I can smell something sweet. I pulled over because steam was coming out from under the hood.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
-{"text": "My temp gauge is pegged and there's steam coming from under the hood. Smells like antifreeze.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a big pothole and now the car is making a loud scraping noise and the front bumper is dragging, I am parked in a lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Good afternoon, I hope you're doing well, I was just driving along and the temperature gauge is maxed out and there's steam pouring out from the front.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Sorry, I don\u2019t know if this is the right place, but my brake pedal just goes all the way to the floor and the car sort of drifts when I steer, and I\u2019m parked on the side of the road wondering if you can help?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -639,7 +559,6 @@
 {"text": "I brought my hooptie in for a simple oil change and now the rear end is howling like a banshee, so I need to talk to someone about what y'all did to my ride.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hey there, sorry to bother you\u2014I hope you had a nice weekend; on my way in this morning the steering wheel got really heavy and yanked to the right, so I parked it at the nearest lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My car won't start. It just clicks when I turn the key.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The glass in my driver's side mirror is broken and the mirror assembly is loose.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "I'm pulled over on the shoulder, smoke and a burning smell coming from the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a curb and now the rear wheel is pushed in and the car is sitting crooked in a parking lot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Smoke is pouring out of the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -648,17 +567,13 @@
 {"text": "I hit a deer with my 2015 Jeep Grand Cherokee and the front end is crumpled with fluid leaking out, but it still starts and I'm on the shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I hit a patch of black ice and slid into a guardrail and the whole front end is crumpled and the airbags went off", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The temperature gauge is buried in the red and steam is coming out, and I'm on the side of the road, so are you going to help me or what?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "This thing is dead in my driveway and won't move an inch, so quit jerking me around and tell me if you can tow it.", "src": "generated", "is_safe_to_drive": true}
 {"text": "The vehicle was struck on the driver\u2019s side, and the rear door will not close properly after the impact.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The gas pedal is stuck down and the engine keeps revving like crazy even when I'm not touching it, and I'm not taking that on the road.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The temperature gauge moved into the red zone and steam is escaping from the front of the vehicle.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I brought my car in for a simple oil change and you clowns somehow managed to break the radiator\u2014who's covering that?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The accelerator pedal stayed down after I removed my foot, and the engine kept racing until I switched off the ignition and the car came to rest.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I want to repair my car glass. The back window is broken. I don't know what to do. Can you help?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "The left rear tire has separated from the rim and is wrapped around the axle.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "You did my brakes last week and now the car pulls right.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "The front tire on my 2019 Subaru Outback is shredded and the wheel is grinding against the pavement.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I'm just checking whether you buy cars outright, but my old car is in the garage, and it won't roll or shift out of park because the wheels seem locked.", "src": "generated", "is_safe_to_drive": true}
 {"text": "I was T-boned in my 2017 Nissan Altima and the driver's door is crushed in against the seat, and I'm parked in a lot now.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I'm stopped and there's steam pouring out of the engine.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I was wondering if you have the blue 2021 SUV in stock, and also my brake pedal is going straight to the floor with no resistance when I try to stop.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -673,10 +588,7 @@
 {"text": "The accelerator on my 2014 Chevrolet Silverado is stuck down and the engine keeps revving even with my foot off the gas.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I am stopped at the roadside because a thick grey smoke is emanating from beneath the bonnet, accompanied by a sharp burning odour.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Smoke's rolling out from under the hood and it smells like something's burning.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hi I was hoping you could tell me if you have a fuel pump for a 2017 Ford F150 in stock I need to get my truck running again", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
-{"text": "My back window got smashed last night and I need to get it replaced as soon as possible", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "The gas pedal stuck to the floor and the engine was screaming until I jammed it into neutral, so I'm parked on the side of the road and I need a tow.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hi, good morning! I hope you're having a nice day. The rain we've been getting is something else, huh? Anyway, I've got a bit of a tire problem\u2014my front tire is completely flat, and I'm not sure if I should drive it in or call a tow. Could you give me some advice?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "The temperature gauge is in the red and there is steam coming out from under the hood.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Can you tell me if the service department is open Saturday, and my temperature gauge is pegged in the red with steam pouring out from the front.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Well, I am seventy-eight years old and not much good with these newfangled cars, but I was just pulling out of the church parking lot when I noticed this thin gray smoke coming up from around the hood, and then a sort of hot, sweet, burning smell got into the car, so I eased it back into a space and shut it off, and now I am not quite sure what to do.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -685,12 +597,10 @@
 {"text": "The car won't budge out of my driveway, the gear shift moves but nothing happens and there's a puddle under the motor.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The rig won't budge outta my driveway\u2014put it in gear and it just clunks and stalls.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Well, I was just easing along Maple Street at a slow clip when I noticed a thin gray haze coming up from around the hood, and there's a sort of hot, sharp smell like something electrical is frying, though I couldn't tell you if it's the engine or the wires or what.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hi there, how's it going? I hope you're having a good day. So, I woke up this morning and found a crack in my windshield that wasn't there yesterday. It's been spreading pretty fast, and I'm not sure if it's safe to drive. Could you take a look at it for me?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "I'm not sure if this is the dealership, but my brake pedal went straight to the floor and the car won't stop when I press it, so do I bring it in or not?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I got hit from behind at a stoplight. Bumper's destroyed, trunk won't open. I'm not paying for a rental forever, so when can you take it?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "My gas pedal got stuck to the floor mat and the motor kept revving after I lifted my foot.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I have stopped the vehicle at the roadside because there is smoke coming from under the bonnet and a strong burning smell inside the cabin.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "Hello? I'm sorry, I might have the wrong place. A bunch of warning lights came on in my dashboard, and one of them is blinking. Can someone here check that out?", "src": "synthetic", "is_safe_to_drive": true}
 {"text": "It just won't go into gear at all; the engine starts but nothing happens when I press the gas, and it's still sitting in my garage.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "Hello there, I hope you can help me. I've got this situation with my car, and I'm not sure who to talk to about it. It's the front window, the big one, you know, the windshield. There's a crack in it, and it started small, like a little chip, but now it's spreading. I don't know how it happened, maybe a rock on the highway, or maybe it was already there. Anyway, it's getting worse, and I'm worried it might shatter. Can you fix something like that?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "I'm a little panicked and I don't know if this is the right number, but my temperature gauge is in the red and steam is pouring out - is this where I should call?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
@@ -713,7 +623,6 @@
 {"text": "The front right tyre blew out and the rim's chewed up, so I'm sittin' on the hard shoulder.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "It keeps stalling at red lights. I almost got hit yesterday.", "src": "synthetic", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I think I might have called the dealership, but my steering wheel suddenly locked up while I was driving and I couldn't turn it\u2014am I supposed to call you?", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
-{"text": "I've got a chip in my windshield that turned into a big crack. Can you sort that out?", "src": "synthetic", "is_safe_to_drive": true, "needs_human": false}
 {"text": "There's thick gray smoke and a burning rubber smell coming from under the hood of my 2018 Honda CR-V.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "I need to schedule a detailing appointment, and ever since I hit a deer last night the front end is crumpled and the radiator is hissing.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
 {"text": "The steering wheel is very hard to turn and the car want to go right all the time, I have to hold it very strong.", "src": "generated", "is_safe_to_drive": true, "needs_human": true}
