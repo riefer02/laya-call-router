@@ -32,6 +32,8 @@ web/dist/
 results/*
 !results/*.json
 !results/*.md
+# Bookings created by a live call. Personal data (a name and a phone number), and reproducible.
+data/bookings.jsonl
 models/
 .cache/
 
