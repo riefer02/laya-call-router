@@ -1,10 +1,16 @@
 """RLCD fine-tuning for Laya — vendored from the official notebook.
 
 Source: NandhaKishorM/laya, `notebooks/laya_finetune_typed_decisions_2xT4_kaggle.ipynb`
-(Apache-2.0), retrieved 2026-09-22. This file is deliberately **unmodified**: the training recipe
-is the maintainer's proven implementation, and rewriting it would only add ways to be wrong. Only
-the *data* differs — `training/build_items.py` produces `train_items.pt` in the shape this script
-expects.
+(Apache-2.0), retrieved 2026-09-22. The training recipe is the maintainer's proven
+implementation, and rewriting it would only add ways to be wrong. Only the *data* differs —
+`training/build_items.py` produces `train_items.pt` in the shape this script expects.
+
+The single deviation: `EPOCHS`, `LR_ENCODER` and `LR_HEAD` are read from the environment
+(`JEV_EPOCHS`, `JEV_LR_ENCODER`, `JEV_LR_HEAD`) so the epoch count can be ablated without editing
+this file per experiment. The defaults are the maintainer's originals, so an unset environment
+behaves exactly as the vendored version did. Measured motivation: at 4 epochs the training loss is
+still halving per epoch (0.686 → 0.515 → 0.174 → 0.081), which is a model that stopped early, not
+one that converged.
 
 RLCD (Reinforcement Learning for Calibrated Decisions): the policy reports a distribution;
 exploration adds zero-mean Gaussian noise to the logits; the reward is a strictly proper scoring
@@ -111,12 +117,15 @@ def main():
     all_items = torch.load(items_path, weights_only=False)
     my_items = all_items[rank::world_size]
 
-    EPOCHS = 4
+    # The one change to the vendored recipe: these are read from the environment so the epoch
+    # count and learning rates can be ablated without editing this file per experiment. The
+    # defaults are the maintainer's originals, so an unset environment behaves exactly as before.
+    EPOCHS = int(os.environ.get("JEV_EPOCHS", "4"))
     MICRO_BATCH = 8
     GRAD_ACCUM = 4
     GROUP_SIZE = 4
-    LR_ENCODER = 2.5e-5
-    LR_HEAD = 1.0e-4
+    LR_ENCODER = float(os.environ.get("JEV_LR_ENCODER", "2.5e-5"))
+    LR_HEAD = float(os.environ.get("JEV_LR_HEAD", "1.0e-4"))
     SIGMA_START = 0.4
     SIGMA_END = 0.1
 

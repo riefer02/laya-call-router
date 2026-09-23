@@ -9,10 +9,16 @@ a diff — a raw notebook is a wall of escaped JSON.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent / "notebooks" / "laya_finetune_dealership_kaggle.ipynb"
+
+# The epoch count is the one knob we ablate. 4 is the vendored recipe's default; the training
+# loss was still halving per epoch at 4 (0.686 -> 0.515 -> 0.174 -> 0.081), so the ablation asks
+# whether the model simply stopped early. Override with JEV_EPOCHS when generating the notebook.
+EPOCHS = os.environ.get("JEV_EPOCHS", "4")
 
 MD_HEADER = """# Fine-tuning Laya for dealership call routing
 
@@ -165,17 +171,22 @@ print(f"\\n{n} labelled training utterances")
 BUILD = '''!cd /kaggle/working && python build_items.py /kaggle/working/synthetic.jsonl /kaggle/working/train_items.pt
 '''
 
-TRAIN = '''MODEL_DIR = "/kaggle/working/laya_base"
+TRAIN = f'''MODEL_DIR = "/kaggle/working/laya_base"
 import os
 from huggingface_hub import snapshot_download
 snapshot_download("convaiinnovations/laya", local_dir=MODEL_DIR)
 print("base checkpoint at", MODEL_DIR)
 
+# Epochs is the one ablated knob (train_ddp.py reads JEV_EPOCHS). 4 is the vendored default.
+EPOCHS = {EPOCHS}
+os.environ["JEV_EPOCHS"] = str(EPOCHS)
+print(f"training for {{EPOCHS}} epochs")
+
 OUTPUT_DIR = "/kaggle/working/laya-dealership-routing"
-cmd = (f"torchrun --standalone --nproc_per_node={NPROC} /kaggle/working/train_ddp.py "
-       f"{MODEL_DIR} {OUTPUT_DIR} /kaggle/working/train_items.pt")
+cmd = (f"torchrun --standalone --nproc_per_node={{NPROC}} /kaggle/working/train_ddp.py "
+       f"{{MODEL_DIR}} {{OUTPUT_DIR}} /kaggle/working/train_items.pt")
 print("running:", cmd)
-!{cmd}
+!{{cmd}}
 '''
 
 PACKAGE = '''import os, shutil
