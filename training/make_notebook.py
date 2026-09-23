@@ -202,8 +202,9 @@ print("\\nzip ready: /kaggle/working/laya-dealership-routing.zip")
 '''
 
 
-def main() -> None:
-    nb = {
+def build() -> dict:
+    """The notebook as data, so a test can compare it against the committed file."""
+    return {
         "cells": [
             md(MD_HEADER),
             code(CHECK_GPU),
@@ -226,9 +227,17 @@ def main() -> None:
         "nbformat": 4,
         "nbformat_minor": 4,
     }
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(nb, indent=1) + "\n")
-    print(f"wrote {OUT} ({len(nb['cells'])} cells)")
+def main() -> None:
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=str(OUT), help="where to write the notebook")
+    args = ap.parse_args()
+    out = Path(args.out)
+    nb = build()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(nb, indent=1) + "\n")
+    print(f"wrote {out} ({len(nb['cells'])} cells)")
 
 
 if __name__ == "__main__":

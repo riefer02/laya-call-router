@@ -113,3 +113,38 @@ def test_acceptance_instructions_come_from_the_profile():
     q = D.SLOT_QUESTIONS  # forces the profile to load
     assert SP.load().question_text("acceptance").strip()
     assert "{label}" not in SP.load().question_text("acceptance")
+
+
+# --------------------------------------------------------------------------- generated artefacts
+def _wanted(source: str) -> set:
+    import re
+
+    m = re.search(r"WANTED = \(([^)]*)\)", source)
+    return set(re.findall(r'"([^"]+)"', m.group(1))) if m else set()
+
+
+def test_the_notebook_copies_every_file_the_dataset_ships():
+    """The notebook is a generated artefact, and changing its generator without regenerating it
+    cost a GPU run.
+
+    The pushed notebook copied four dataset files into `/kaggle/working`, so `build_items.py` found
+    no severity or acceptance data and silently trained choice questions only - 2,512 items instead
+    of ~4,600, with no error anywhere. This is the same one-fact-in-two-places failure this project
+    keeps meeting, so it gets a test rather than a note to be careful.
+    """
+    generator = (ROOT / "training" / "make_notebook.py").read_text()
+    packaging = (ROOT / "training" / "make_kaggle_dataset.py").read_text()
+
+    shipped = set(__import__("re").findall(r'\("data/[^"]+",\s*"([^"]+)"\)', packaging))
+    assert shipped, "could not read the dataset manifest"
+
+    notebook = json.loads((ROOT / "notebooks" / "laya_finetune_dealership_kaggle.ipynb").read_text())
+    notebook_src = "\n".join("".join(c.get("source", [])) for c in notebook["cells"])
+
+    assert _wanted(generator) == _wanted(notebook_src), (
+        "the notebook is out of sync with its generator - "
+        "regenerate with: uv run python training/make_notebook.py"
+    )
+    assert shipped <= _wanted(generator), (
+        f"the dataset ships {sorted(shipped - _wanted(generator))} but the notebook does not copy it"
+    )
