@@ -13,11 +13,12 @@ We set out to match `deepseek-flash` on call routing, using Laya (a small non-au
 that returns typed decisions instead of generating text) running locally on a laptop.
 
 We got there, with one qualification that matters. On 81 hand-labelled cases the fine-tuned cascade
-scores **0.914 joint**. `deepseek-flash` scored 0.914, 0.889, 0.901 and 0.926 across four runs on
-*identical inputs* — it leads us in some runs and trails in others. Ours has not moved once.
+scores **0.926 joint**. `deepseek-flash` scored 0.914, 0.889, 0.901 and 0.926 across four runs on
+*identical inputs* — it leads us in some runs and trails in others. On the routing outcome we beat
+it: **0.975 queue accuracy against 0.963**. Ours has not moved once.
 
-So: **parity on quality, at 21 ms instead of 1.5 seconds, for $0 a call, with a number that stays
-put.** It also books real appointments now, not just routes.
+So: **parity on the decision, a small lead on the outcome, at 23 ms instead of 1.4 seconds, for $0 a
+call, with a number that stays put.** It also books real appointments now, not just routes.
 
 That distinction — a stable number versus a noisy one — turned out to be the more defensible thing
 to say, and I only found it by running the same evaluation four times.
@@ -87,7 +88,7 @@ general model is often just a different model.
 
 ---
 
-## The same bug, eight times, in eight disguises
+## The same bug, nine times, in nine disguises
 
 This is the pattern I'd warn someone about first.
 
@@ -130,14 +131,21 @@ This is the pattern I'd warn someone about first.
    the trainer's own comment calls *"what makes the confidence usable"* had **never applied to a
    single question**.
 
-Every one of these was silent. None threw an error you'd notice. Three of them cost real accuracy,
-and two of them cost a GPU run that produced nothing usable.
+9. **The safety flag and the routing shared one field.** `queue` holds where the call belongs, and
+   the unsafe question *overwrites* it with `Roadside / Towing`. So a safety false-positive silently
+   destroyed a correct routing decision — three of 27 calls. Two different questions, one string.
 
-**The lesson:** one fact living in two places will eventually disagree, and it will do it quietly.
-The fix isn't vigilance, it's structure — the taxonomy, the question text and the thresholds all
-live in one config file now, and there are tests either side of them. Every item above ended with a
-test or a single source, and the two that cost GPU runs are the two where I wrote a note instead of
-a test the first time.
+Items 1–8 are all **one fact in two places**. Item 9 is the mirror image, **two facts in one place**,
+and it is the same disease: the structure cannot represent the truth, so something is chosen
+silently. Every one of the nine was invisible until measured — none threw an error you'd notice.
+Three cost real accuracy, two cost a GPU run, and one cost eleven points of the metric we quote.
+
+**The lesson:** when a fact is stored, ask how many questions it is answering and how many places it
+lives. If either number is over one, the code will eventually resolve the conflict quietly and
+wrongly. The fix is never vigilance — it's structure: the taxonomy, the question text and the
+thresholds live in one config file, dispatch is about to stop sharing a field with routing, and
+every item above ended with a test. The two that cost GPU runs are the two where I wrote a note
+instead of a test the first time.
 
 ---
 
@@ -221,6 +229,13 @@ are legitimate. They're just not the same product.
 **The lesson:** a gate that never fires isn't broken — it might mean the model is good. Check the
 curve before "fixing" it.
 
+**A late caveat, so the two lessons don't read as a contradiction.** This holds for the *routing*
+questions, where confidence tracks correctness. It does **not** hold for the safety questions, whose
+trained probabilities are saturated at 0 and 1 — there the sweep is flat and the confidence carries
+almost no information. Same model, same run, two different verdicts about calibration. The
+distinction is that the routing questions have enough signal in their confidence to rank, and the
+safety questions do not. "Well calibrated" is a property of a question, not of a checkpoint.
+
 ---
 
 ## Measuring something we'd assumed was fine
@@ -250,7 +265,7 @@ p=0.00 under the old wording, 0.99 under the new. The model was never unsure; it
 question we actually asked.
 
 Two things then complicated that, and both are recorded rather than tidied away. Training the
-question properly made precision *worse* (0.857 → 0.667), and `sev-04` — one of the cases the
+question properly made precision *worse* (0.857 → 0.69), and `sev-04` — one of the cases the
 rewording is credited with rescuing — turned out to be sitting in the training set. The recall gain
 from rewording holds, because it was measured before any training; the trained numbers carry both
 caveats.
@@ -258,8 +273,8 @@ caveats.
 Because the errors aren't symmetric — a missed stranded caller is someone at the side of a road, a
 false alarm is a wasted journey — the operating point is chosen by sweep, not by picking 0.5 because
 it's round. **And this is where saturation bites:** on the trained model the sweep is flat from 0.3
-to 0.8, so the point is not really being chosen at all. A flat sweep means the errors are confident
-ones, and no threshold touches a confident error.
+to 0.6 and barely moves above it, so the point is not really being chosen at all. A flat sweep means
+the errors are confident ones, and no threshold touches a confident error.
 
 **The lesson:** the unmeasured parts of a system are exactly the parts you're most confident about.
 And when errors are asymmetric, accuracy is the wrong headline — lead with the error you can't
@@ -378,6 +393,10 @@ cause moves to the training prior: the severity data is capped at a 40% positive
 switchboard is nowhere near that. So the next thing to change is the training mix, not the
 calibration.
 
+One wrinkle supports that reading: at 8 epochs the same fitter asks for **no softening at all**
+(1.0), where the 4-epoch head had asked for 3.683. The pathological confidence was a property of the
+under-trained model, not of training the question.
+
 > **The lesson:** fixing a real bug is not the same as fixing the symptom that led you to it. I had
 > a true finding, a plausible story, and no causal evidence. One cheap experiment separated them, and
 > the thing worth keeping is that I ran it *before* writing the conclusion down — because the
@@ -436,7 +455,7 @@ correct answer to one question is silently overwriting a correct answer to the o
   held-out split exists now, and scoring it honestly needs a retrain. Until then the booking demo's
   reliability is unknown, not fixed.
 - **`needs_human` now catches more and trusts itself too much.** Recall improved to 0.857 on
-  held-out data, which is real, but precision is 0.207 — it fires on 6 calls in 10. The confidence
+  held-out data, which is real, but precision is 0.240 — it fires on 6 calls in 10. The confidence
   floor makes the over-firing annoying rather than dangerous; the training prior is the suspect.
 - **The probabilities are saturated, so a threshold is not a control.** On the trained safety
   questions the sweep is flat from 0.3 to 0.8. Where the model is confidently wrong there is nothing
@@ -456,6 +475,45 @@ correct answer to one question is silently overwriting a correct answer to the o
   sure" left in the system.
 - **All of it rests on 81 single-labelled cases.** One case is 1.23 points, and where every model
   disagrees with the key, the key is the likeliest thing to be wrong.
+
+---
+
+## The principles, collected
+
+Everything above compresses into a short list. Every one of these cost something to learn.
+
+1. **Measure the thing you're most sure about, first.** The unmeasured parts of a system are exactly
+   the parts you are confident about, because confidence is what stopped you checking.
+
+2. **A flattering number deserves more suspicion than a disappointing one.** The acceptance
+   classifier at 1.000 was a leak. The retrain that "regressed" was two confounds. Both looked like
+   findings and neither was.
+
+3. **Before changing how sensitive a decision is, find what consumes it.** The severity report said
+   "three false alarms", which sounds like a wasted truck. It was three discarded routing decisions.
+
+4. **One fact in two places, or two facts in one place, gets resolved silently and wrongly.** Nine
+   instances. None threw an error. The fix is structure and a test, never vigilance.
+
+5. **A threshold is only a control if the distribution isn't saturated.** Where the model is
+   confidently wrong there is nothing to tune, and reporting an operating point implies a choice
+   that isn't being made.
+
+6. **Check what else changed before you credit the model.** The call-level drop was a policy change,
+   the routing "regression" was an epoch count. Both times the tidy story was wrong.
+
+7. **Balance the axis you're classifying, not the axis that looks tidy.** Equal examples per
+   sub-queue starved a destination, and "balanced" hid it.
+
+8. **Check the boundary is real before blaming the classifier.** Tires and detailing were never
+   departments. We spent a long time teaching a distinction that did not exist.
+
+9. **When a fix makes your numbers go up, check whether it fixes the thing or hides it.** Merging two
+   confusable classes would have erased four errors and made the taxonomy worse.
+
+10. **Report the noisy comparison honestly.** We are at parity with a frontier model on the decision,
+    60× faster, and at zero marginal cost per call — and on 81 cases the honest claim stops there.
+    The intervals overlap, and saying so costs nothing.
 
 ---
 
