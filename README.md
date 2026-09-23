@@ -224,7 +224,7 @@ cascade (base and fine-tuned), a cheap structured-output model (`gpt-5.4-nano`),
 | **queue (the outcome)** | 0.667 | **0.975** | 0.926 | 0.963 |
 | ±95% (queue) | ±0.101 | ±0.039 | ±0.059 | ±0.045 |
 | p50 latency | 22.3 ms | **22.9 ms** | 747 ms | 1432 ms |
-| cost per case | **$0** | **$0** | $0.0025 | $0.0113 |
+| cost per case | **$0** | **$0** | $0.000031 | $0.000124 |
 | determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
 
 **The fine-tuned cascade matches both LLM arms on the decision, at ~60× the speed and for nothing
@@ -410,7 +410,7 @@ synthetic set (RLCD, official trainer, 2×T4, ~15 min for 8 epochs) is the *afte
 | joint accuracy | 0.518 | **0.926** | 0.876 | 0.926 |
 | call-level queue accuracy | 0.778 | 0.852\* | 0.963 | 0.963 |
 | p50 latency | 22.3 ms | **22.9 ms** | 747 ms | 1432 ms |
-| cost per case | **$0** | **$0** | $0.0025 | $0.0113 |
+| cost per case | **$0** | **$0** | $0.000031 | $0.000124 |
 | determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
 
 One case in that table (`gen-01`) sits verbatim inside v6's packaged training data. Excluding it from

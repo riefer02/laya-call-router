@@ -154,7 +154,9 @@ def main() -> None:
         ("misses -> other", "_other_miss"),
         ("p50 latency (ms)", "_p50"),
         ("p95 latency (ms)", "_p95"),
-        ("cost per case", "cost_usd"),
+        # `cost_usd` is the arm's TOTAL across every case, not a per-case figure. Labelled "cost per
+        # case" it overstated the LLM arms by 81x, on screen, in the evidence table.
+        ("cost (all cases)", "cost_usd"),
         ("determinism", "determinism"),
     ]:
         row = [label]

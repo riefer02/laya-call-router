@@ -209,7 +209,16 @@ def results() -> Dict[str, Any]:
                 "joint": score.get("joint_accuracy"),
                 "queue": score.get("queue_accuracy"),
                 "latency_p50": (score.get("latency_ms") or {}).get("p50"),
-                "cost_per_case": score.get("cost_usd"),
+                # `cost_usd` is the arm's total across all cases. Renaming it here to
+                # `cost_per_case` told the evidence table that deepseek costs $0.010 a call when the
+                # measured figure is $0.000124 - a 81x overstatement, and it propagated into the
+                # pitch deck before anyone checked.
+                "cost_per_case": (
+                    (score.get("cost_usd") or 0) / score["n"]
+                    if score.get("cost_usd") and score.get("n")
+                    else score.get("cost_usd")
+                ),
+                "cost_total": score.get("cost_usd"),
                 "determinism": score.get("determinism"),
                 "calibration": score.get("calibration") or {},
                 "other_rate": (score.get("other") or {}).get("rate_of_subqueue_predictions"),

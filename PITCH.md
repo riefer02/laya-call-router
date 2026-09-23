@@ -64,9 +64,11 @@ So: **the same quality, at 70 times the speed, for nothing, with a number that n
 **A phone line that never makes anyone wait.** 21 milliseconds to decide where a call goes. The
 frontier model takes 1.5 seconds, and a caller can hear that.
 
-**Nothing per call, forever.** Zero, on hardware you already own. At a penny a call, `deepseek-flash`
-costs a busy dealership real money every month. This costs nothing after the one-off — and the cost
-per call *falls* with volume instead of rising.
+**Nothing per call, forever.** Zero marginal cost, on hardware you already own. A busy switchboard at
+10,000 calls a day would pay `deepseek-flash` about **$1,700 a year** and `gpt-5.4-nano` about **$435**
+— and this costs about two dollars, in electricity. The saving is modest in absolute terms for one
+dealership; it becomes material across several stores, or over a few years, and it never appears on a
+per-call invoice.
 
 **The same answer every time you ask.** Not 98% of the time — always. That means you can write tests
 against it, replay a customer complaint, and reproduce a bug. The frontier arms wobble by several
@@ -112,8 +114,27 @@ nobody can check.
 | Running it | **$0 per call**, forever, on a laptop |
 | **The whole project** | **~$4.40** |
 
-`deepseek-flash` charges $0.010 a call, so the entire project — the data, the training, every
-experiment — cost about as much as **400 calls** to the frontier model. The next 400,000 cost nothing.
+At 10,000 calls a day — a busy multi-line switchboard — that works out as:
+
+| per 10k calls/day | gpt-5.4-nano | deepseek-flash | **this** |
+| --- | --- | --- | --- |
+| per decision | $0.000031 | $0.000124 | **$0** |
+| per call (4 turns) | $0.000119 | $0.000476 | **$0** |
+| per day | $1.19 | $4.76 | **$0.00** |
+| per month | $36 | $143 | **$0.20** |
+| per year | $435 | $1,737 | **~$2** |
+
+Two honest notes. **The saving is real but modest in absolute terms** — a few hundred to under two
+thousand dollars a year at this volume, which for a dealership is not the reason to do this. Where it
+becomes material is at multi-store or contact-centre scale, or over years.
+
+And **the fixed cost matters at low volume**: this runs on a laptop you already have, but if you had
+to buy a dedicated machine for it, that machine would cost more than the API calls would at a few
+hundred calls a day. The honest version of the cost story is that inference is free *once you have
+the hardware* — not that the hardware is free.
+
+The whole project — the data, the training, every experiment — came to $4.40, which is about **9,000
+`deepseek-flash` calls**. At 10k calls a day that is **less than one day** of the API bill.
 
 ## If someone asks how it works
 

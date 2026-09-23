@@ -111,7 +111,7 @@ Measured on 81 hand-labelled routing cases and 27 scripted calls, against two fr
 | joint (dest + sub-queue) | 0.518 | 0.876 | 0.864 | **0.889** |
 | **call outcome** (27 calls) | 0.778 | **0.926** | 0.963 | 0.963 |
 | latency, per call | 22 ms | **23 ms** | 750 ms | 1,430 ms |
-| cost per call | **$0** | **$0** | $0.0025 | $0.0113 |
+| cost per call (4 turns) | **$0** | **$0** | $0.000119 | $0.000476 |
 | determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
 
 **The honest claim is parity, not victory.** `deepseek-flash` has scored joint 0.889–0.926 across four
