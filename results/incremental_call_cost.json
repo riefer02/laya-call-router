@@ -1,0 +1,157 @@
+{
+  "scenarios": [
+    {
+      "scenario": "no_start",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 741,
+          "compute_ms": 59.72,
+          "wall_ms": 59.81
+        }
+      ],
+      "total_questions": 7,
+      "total_input_tokens": 741,
+      "total_compute_ms": 59.72
+    },
+    {
+      "scenario": "collision",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 720,
+          "compute_ms": 59.23,
+          "wall_ms": 59.31
+        },
+        {
+          "turn": 2,
+          "questions": 4,
+          "input_tokens": 479,
+          "compute_ms": 30.23,
+          "wall_ms": 30.29
+        },
+        {
+          "turn": 3,
+          "questions": 3,
+          "input_tokens": 406,
+          "compute_ms": 22.08,
+          "wall_ms": 22.15
+        },
+        {
+          "turn": 4,
+          "questions": 2,
+          "input_tokens": 318,
+          "compute_ms": 22.51,
+          "wall_ms": 22.6
+        }
+      ],
+      "total_questions": 16,
+      "total_input_tokens": 1923,
+      "total_compute_ms": 134.06
+    },
+    {
+      "scenario": "flat_tire",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 695,
+          "compute_ms": 58.79,
+          "wall_ms": 58.97
+        }
+      ],
+      "total_questions": 7,
+      "total_input_tokens": 695,
+      "total_compute_ms": 58.79
+    },
+    {
+      "scenario": "buy_car",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 701,
+          "compute_ms": 58.73,
+          "wall_ms": 58.8
+        },
+        {
+          "turn": 2,
+          "questions": 3,
+          "input_tokens": 340,
+          "compute_ms": 22.6,
+          "wall_ms": 22.66
+        },
+        {
+          "turn": 3,
+          "questions": 2,
+          "input_tokens": 268,
+          "compute_ms": 17.47,
+          "wall_ms": 17.54
+        }
+      ],
+      "total_questions": 12,
+      "total_input_tokens": 1309,
+      "total_compute_ms": 98.8
+    },
+    {
+      "scenario": "part_order",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 675,
+          "compute_ms": 58.68,
+          "wall_ms": 58.75
+        },
+        {
+          "turn": 2,
+          "questions": 3,
+          "input_tokens": 313,
+          "compute_ms": 22.47,
+          "wall_ms": 22.54
+        },
+        {
+          "turn": 3,
+          "questions": 2,
+          "input_tokens": 242,
+          "compute_ms": 16.29,
+          "wall_ms": 16.35
+        }
+      ],
+      "total_questions": 12,
+      "total_input_tokens": 1230,
+      "total_compute_ms": 97.44
+    },
+    {
+      "scenario": "out_of_scope",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 691,
+          "compute_ms": 58.89,
+          "wall_ms": 58.98
+        }
+      ],
+      "total_questions": 7,
+      "total_input_tokens": 691,
+      "total_compute_ms": 58.89
+    }
+  ],
+  "repeats": 3,
+  "summary": {
+    "mean_questions_turn1": 7.0,
+    "mean_questions_later_turns": 2.71,
+    "later_turn_questions": [
+      4,
+      3,
+      2,
+      3,
+      2,
+      3,
+      2
+    ]
+  }
+}

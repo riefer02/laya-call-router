@@ -1,0 +1,533 @@
+{
+  "llm_arms": [
+    "openai:gpt-5.4-nano",
+    "deepseek:deepseek-flash"
+  ],
+  "finetuned": "models/kaggle-out-v2/laya-dealership-routing",
+  "routing": {
+    "laya": {
+      "n": 81,
+      "department_accuracy": 0.7284,
+      "intent_accuracy": 0.6173,
+      "joint_accuracy": 0.6049,
+      "errors": 0,
+      "invalid_labels": 0,
+      "latency_ms": {
+        "p50": 20.2,
+        "p95": 21.5,
+        "mean": 20.2
+      },
+      "prompt_tokens": 21393,
+      "prompt_cache_hit_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "cost_model": null,
+      "gate": {
+        "threshold": 0.75,
+        "flagged": 58,
+        "flag_rate": 0.716,
+        "errors": 22,
+        "errors_caught": 20,
+        "recall": 0.9091,
+        "precision": 0.3448,
+        "accuracy_when_confident": 0.913,
+        "accuracy_when_flagged": 0.6552
+      },
+      "misses": [
+        {
+          "id": "svc-04",
+          "text": "There is a rattling noise coming from under the car when I drive over bumps.",
+          "expected": "service",
+          "got": "general"
+        },
+        {
+          "id": "body-03",
+          "text": "My windscreen has a crack that keeps spreading.",
+          "expected": "body_shop",
+          "got": "service"
+        },
+        {
+          "id": "part-06",
+          "text": "I want to add a tow hitch to my SUV.",
+          "expected": "parts",
+          "got": "towing"
+        },
+        {
+          "id": "part-07",
+          "text": "I need a serpentine belt for a 2015 Accord, can you get one?",
+          "expected": "parts",
+          "got": "service"
+        },
+        {
+          "id": "tire-04",
+          "text": "My steering pulls to the right, I think it needs an alignment.",
+          "expected": "tires",
+          "got": "service"
+        },
+        {
+          "id": "tire-07",
+          "text": "The car vibrates at highway speed, maybe the wheels need balancing.",
+          "expected": "tires",
+          "got": "service"
+        },
+        {
+          "id": "sale-09",
+          "text": "Has the new model year arrived yet?",
+          "expected": "sales",
+          "got": "general"
+        },
+        {
+          "id": "fin-03",
+          "text": "Does the advertised price include insurance?",
+          "expected": "finance",
+          "got": "sales"
+        },
+        {
+          "id": "fin-04",
+          "text": "I need a copy of my purchase contract.",
+          "expected": "finance",
+          "got": "sales"
+        },
+        {
+          "id": "fin-09",
+          "text": "Do you offer leasing for business vehicles?",
+          "expected": "finance",
+          "got": "sales"
+        },
+        {
+          "id": "tow-02",
+          "text": "My battery is dead, can someone come and jump start it?",
+          "expected": "towing",
+          "got": "service"
+        },
+        {
+          "id": "tow-03",
+          "text": "I have locked my keys in the car and I am stuck.",
+          "expected": "towing",
+          "got": "general"
+        },
+        {
+          "id": "tow-04",
+          "text": "I ran out of gas on the side of the road.",
+          "expected": "towing",
+          "got": "general"
+        },
+        {
+          "id": "tow-05",
+          "text": "Can you send a truck to pick up my car? It will not move.",
+          "expected": "towing",
+          "got": "service"
+        },
+        {
+          "id": "tow-06",
+          "text": "I am stranded, my car will not turn over and I need a boost.",
+          "expected": "towing",
+          "got": "service"
+        },
+        {
+          "id": "tow-07",
+          "text": "I am locked out of my vehicle in a parking garage.",
+          "expected": "towing",
+          "got": "general"
+        },
+        {
+          "id": "tow-08",
+          "text": "I need a fuel delivery, I am on the shoulder of the interstate.",
+          "expected": "towing",
+          "got": "service"
+        },
+        {
+          "id": "tow-09",
+          "text": "My car is in a ditch and it needs recovering.",
+          "expected": "towing",
+          "got": "body_shop"
+        },
+        {
+          "id": "gen-01",
+          "text": "What time do you open on Saturdays?",
+          "expected": "general",
+          "got": "service"
+        },
+        {
+          "id": "gen-05",
+          "text": "Can you tell me whether you are hiring technicians?",
+          "expected": "general",
+          "got": "service"
+        },
+        {
+          "id": "gen-06",
+          "text": "What is the direct number for the parts desk?",
+          "expected": "general",
+          "got": "parts"
+        },
+        {
+          "id": "gen-08",
+          "text": "Do you offer loaner cars while mine is in for service?",
+          "expected": "general",
+          "got": "sales"
+        }
+      ]
+    },
+    "cascade-ft": {
+      "n": 81,
+      "department_accuracy": 0.9506,
+      "intent_accuracy": 0.8889,
+      "joint_accuracy": 0.8889,
+      "errors": 0,
+      "invalid_labels": 0,
+      "latency_ms": {
+        "p50": 19.8,
+        "p95": 20.8,
+        "mean": 19.4
+      },
+      "prompt_tokens": 21177,
+      "prompt_cache_hit_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "cost_model": null,
+      "gate": {
+        "threshold": 0.75,
+        "flagged": 0,
+        "flag_rate": 0.0,
+        "errors": 4,
+        "errors_caught": 0,
+        "recall": 0.0,
+        "precision": null,
+        "accuracy_when_confident": 0.9506,
+        "accuracy_when_flagged": null
+      },
+      "misses": [
+        {
+          "id": "fin-09",
+          "text": "Do you offer leasing for business vehicles?",
+          "expected": "finance",
+          "got": "sales"
+        },
+        {
+          "id": "tow-09",
+          "text": "My car is in a ditch and it needs recovering.",
+          "expected": "towing",
+          "got": "body_shop"
+        },
+        {
+          "id": "gen-06",
+          "text": "What is the direct number for the parts desk?",
+          "expected": "general",
+          "got": "parts"
+        },
+        {
+          "id": "gen-08",
+          "text": "Do you offer loaner cars while mine is in for service?",
+          "expected": "general",
+          "got": "sales"
+        }
+      ]
+    },
+    "gpt-5.4-nano": {
+      "n": 81,
+      "department_accuracy": 0.9259,
+      "intent_accuracy": 0.8025,
+      "joint_accuracy": 0.8025,
+      "errors": 0,
+      "invalid_labels": 0,
+      "latency_ms": {
+        "p50": 618.4,
+        "p95": 1461.6,
+        "mean": 723.0
+      },
+      "prompt_tokens": 40201,
+      "prompt_cache_hit_tokens": 0,
+      "completion_tokens": 1296,
+      "cost_usd": 0.00252845,
+      "cost_model": "openai:gpt-5.4-nano",
+      "gate": {},
+      "misses": [
+        {
+          "id": "fin-03",
+          "text": "Does the advertised price include insurance?",
+          "expected": "finance",
+          "got": "sales"
+        },
+        {
+          "id": "fin-09",
+          "text": "Do you offer leasing for business vehicles?",
+          "expected": "finance",
+          "got": "sales"
+        },
+        {
+          "id": "gen-01",
+          "text": "What time do you open on Saturdays?",
+          "expected": "general",
+          "got": "sales"
+        },
+        {
+          "id": "gen-02",
+          "text": "Where are you located?",
+          "expected": "general",
+          "got": "sales"
+        },
+        {
+          "id": "gen-06",
+          "text": "What is the direct number for the parts desk?",
+          "expected": "general",
+          "got": "parts"
+        },
+        {
+          "id": "gen-08",
+          "text": "Do you offer loaner cars while mine is in for service?",
+          "expected": "general",
+          "got": "service"
+        }
+      ],
+      "determinism": 0.9383
+    },
+    "deepseek-flash": {
+      "n": 81,
+      "department_accuracy": 0.9753,
+      "intent_accuracy": 0.9136,
+      "joint_accuracy": 0.9136,
+      "errors": 0,
+      "invalid_labels": 0,
+      "latency_ms": {
+        "p50": 1193.5,
+        "p95": 3946.5,
+        "mean": 1556.7
+      },
+      "prompt_tokens": 33001,
+      "prompt_cache_hit_tokens": 20736,
+      "completion_tokens": 15522,
+      "cost_usd": 0.01121516,
+      "cost_model": "deepseek:deepseek-flash",
+      "gate": {},
+      "misses": [
+        {
+          "id": "tire-01",
+          "text": "I have a flat tire and I am on the side of the highway.",
+          "expected": "tires",
+          "got": "towing"
+        },
+        {
+          "id": "gen-08",
+          "text": "Do you offer loaner cars while mine is in for service?",
+          "expected": "general",
+          "got": "service"
+        }
+      ],
+      "determinism": 0.9877
+    },
+    "hybrid_frontier:gpt-5.4-nano": [
+      {
+        "threshold": 0.6,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.7,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.75,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.8,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.85,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.9,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0123,
+        "recall": 0.0,
+        "cost_per_case": 3.9e-07,
+        "cost_total": 3.16e-05
+      },
+      {
+        "threshold": 0.95,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0123,
+        "recall": 0.0,
+        "cost_per_case": 3.9e-07,
+        "cost_total": 3.16e-05
+      }
+    ],
+    "hybrid_frontier:deepseek-flash": [
+      {
+        "threshold": 0.6,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.7,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.75,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.8,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.85,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.9,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0123,
+        "recall": 0.0,
+        "cost_per_case": 1.11e-06,
+        "cost_total": 8.957e-05
+      },
+      {
+        "threshold": 0.95,
+        "accuracy": 0.9506,
+        "flag_rate": 0.0123,
+        "recall": 0.0,
+        "cost_per_case": 1.11e-06,
+        "cost_total": 8.957e-05
+      }
+    ]
+  },
+  "calls": {
+    "laya-full": {
+      "n": 10,
+      "queue_accuracy": 1.0,
+      "llm_calls": 0,
+      "would_escalate": 0,
+      "questions": 214,
+      "latency_ms": {
+        "p50": 184.9,
+        "p95": 264.0,
+        "mean": 177.1
+      },
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "misses": []
+    },
+    "laya": {
+      "n": 10,
+      "queue_accuracy": 1.0,
+      "llm_calls": 0,
+      "would_escalate": 0,
+      "questions": 127,
+      "latency_ms": {
+        "p50": 102.6,
+        "p95": 652.5,
+        "mean": 164.6
+      },
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "misses": []
+    },
+    "cascade-ft": {
+      "n": 10,
+      "queue_accuracy": 1.0,
+      "llm_calls": 0,
+      "would_escalate": 0,
+      "questions": 129,
+      "latency_ms": {
+        "p50": 112.3,
+        "p95": 778.4,
+        "mean": 223.3
+      },
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "misses": []
+    },
+    "hybrid\u2192gpt-5.4-nano": {
+      "n": 10,
+      "queue_accuracy": 1.0,
+      "llm_calls": 0,
+      "would_escalate": 0,
+      "questions": 127,
+      "latency_ms": {
+        "p50": 116.6,
+        "p95": 218.6,
+        "mean": 126.6
+      },
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": 0.0,
+      "misses": []
+    },
+    "gpt-5.4-nano": {
+      "n": 10,
+      "queue_accuracy": 1.0,
+      "llm_calls": 10,
+      "would_escalate": 10,
+      "questions": 0,
+      "latency_ms": {
+        "p50": 622.2,
+        "p95": 762.7,
+        "mean": 639.5
+      },
+      "prompt_tokens": 5192,
+      "completion_tokens": 160,
+      "cost_usd": 0.0003236,
+      "misses": []
+    },
+    "deepseek-flash": {
+      "n": 10,
+      "queue_accuracy": 1.0,
+      "llm_calls": 10,
+      "would_escalate": 10,
+      "questions": 0,
+      "latency_ms": {
+        "p50": 1685.3,
+        "p95": 6042.4,
+        "mean": 2008.1
+      },
+      "prompt_tokens": 4345,
+      "completion_tokens": 2928,
+      "cost_usd": 0.00203223,
+      "misses": []
+    }
+  }
+}

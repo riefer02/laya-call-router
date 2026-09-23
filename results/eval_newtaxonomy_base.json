@@ -1,0 +1,245 @@
+{
+  "llm_arms": [],
+  "finetuned": null,
+  "routing": {
+    "laya": {
+      "n": 81,
+      "destination_accuracy": 0.6543,
+      "subqueue_accuracy": 0.4815,
+      "joint_accuracy": 0.4815,
+      "errors": 0,
+      "invalid_labels": 0,
+      "latency_ms": {
+        "p50": 21.2,
+        "p95": 23.3,
+        "mean": 21.3
+      },
+      "prompt_tokens": 25618,
+      "prompt_cache_hit_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "cost_model": null,
+      "gate": {
+        "threshold": 0.75,
+        "flagged": 66,
+        "flag_rate": 0.8148,
+        "errors": 28,
+        "errors_caught": 27,
+        "recall": 0.9643,
+        "precision": 0.4091,
+        "accuracy_when_confident": 0.9333,
+        "accuracy_when_flagged": 0.5909
+      },
+      "misses": [
+        {
+          "id": "svc-04",
+          "text": "There is a rattling noise coming from under the car when I drive over bumps.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "svc-08",
+          "text": "There is a burning smell coming from the engine bay after I drive.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "part-06",
+          "text": "I want to add a tow hitch to my SUV.",
+          "expected": "parts",
+          "got": "body_shop"
+        },
+        {
+          "id": "part-07",
+          "text": "I need a serpentine belt for a 2015 Accord, can you get one?",
+          "expected": "parts",
+          "got": "service"
+        },
+        {
+          "id": "tire-02",
+          "text": "I need four new tires for my pickup truck.",
+          "expected": "service",
+          "got": "parts"
+        },
+        {
+          "id": "tire-06",
+          "text": "I would like winter tires fitted before the season starts.",
+          "expected": "service",
+          "got": "parts"
+        },
+        {
+          "id": "det-01",
+          "text": "I would like to book a full detail, inside and out.",
+          "expected": "service",
+          "got": "front_desk"
+        },
+        {
+          "id": "det-02",
+          "text": "Can I get a wash and vacuum today?",
+          "expected": "service",
+          "got": "front_desk"
+        },
+        {
+          "id": "det-04",
+          "text": "I want the paint machine polished to remove light scratches.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "det-06",
+          "text": "My dog rides in the back and it smells, I need the interior shampooed.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "det-07",
+          "text": "I would like a full valet before I sell the car.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "det-09",
+          "text": "I want the swirl marks buffed out of the clear coat.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "sale-08",
+          "text": "I would like to see a certified pre owned sedan.",
+          "expected": "sales",
+          "got": "non_customer"
+        },
+        {
+          "id": "sale-09",
+          "text": "Has the new model year arrived yet?",
+          "expected": "sales",
+          "got": "front_desk"
+        },
+        {
+          "id": "fin-03",
+          "text": "Does the advertised price include insurance?",
+          "expected": "finance",
+          "got": "front_desk"
+        },
+        {
+          "id": "fin-06",
+          "text": "What interest rate can I get with a 720 credit score?",
+          "expected": "finance",
+          "got": "front_desk"
+        },
+        {
+          "id": "fin-09",
+          "text": "Do you offer leasing for business vehicles?",
+          "expected": "finance",
+          "got": "sales"
+        },
+        {
+          "id": "tow-01",
+          "text": "I need a tow, my car died on the freeway.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "tow-03",
+          "text": "I have locked my keys in the car and I am stuck.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "tow-04",
+          "text": "I ran out of gas on the side of the road.",
+          "expected": "service",
+          "got": "non_customer"
+        },
+        {
+          "id": "tow-07",
+          "text": "I am locked out of my vehicle in a parking garage.",
+          "expected": "service",
+          "got": "front_desk"
+        },
+        {
+          "id": "tow-08",
+          "text": "I need a fuel delivery, I am on the shoulder of the interstate.",
+          "expected": "service",
+          "got": "non_customer"
+        },
+        {
+          "id": "tow-09",
+          "text": "My car is in a ditch and it needs recovering.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "gen-02",
+          "text": "Where are you located?",
+          "expected": "front_desk",
+          "got": "non_customer"
+        },
+        {
+          "id": "gen-04",
+          "text": "I want to make a complaint about my last visit.",
+          "expected": "front_desk",
+          "got": "non_customer"
+        },
+        {
+          "id": "gen-05",
+          "text": "Can you tell me whether you are hiring technicians?",
+          "expected": "non_customer",
+          "got": "front_desk"
+        },
+        {
+          "id": "gen-08",
+          "text": "Do you offer loaner cars while mine is in for service?",
+          "expected": "front_desk",
+          "got": "service"
+        },
+        {
+          "id": "gen-09",
+          "text": "I am calling to ask about your sponsorship of the local football club.",
+          "expected": "front_desk",
+          "got": "non_customer"
+        }
+      ]
+    }
+  },
+  "calls": {
+    "laya-full": {
+      "n": 10,
+      "queue_accuracy": 0.9,
+      "llm_calls": 0,
+      "would_escalate": 0,
+      "questions": 201,
+      "latency_ms": {
+        "p50": 167.4,
+        "p95": 273.8,
+        "mean": 164.7
+      },
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "misses": [
+        {
+          "id": "call-trade-in",
+          "expected": "Appraisal Desk",
+          "got": "Front Desk"
+        }
+      ]
+    },
+    "laya": {
+      "n": 10,
+      "queue_accuracy": 1.0,
+      "llm_calls": 0,
+      "would_escalate": 0,
+      "questions": 131,
+      "latency_ms": {
+        "p50": 94.9,
+        "p95": 198.5,
+        "mean": 106.0
+      },
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "misses": []
+    }
+  }
+}

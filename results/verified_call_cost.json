@@ -1,0 +1,196 @@
+{
+  "scenarios": [
+    {
+      "scenario": "no_start",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 741,
+          "compute_ms": 54.39,
+          "wall_ms": 54.47
+        }
+      ],
+      "total_questions": 7,
+      "total_input_tokens": 741,
+      "total_compute_ms": 54.39
+    },
+    {
+      "scenario": "collision",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 8,
+          "input_tokens": 817,
+          "compute_ms": 64.64,
+          "wall_ms": 64.74
+        },
+        {
+          "turn": 2,
+          "questions": 4,
+          "input_tokens": 479,
+          "compute_ms": 26.41,
+          "wall_ms": 26.49
+        },
+        {
+          "turn": 3,
+          "questions": 3,
+          "input_tokens": 406,
+          "compute_ms": 19.28,
+          "wall_ms": 19.36
+        },
+        {
+          "turn": 4,
+          "questions": 2,
+          "input_tokens": 318,
+          "compute_ms": 19.35,
+          "wall_ms": 19.43
+        }
+      ],
+      "total_questions": 17,
+      "total_input_tokens": 2020,
+      "total_compute_ms": 129.68
+    },
+    {
+      "scenario": "flat_tire",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 695,
+          "compute_ms": 53.91,
+          "wall_ms": 54.01
+        }
+      ],
+      "total_questions": 7,
+      "total_input_tokens": 695,
+      "total_compute_ms": 53.91
+    },
+    {
+      "scenario": "buy_car",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 701,
+          "compute_ms": 54.44,
+          "wall_ms": 54.52
+        },
+        {
+          "turn": 2,
+          "questions": 3,
+          "input_tokens": 340,
+          "compute_ms": 16.45,
+          "wall_ms": 16.51
+        },
+        {
+          "turn": 3,
+          "questions": 2,
+          "input_tokens": 268,
+          "compute_ms": 18.29,
+          "wall_ms": 18.37
+        }
+      ],
+      "total_questions": 12,
+      "total_input_tokens": 1309,
+      "total_compute_ms": 89.18
+    },
+    {
+      "scenario": "part_order",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 7,
+          "input_tokens": 675,
+          "compute_ms": 52.19,
+          "wall_ms": 52.27
+        },
+        {
+          "turn": 2,
+          "questions": 3,
+          "input_tokens": 313,
+          "compute_ms": 16.29,
+          "wall_ms": 16.36
+        },
+        {
+          "turn": 3,
+          "questions": 2,
+          "input_tokens": 242,
+          "compute_ms": 17.93,
+          "wall_ms": 18.0
+        }
+      ],
+      "total_questions": 12,
+      "total_input_tokens": 1230,
+      "total_compute_ms": 86.41
+    },
+    {
+      "scenario": "vague",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 9,
+          "input_tokens": 1079,
+          "compute_ms": 77.04,
+          "wall_ms": 77.14
+        },
+        {
+          "turn": 2,
+          "questions": 5,
+          "input_tokens": 588,
+          "compute_ms": 30.09,
+          "wall_ms": 30.18
+        },
+        {
+          "turn": 3,
+          "questions": 3,
+          "input_tokens": 406,
+          "compute_ms": 22.37,
+          "wall_ms": 22.45
+        },
+        {
+          "turn": 4,
+          "questions": 2,
+          "input_tokens": 302,
+          "compute_ms": 19.2,
+          "wall_ms": 19.27
+        }
+      ],
+      "total_questions": 19,
+      "total_input_tokens": 2375,
+      "total_compute_ms": 148.7
+    },
+    {
+      "scenario": "out_of_scope",
+      "turns": [
+        {
+          "turn": 1,
+          "questions": 8,
+          "input_tokens": 867,
+          "compute_ms": 65.1,
+          "wall_ms": 65.2
+        }
+      ],
+      "total_questions": 8,
+      "total_input_tokens": 867,
+      "total_compute_ms": 65.1
+    }
+  ],
+  "repeats": 3,
+  "summary": {
+    "mean_questions_turn1": 7.75,
+    "mean_questions_later_turns": 2.9,
+    "later_turn_questions": [
+      4,
+      3,
+      2,
+      3,
+      2,
+      3,
+      2,
+      5,
+      3,
+      2
+    ]
+  }
+}

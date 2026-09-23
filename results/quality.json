@@ -1,0 +1,94 @@
+{
+  "n_tickets": 18,
+  "checkpoints": {
+    "english": {
+      "n": 18,
+      "department_accuracy": 0.8333,
+      "churn_accuracy": 1.0,
+      "refund_accuracy": 0.9444,
+      "churn_brier": 0.013,
+      "refund_brier": 0.0503,
+      "noul_ece": 0.0726,
+      "confusion": {
+        "billing": {
+          "billing": 4,
+          "other": 1
+        },
+        "technical": {
+          "technical": 5
+        },
+        "sales": {
+          "sales": 3
+        },
+        "account": {
+          "account": 2,
+          "billing": 1
+        },
+        "other": {
+          "other": 1,
+          "sales": 1
+        }
+      }
+    },
+    "multilingual": {
+      "n": 18,
+      "department_accuracy": 0.6111,
+      "churn_accuracy": 0.8333,
+      "refund_accuracy": 0.9444,
+      "churn_brier": 0.1538,
+      "refund_brier": 0.0754,
+      "noul_ece": 0.1323,
+      "confusion": {
+        "billing": {
+          "billing": 5
+        },
+        "technical": {
+          "sales": 1,
+          "technical": 3,
+          "billing": 1
+        },
+        "sales": {
+          "sales": 1,
+          "billing": 1,
+          "other": 1
+        },
+        "account": {
+          "account": 2,
+          "billing": 1
+        },
+        "other": {
+          "sales": 2
+        }
+      }
+    },
+    "typed-decisions": {
+      "n": 18,
+      "department_accuracy": 0.8333,
+      "churn_accuracy": 0.9444,
+      "refund_accuracy": 0.8889,
+      "churn_brier": 0.0402,
+      "refund_brier": 0.0603,
+      "noul_ece": 0.1697,
+      "confusion": {
+        "billing": {
+          "billing": 4,
+          "other": 1
+        },
+        "technical": {
+          "technical": 5
+        },
+        "sales": {
+          "sales": 2,
+          "other": 1
+        },
+        "account": {
+          "account": 2,
+          "billing": 1
+        },
+        "other": {
+          "other": 2
+        }
+      }
+    }
+  }
+}

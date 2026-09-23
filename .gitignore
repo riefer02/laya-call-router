@@ -25,7 +25,13 @@ node_modules/
 web/dist/
 
 # Project artefacts
-results/
+# The JSON reports ARE tracked: the README cites specific numbers, and a measurement that is not
+# versioned cannot be audited and can be quietly overwritten by the next run. That is exactly what
+# happened to the old-taxonomy dataset report. `results/runs/` stays ignored - it is per-run
+# visualiser output, large and reproducible.
+results/*
+!results/*.json
+!results/*.md
 models/
 .cache/
 

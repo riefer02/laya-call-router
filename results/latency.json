@@ -1,0 +1,61 @@
+{
+  "device": "Apple Silicon (MLX)",
+  "iterations": 50,
+  "checkpoints": {
+    "english": {
+      "one_question_ms": {
+        "p50": 9.0,
+        "p95": 11.04,
+        "mean": 9.51,
+        "min": 8.71,
+        "max": 11.54
+      },
+      "full_schema_ms": {
+        "p50": 27.69,
+        "p95": 28.48,
+        "mean": 27.36,
+        "min": 25.15,
+        "max": 28.6
+      },
+      "full_schema_questions": 6,
+      "questions_per_second": 219.3
+    },
+    "multilingual": {
+      "one_question_ms": {
+        "p50": 4.62,
+        "p95": 6.69,
+        "mean": 4.93,
+        "min": 4.36,
+        "max": 7.05
+      },
+      "full_schema_ms": {
+        "p50": 11.05,
+        "p95": 13.19,
+        "mean": 11.54,
+        "min": 10.73,
+        "max": 13.31
+      },
+      "full_schema_questions": 6,
+      "questions_per_second": 520.0
+    },
+    "typed-decisions": {
+      "one_question_ms": {
+        "p50": 9.16,
+        "p95": 11.03,
+        "mean": 9.65,
+        "min": 8.79,
+        "max": 11.43
+      },
+      "full_schema_ms": {
+        "p50": 27.81,
+        "p95": 28.57,
+        "mean": 27.49,
+        "min": 25.16,
+        "max": 28.78
+      },
+      "full_schema_questions": 6,
+      "questions_per_second": 218.3
+    }
+  },
+  "peak_mlx_memory_mb": 2875.4
+}

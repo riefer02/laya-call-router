@@ -1,0 +1,67 @@
+{
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "kept": 1395,
+  "stats": {
+    "generated": 65,
+    "dup": 0,
+    "invalid": 0,
+    "disagreed": 4,
+    "mismatch": 11,
+    "rounds": 11
+  },
+  "by_subqueue": {
+    "body_shop/collision": 50,
+    "body_shop/dent_scratch": 50,
+    "body_shop/glass": 50,
+    "body_shop/other": 7,
+    "body_shop/paint": 50,
+    "finance/insurance": 50,
+    "finance/lease_terms": 50,
+    "finance/loan": 50,
+    "finance/other": 13,
+    "finance/paperwork": 50,
+    "front_desk/feedback": 75,
+    "front_desk/general_question": 75,
+    "non_customer/jobseeker": 50,
+    "non_customer/vendor": 50,
+    "non_customer/wrong_number": 50,
+    "parts/accessory": 50,
+    "parts/availability": 50,
+    "parts/order_part": 50,
+    "parts/other": 11,
+    "sales/inventory": 50,
+    "sales/new_vehicle": 50,
+    "sales/other": 11,
+    "sales/trade_in": 50,
+    "sales/used_vehicle": 50,
+    "service/detailing": 50,
+    "service/express_maintenance": 50,
+    "service/mechanical_diagnostic": 50,
+    "service/other": 3,
+    "service/roadside_assistance": 50,
+    "service/tires": 50,
+    "service/warranty_recall": 50
+  },
+  "by_destination": {
+    "body_shop": 207,
+    "finance": 213,
+    "front_desk": 150,
+    "non_customer": 150,
+    "parts": 161,
+    "sales": 211,
+    "service": 303
+  },
+  "cost_usd": 0.031947,
+  "problems": [],
+  "residual_missing": [
+    "front_desk/other",
+    "non_customer/other"
+  ],
+  "criteria": {
+    "min_per_subqueue_specific": 25,
+    "min_per_destination": "max(1, n_specific_subqueues) x min_per_subqueue",
+    "residual_intents_gated": false,
+    "dev_fraction": 0.1
+  }
+}
