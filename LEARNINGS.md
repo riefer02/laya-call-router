@@ -381,6 +381,21 @@ deficit rather than parity, and that was the headline of the day.
 > were measuring — including the frozen ones inside model artefacts. "I added a check and it passes"
 > is only as good as the question of what the check is pointed at.
 
+**A related failure, mine, an hour later.** I wanted a *targeted* top-up: add terse negatives, leave
+everything else alone, so the register experiment would be clean. I ran it with the new flag on and
+the existing category counts left at their defaults — so it regenerated 175 batches of everything and
+added **504 long rows alongside the 144 terse ones**. That does not just waste a pass (~$0.59); it
+confounds the exact thing the experiment exists to test, and there was no way to separate them
+afterwards because the rows recorded no origin.
+
+Fixed by recording it: every generated row now carries the `kind` of prompt that produced it, and the
+run prints the by-kind breakdown. Same principle as the snapshot audit. A run should leave enough of
+a trace to be audited by someone who was not there when it ran.
+
+> **The lesson:** the gap between a command's *intent* and its *effect* is another version of one fact
+> in two places. "I ran a targeted top-up" lived in my head; the defaults lived in the code; nothing
+> compared them.
+
 > **The lesson:** a flattering number deserves more suspicion than a disappointing one. 0.554 → 1.000
 > should have been the moment I audited the measurement, and instead it was the moment I started
 > writing it up.

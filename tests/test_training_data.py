@@ -242,7 +242,7 @@ def test_every_generator_prompt_is_actually_generated():
     import argparse
 
     gen = _load_script("generate_severity")
-    args = argparse.Namespace(hazards=1, complaints=1, routine=1, minor_faults=1)
+    args = argparse.Namespace(hazards=1, complaints=1, routine=1, minor_faults=1, hazard_short=1)
     generated = {kind for kind, _ in gen.generation_jobs(args)}
     assert generated == set(gen.PROMPTS), (
         f"prompts with no job: {sorted(set(gen.PROMPTS) - generated)}; "
@@ -250,8 +250,9 @@ def test_every_generator_prompt_is_actually_generated():
     )
 
     # And switching a category off must actually switch it off.
-    off = argparse.Namespace(hazards=1, complaints=1, routine=1, minor_faults=0)
+    off = argparse.Namespace(hazards=1, complaints=1, routine=1, minor_faults=0, hazard_short=0)
     assert "minor_fault" not in {kind for kind, _ in gen.generation_jobs(off)}
+    assert "hazard_short" not in {kind for kind, _ in gen.generation_jobs(off)}
 
 
 # ------------------------------------------------------- a checkpoint carries its own provenance

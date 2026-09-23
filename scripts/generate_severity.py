@@ -82,7 +82,21 @@ MINOR_FAULT_PROMPT = (
     "Write them {style}. Return JSON only."
 )
 
-# The register is the point of this category. Anything long, hedged or self-reassuring teaches the
+# Terse hazards, so the register varies *within* each class rather than between them. Without these,
+# adding terse negatives alone would let the model learn "short => safe" instead of the distinction -
+# a new shortcut in place of the old one, and one that would fail on "the brakes just failed."
+HAZARD_SHORT_PROMPT = (
+    "Write {n} short things a caller might say to a car dealership about a vehicle that should NOT "
+    "be driven: smoke or a burning smell, a brake or steering failure, a stuck accelerator, "
+    "overheating, a wheel or tyre that has failed, or a vehicle that cannot be moved. "
+    "CRITICAL: each must be ONE SHORT SENTENCE of at most 14 words, stated plainly, the way a real "
+    "caller speaks - name the problem and stop. Do NOT explain, apologise, reassure, or add any "
+    "framing or backstory. Do NOT say whether the car is fine or not fine elsewhere. "
+    "Write them {style}. Return JSON only."
+)
+MAX_HAZARD_SHORT_WORDS = 18
+
+# The register is the point of these categories. Anything long, hedged or self-reassuring teaches the
 # shortcut rather than the distinction, so it is dropped rather than labelled.
 MAX_MINOR_FAULT_WORDS = 18
 
@@ -91,6 +105,7 @@ MAX_MINOR_FAULT_WORDS = 18
 # questions untrained for a whole GPU run - and a test asserts the two stay in step.
 PROMPTS = {
     "hazard": HAZARD_PROMPT,
+    "hazard_short": HAZARD_SHORT_PROMPT,
     "complaint": COMPLAINT_PROMPT,
     "routine": ROUTINE_PROMPT,
     "minor_fault": MINOR_FAULT_PROMPT,
@@ -100,6 +115,8 @@ PROMPTS = {
 def generation_jobs(args: argparse.Namespace) -> List[tuple]:
     """The (kind, batches) pairs to generate for this run."""
     jobs = [("hazard", args.hazards), ("complaint", args.complaints), ("routine", args.routine)]
+    if args.hazard_short:
+        jobs.append(("hazard_short", args.hazard_short))
     if args.minor_faults:
         jobs.append(("minor_fault", args.minor_faults))
     return jobs
@@ -127,8 +144,9 @@ def generate_utterances(kind: str, n: int, *, provider: str, model: str) -> List
     data = call.get("data") if isinstance(call.get("data"), dict) else {}
     out = data.get("utterances") or []
     texts = [u.strip() for u in out if isinstance(u, str) and len(u.strip()) > 12]
-    if kind == "minor_fault":
-        texts = [t for t in texts if len(t.split()) <= MAX_MINOR_FAULT_WORDS]
+    cap = {"minor_fault": MAX_MINOR_FAULT_WORDS, "hazard_short": MAX_HAZARD_SHORT_WORDS}.get(kind)
+    if cap:
+        texts = [t for t in texts if len(t.split()) <= cap]
     return texts
 
 
@@ -158,6 +176,12 @@ def main() -> int:
         type=int,
         default=0,
         help="batches of SHORT non-hazard fault reports (the deployment register)",
+    )
+    ap.add_argument(
+        "--hazard-short",
+        type=int,
+        default=0,
+        help="batches of SHORT hazard reports, so the register varies within both classes",
     )
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--concurrency", type=int, default=8)
@@ -218,17 +242,27 @@ def main() -> int:
 
     # ---- generate the positive classes (and some routine, to keep the negatives varied)
     generated: List[str] = []
+    # Which prompt produced each utterance. A mixed run has to be separable afterwards: an earlier
+    # targeted top-up left the other categories at their defaults and quietly added 504 long rows
+    # alongside the 144 terse ones, confounding the very experiment it was meant to run. The rows
+    # carried no record of their origin, so the only recovery was to throw the pass away and redo it.
+    kind_of: Dict[str, str] = {}
     jobs = generation_jobs(args)
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
-        futs = []
+        futs = {}
         for kind, batches in jobs:
             for _ in range(batches):
-                futs.append(pool.submit(generate_utterances, kind, args.batch,
-                                        provider=provider, model=model))
+                futs[pool.submit(generate_utterances, kind, args.batch,
+                                 provider=provider, model=model)] = kind
         for fut in as_completed(futs):
-            generated.extend(fut.result())
+            for text in fut.result():
+                kind_of.setdefault(text, futs[fut])
+                generated.append(text)
     generated = [g for g in dict.fromkeys(generated) if g not in existing]
     print(f"generated utterances: {len(generated)}")
+    if generated:
+        by_kind = Counter(kind_of.get(g, "?") for g in generated)
+        print("  by kind:", dict(by_kind))
 
     todo = [t for t in (realistic + generated) if t not in existing]
     print(f"to label: {len(todo)} utterances x {len(KEYS)} questions x 2 passes "
@@ -252,7 +286,11 @@ def main() -> int:
             cost += res["cost"]
             row = next((r for r in rows if r["text"] == text), None)
             if row is None:
-                row = {"text": text, "src": "generated" if text in generated else "synthetic"}
+                row = {
+                    "text": text,
+                    "src": "generated" if text in generated else "synthetic",
+                    "kind": kind_of.get(text, "routing"),
+                }
                 rows.append(row)
             row[key] = res["value"]
             row[f"{key}_agreed"] = res["agreed"]
