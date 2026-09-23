@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
+import BookingCard from "./booking/BookingCard";
 import Controls from "./controls/Controls";
 import Rail from "./conversation/Rail";
+import Evidence from "./evidence/Evidence";
 import GraphCanvas from "./graph/GraphCanvas";
 import Hud from "./hud/Hud";
 import Inspector from "./inspector/Inspector";
 import { useRun } from "./store/run";
 
+export type View = "call" | "evidence";
+
 function Shell() {
   const [railCollapsed, setRailCollapsed] = useState(false);
+  const [view, setView] = useState<View>("call");
   const { fitView } = useReactFlow();
 
   const playing = useRun((s) => s.playing);
@@ -25,7 +30,7 @@ function Shell() {
     return () => window.clearTimeout(id);
   }, [playing, speed, applied, total, step]);
 
-  // Keyboard: space toggles playback, → steps, F frames the whole call.
+  // Keyboard: space toggles playback, → steps, F frames the whole call. `e` switches views.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
@@ -38,6 +43,8 @@ function Shell() {
         useRun.getState().step();
       } else if (e.key === "f" || e.key === "F") {
         fitView({ padding: 0.12, minZoom: 0.22, maxZoom: 1, duration: 400 });
+      } else if (e.key === "e" || e.key === "E") {
+        setView((v) => (v === "call" ? "evidence" : "call"));
       }
     };
     window.addEventListener("keydown", onKey);
@@ -46,15 +53,25 @@ function Shell() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
-      <Hud />
-      <Controls />
-      <div className="flex min-h-0 flex-1">
-        <Rail collapsed={railCollapsed} onToggle={() => setRailCollapsed((v) => !v)} />
-        <div className="min-w-0 flex-1">
-          <GraphCanvas />
+      <Hud view={view} onView={setView} />
+      {view === "call" ? (
+        <>
+          <Controls />
+          <div className="flex min-h-0 flex-1">
+            <Rail collapsed={railCollapsed} onToggle={() => setRailCollapsed((v) => !v)} />
+            <div className="min-w-0 flex-1">
+              <GraphCanvas />
+            </div>
+            <Inspector />
+          </div>
+          {/* The payoff, when there is one: a real appointment with a real time. */}
+          <BookingCard />
+        </>
+      ) : (
+        <div className="min-h-0 flex-1">
+          <Evidence />
         </div>
-        <Inspector />
-      </div>
+      )}
     </div>
   );
 }

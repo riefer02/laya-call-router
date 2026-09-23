@@ -1,4 +1,4 @@
-import type { RunEvent, RunListItem, Scenario } from "./types";
+import type { Evidence, RunEvent, RunListItem, Scenario } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -32,4 +32,8 @@ export async function runScenario(scenarioId: string): Promise<RunPayload> {
 
 export async function fetchRun(runId: string): Promise<RunPayload> {
   return json<RunPayload>(await fetch(`/api/runs/${runId}`));
+}
+
+export async function fetchEvidence(): Promise<Evidence> {
+  return json<Evidence>(await fetch("/api/results"));
 }

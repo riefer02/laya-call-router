@@ -15,6 +15,7 @@ Response text is templated — Laya never generates.
 from __future__ import annotations
 
 import time
+from dataclasses import asdict
 from typing import Any, Dict, Iterator, List, Optional
 
 import laya_mlx as laya
@@ -737,7 +738,21 @@ class CallSession:
         self.routing = outcome
         node_id = f"t{turn}.terminal"
         yield self._node(node_id, turn, "terminal", "terminal")
-        yield self._result(node_id, turn, value=outcome["queue"], extra={"routing": outcome})
+        yield self._result(
+            node_id,
+            turn,
+            value=outcome["queue"],
+            note=(
+                f"appointment filed: {self.booking.summary()}"
+                if self.booking
+                else "routed, no appointment (transferred or dispatched)"
+            ),
+            extra={
+                "routing": outcome,
+                "booking": asdict(self.booking) if self.booking else None,
+                "contact": self.contact or None,
+            },
+        )
         yield self._edge(prev_id, node_id, label=outcome["queue"], kind="terminal")
         self.finished = True
 
@@ -768,6 +783,9 @@ class CallSession:
             "tokens_generated": 0,
             "cost_usd": 0.0,
             "routing": self.routing,
+            "booking": asdict(self.booking) if self.booking else None,
+            "contact": self.contact or None,
+            "offered": [s.key for s in self.offered],
             "turn_stats": self.turn_stats,
             "escalations": self.escalations,
             "llm_escalations": self.llm_escalations,

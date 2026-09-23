@@ -86,15 +86,25 @@ def main() -> None:
     report: dict = {"llm_arms": refs, "finetuned": args.finetuned or None, "routing": {}, "calls": {}}
 
     # ---- decision level ------------------------------------------------------
+    # The cascade is measured for determinism too. It is deterministic by construction - no
+    # sampling anywhere - but "deterministic" is a claim we make in the README, and an unmeasured
+    # claim is exactly the kind this project keeps catching itself making.
     print("\nrunning cascade arm ...", flush=True)
-    laya_routing = H.run_laya_routing(routing, router)
-    report["routing"]["laya"] = H.score_routing(routing, laya_routing)
+    laya_runs = [
+        H.run_laya_routing(routing, router) for _ in range(max(1, args.determinism))
+    ]
+    report["routing"]["laya"] = H.score_routing(routing, laya_runs[0])
+    report["routing"]["laya"]["determinism"] = H.agreement(laya_runs)
 
     ft_routing = None
     if ft_router is not None:
         print("running fine-tuned cascade arm ...", flush=True)
-        ft_routing = H.run_laya_routing(routing, ft_router)
+        ft_runs = [
+            H.run_laya_routing(routing, ft_router) for _ in range(max(1, args.determinism))
+        ]
+        ft_routing = ft_runs[0]
         report["routing"]["cascade-ft"] = H.score_routing(routing, ft_routing)
+        report["routing"]["cascade-ft"]["determinism"] = H.agreement(ft_runs)
         ft_router_arm = "cascade-ft"
     else:
         ft_router_arm = None

@@ -215,27 +215,33 @@ cascade (base and fine-tuned), a cheap structured-output model (`gpt-5.4-nano`),
 
 | metric | base | **fine-tuned** | gpt-5.4-nano | deepseek-flash |
 | --- | --- | --- | --- | --- |
-| destination | 0.654 | 0.951 | 0.951 | **0.975** |
-| sub-queue | 0.518 | **0.914** | 0.852 | 0.901 |
-| joint | 0.518 | **0.914** | 0.852 | 0.901 |
-| **queue (the outcome)** | 0.667 | **0.963** | 0.926 | 0.951 |
-| ±95% (queue) | ±0.101 | ±0.045 | ±0.059 | ±0.050 |
+| destination | 0.654 | 0.951 | 0.963 | **0.988** |
+| sub-queue | 0.518 | **0.914** | 0.876 | **0.926** |
+| joint | 0.518 | 0.914 | 0.876 | **0.926** |
+| **queue (the outcome)** | 0.667 | **0.963** | 0.926 | **0.963** |
+| ±95% (queue) | ±0.101 | ±0.045 | ±0.059 | ±0.045 |
 | p50 latency | 21.4 ms | **21.8 ms** | 631 ms | 1455 ms |
 | cost per case | **$0** | **$0** | $0.0025 | $0.0114 |
-| determinism (3 repeats) | **1.00** | **1.00** | 0.99 | 1.00 |
+| determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
 
-**The fine-tuned cascade is above both LLM arms on joint and on queue accuracy, at ~65× the speed
-and for nothing per call.**
+**The fine-tuned cascade matches both LLM arms on the decision, at ~65× the speed and for nothing
+per call — and unlike them, its number does not move.**
 
-The caveat that belongs next to that sentence: on 81 cases one case is 1.23 points and the Wilson
-intervals overlap (ours ±0.063, theirs ±0.066 on joint). So this is **parity with our point
-estimates ahead**, not proven superiority — and the LLM arms themselves move ±2.5 points between
-identical runs, which is why every table here carries intervals.
+Read that carefully, because the tempting version of that sentence is wrong. Across four runs on
+identical inputs, `deepseek-flash` scored joint **0.914, 0.889, 0.901 and 0.926** — it leads us in
+some runs and trails in others. Our 0.914 has not moved once, because the cascade is deterministic:
+measured at **1.00 agreement across three repeats** for every arm of ours, against 0.98–0.99 for the
+LLMs.
 
-`destination` is the one metric still behind. Two things are worth knowing about it. The errors are
-concentrated in `front_desk`, and **queue accuracy is higher than destination accuracy because two
-labels can route to the same place** — `front_desk` and `non_customer` both go to Front Desk, so a
-label miss there is not a routing miss. Both numbers are reported; neither replaces the other.
+So the honest claim is **parity on quality, with a stable number instead of a noisy one**, plus the
+economics. On 81 cases one case is 1.23 points and the intervals overlap; a 2-point "win" here is
+noise, and I have now watched it flip in both directions.
+
+`destination` is the one metric where deepseek is consistently ahead. Two things are worth knowing
+about it. The errors concentrate in `front_desk`, and **queue accuracy is higher than destination
+accuracy because two labels can route to the same place** — `front_desk` and `non_customer` both go
+to Front Desk, so a label miss there is not a routing miss. Both numbers are reported; neither
+replaces the other.
 
 ### Confidence calibration — why the gate behaves as it does
 
@@ -337,16 +343,16 @@ synthetic set (RLCD, official trainer, 2×T4, ~15 min for 8 epochs) is the *afte
 
 | metric | base cascade | **fine-tuned** | gpt-5.4-nano | deepseek-flash |
 | --- | --- | --- | --- | --- |
-| destination accuracy | 0.654 | **0.951** | 0.951 | 0.975 |
-| sub-queue accuracy | 0.518 | **0.914** | 0.852 | 0.901 |
-| joint accuracy | 0.518 | **0.914** | 0.852 | 0.901 |
+| destination accuracy | 0.654 | **0.951** | 0.963 | 0.988 |
+| sub-queue accuracy | 0.518 | **0.914** | 0.876 | 0.926 |
+| joint accuracy | 0.518 | **0.914** | 0.876 | 0.926 |
 | call-level queue accuracy | 0.852 | **0.963** | 0.963 | 0.963 |
 | p50 latency | 21.4 ms | **21.8 ms** | 631 ms | 1455 ms |
 | cost per case | **$0** | **$0** | $0.0025 | $0.0114 |
-| determinism (3 repeats) | **1.00** | **1.00** | 0.99 | 1.00 |
+| determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
 
-**+39.6 points of joint accuracy, at the same ~21 ms, for $0, deterministically** — and now above
-both LLM arms rather than below them.
+**+39.6 points of joint accuracy, at the same ~21 ms, for $0, deterministically** — and level with
+both LLM arms rather than 20 points behind them.
 
 Four changes produced that, and the order matters:
 

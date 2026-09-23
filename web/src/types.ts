@@ -42,6 +42,8 @@ export interface NodeResult {
   template_id?: string;
   driven_by?: string[];
   routing?: RouteOutcome;
+  booking?: Booking | null;
+  contact?: Contact | null;
 }
 
 export interface RouteOutcome {
@@ -49,9 +51,29 @@ export interface RouteOutcome {
   priority: string;
   handler: string;
   flags: string[];
-  department?: string;
-  intent?: string;
+  destination?: string;
+  subqueue?: string;
   reasons: string[];
+}
+
+/** An appointment that was actually filed, with a real time and an id. */
+export interface Booking {
+  id: string;
+  location: string;
+  destination: string;
+  subqueue: string | null;
+  queue: string;
+  slot_day: string;
+  slot_time: string;
+  duration_min: number;
+  caller_name: string;
+  callback_number: string;
+  vehicle: string;
+}
+
+export interface Contact {
+  caller_name?: string | null;
+  callback_number?: string | null;
 }
 
 export interface GraphEdge {
@@ -88,6 +110,9 @@ export interface CallEnd {
   tokens_generated: number;
   cost_usd: number;
   routing: RouteOutcome | null;
+  booking?: Booking | null;
+  contact?: Contact | null;
+  offered?: string[];
   escalations?: number;
   llm_escalations?: number;
   turn_stats?: Array<{ turn: number; questions: number; input_tokens: number; compute_ms: number }>;
@@ -107,4 +132,80 @@ export interface RunListItem {
   scenario: { id?: string; label?: string };
   modified: number;
   bytes: number;
+}
+
+// --------------------------------------------------------------------------- evidence
+export interface ArmScore {
+  key: string;
+  label: string;
+  destination: number | null;
+  destination_ci: number | null;
+  subqueue: number | null;
+  joint: number | null;
+  queue: number | null;
+  latency_p50: number | null;
+  cost_per_case: number | null;
+  determinism: number | null;
+  calibration: Record<string, { n: number; accuracy: number }>;
+  other_rate: number | null;
+  gate: Record<string, unknown>;
+}
+
+export interface SubQueue {
+  key: string;
+  label: string;
+  description: string;
+  queue: string;
+  handler: string;
+}
+
+export interface TaxonomyNode {
+  key: string;
+  label: string;
+  description: string;
+  queue: string;
+  subqueues: SubQueue[];
+}
+
+export interface SeverityScore {
+  recall: number | null;
+  precision: number | null;
+  missed: number;
+  positives: number;
+  false_alarms: number;
+  missed_ids?: string[];
+}
+
+export interface SeverityRow {
+  arm: string;
+  safe: SeverityScore | null;
+  human: SeverityScore | null;
+  sweep: Array<SeverityScore & { threshold: number }>;
+}
+
+export interface Evidence {
+  taxonomy: TaxonomyNode[];
+  n_cases: number;
+  arms: ArmScore[];
+  calls: Array<{
+    label: string;
+    queue: number | null;
+    questions: number | null;
+    latency_p50: number | null;
+    cost: number | null;
+  }>;
+  calibration: Record<string, { n: number; accuracy: number }>;
+  severity: SeverityRow[];
+  dataset: {
+    kept: number | null;
+    by_destination: Record<string, number>;
+    cost_usd: number | null;
+    criteria: Record<string, unknown>;
+  };
+  generality: {
+    suites: Record<string, Record<string, { accuracy?: number }>>;
+    verdict: string | null;
+  };
+  policy: Record<string, unknown>;
+  facts: Record<string, string>;
 }
