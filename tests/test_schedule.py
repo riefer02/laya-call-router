@@ -17,6 +17,7 @@ from jev_classifier.schedule import (
     Scheduler,
     Slot,
     acceptance_options,
+    reply_names_unoffered_time,
     resolve_acceptance,
 )
 
@@ -251,3 +252,42 @@ def test_a_choice_naming_no_offered_slot_is_clarified_not_booked():
 def test_acceptance_threshold_is_configurable(sched):
     """Tying the booking bar to the pin threshold keeps one notion of 'decisive' in the system."""
     assert resolve_acceptance("slot_1", 0.55, OFFERED, threshold=0.5) == ("accept", 0)
+
+
+# --------------------------------------------------- the caller's words veto a confident answer
+def test_a_confident_acceptance_is_vetoed_when_the_reply_names_another_day():
+    """Measured on the booking scenario: three Wednesday times offered, the caller said
+    "Tuesday at 8 works for me", and the classifier answered slot_1 at p=1.00 - matching the hour and
+    ignoring the day - so an appointment was filed for a day nobody mentioned. The confidence cannot
+    catch a contradiction that is sitting in the text.
+    """
+    wednesday = [Slot("2026-09-23", "08:00"), Slot("2026-09-23", "08:30")]
+    assert reply_names_unoffered_time("Tuesday at 8 works for me.", wednesday)
+    assert resolve_acceptance("slot_1", 1.0, wednesday, reply="Tuesday at 8 works for me.") == (
+        "clarify",
+        None,
+    )
+
+
+def test_a_reply_that_names_an_offered_time_is_left_to_the_classifier():
+    wednesday = [Slot("2026-09-23", "08:00"), Slot("2026-09-23", "08:30")]
+    for reply in ("the 8am one please", "yes, Wednesday at 8", "8:30 works"):
+        assert not reply_names_unoffered_time(reply, wednesday), reply
+    assert resolve_acceptance("slot_1", 0.9, wednesday, reply="the 8am one please") == ("accept", 0)
+
+
+def test_a_reply_that_names_no_time_is_still_the_classifier_s_judgement():
+    """The guard must not swallow legitimate answers that happen not to mention a time."""
+    wednesday = [Slot("2026-09-23", "08:00")]
+    for reply in ("the first one, please", "none of those work", "sure", "this is Dana"):
+        assert not reply_names_unoffered_time(reply, wednesday), reply
+    assert resolve_acceptance("none_of_these", 0.9, wednesday, reply="none of those work") == (
+        "reject",
+        None,
+    )
+
+
+def test_a_clock_time_that_is_not_offered_also_vetoes():
+    wednesday = [Slot("2026-09-23", "08:00")]
+    assert reply_names_unoffered_time("can we do 3pm instead?", wednesday)
+    assert not reply_names_unoffered_time("8am is fine", wednesday)

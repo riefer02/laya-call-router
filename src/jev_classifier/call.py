@@ -506,11 +506,16 @@ class CallSession:
             # the untrained acceptance classifier answered slot_1 at p=0.41 for an utterance that
             # mentioned no time at all, and the booking was made. Booking a time nobody agreed to
             # is worse than asking again, so an indecisive answer clarifies rather than commits.
+            # The caller's own words get a veto: the classifier matched the hour of "Tuesday at 8"
+            # against three Wednesday offers and answered slot_1 at p=1.00, filing an appointment
+            # for a day nobody mentioned. Confidence cannot be trusted to catch a contradiction that
+            # is visible in the text.
             verdict, idx = resolve_acceptance(
                 choice,
                 _summarize(acc).get("top_probability"),
                 self.offered,
                 threshold=self.pin_threshold,
+                reply=utterance,
             )
             if verdict == "accept" and idx is not None:
                 slot = self.offered[idx]

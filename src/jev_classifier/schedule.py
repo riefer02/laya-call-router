@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
@@ -284,12 +285,53 @@ def slot_choice_index(choice: Optional[str], offered: Sequence[Slot]) -> Optiona
     return idx if 0 <= idx < len(offered) else None
 
 
+_DAY_RE = re.compile(
+    r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", re.IGNORECASE
+)
+_CLOCK_RE = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b", re.IGNORECASE)
+
+
+def reply_names_unoffered_time(reply: str, offered: Sequence[Slot]) -> bool:
+    """True when the reply names a day or clock time that none of the offered slots has.
+
+    Measured on the booking scenario: the agent offered three *Wednesday* times, the caller said
+    **"Tuesday at 8 works for me"**, and the acceptance classifier answered `slot_1` at p=1.00 —
+    matching the hour and ignoring the day — so an appointment was filed for a time nobody asked
+    for. Same failure as the original *"this is Dana, and my number is 555-0140"* → `slot_1`, in a
+    new disguise: the classifier finds the nearest slot instead of declining.
+
+    The classifier proposes; this disposes. It vetoes only on an explicit contradiction, so a reply
+    that names no time at all ("the first one, please") is still the model's to judge.
+    """
+    days = {d.lower() for d in _DAY_RE.findall(reply)}
+    if days:
+        offered_days = set()
+        for slot in offered:
+            try:
+                offered_days.add(datetime.strptime(slot.day, "%Y-%m-%d").strftime("%A").lower())
+            except ValueError:  # pragma: no cover - only on a malformed day
+                continue
+        if offered_days and not (days & offered_days):
+            return True
+
+    clocks = set()
+    for hour, minute, meridiem in _CLOCK_RE.findall(reply):
+        hh = int(hour) % 12 + (12 if meridiem.lower() == "pm" else 0)
+        clocks.add(f"{hh:02d}:{minute or '00'}")
+    if clocks:
+        offered_times = {slot.time for slot in offered}
+        if offered_times and not (clocks & offered_times):
+            return True
+    return False
+
+
 def resolve_acceptance(
     choice: Optional[str],
     top_probability: Optional[float],
     offered: Sequence[Slot],
     *,
     threshold: float = 0.6,
+    reply: str = "",
 ) -> tuple:
     """Decide what the caller's reply to a slot offer actually means.
 
@@ -304,7 +346,13 @@ def resolve_acceptance(
     and my number is 555-0140"). Acting on that files an appointment nobody agreed to. An
     argmax of a near-uniform distribution is not a decision - the same rule that stops a hard stop
     firing on a weak signal elsewhere in this system.
+
+    And a decisive answer is not automatically trustworthy either: trained, it answered `slot_1` at
+    p=1.00 for "Tuesday at 8" against three Wednesday offers. So the caller's own words get a veto
+    before any confidence is honoured.
     """
+    if reply and reply_names_unoffered_time(reply, offered):
+        return "clarify", None
     idx = slot_choice_index(choice, offered)
     decisive = float(top_probability or 0.0) >= threshold
     if idx is not None and decisive:
