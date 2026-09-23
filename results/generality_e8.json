@@ -1,0 +1,232 @@
+{
+  "limit": 400,
+  "token_budget": {
+    "max_len": 1024,
+    "head_max_len": 256
+  },
+  "suites": {
+    "base": {
+      "banking77": {
+        "arm": "base",
+        "n": 400,
+        "accuracy": 0.415,
+        "latency_ms_per_item": 17.9,
+        "confusions": [
+          [
+            [
+              "top_up_limits",
+              "top_up_reverted"
+            ],
+            6
+          ],
+          [
+            [
+              "unable_to_verify_identity",
+              "verify_my_identity"
+            ],
+            6
+          ],
+          [
+            [
+              "get_disposable_virtual_card",
+              "virtual_card_not_working"
+            ],
+            6
+          ],
+          [
+            [
+              "card_payment_wrong_exchange_rate",
+              "wrong_exchange_rate_for_cash_withdrawal"
+            ],
+            5
+          ],
+          [
+            [
+              "getting_virtual_card",
+              "virtual_card_not_working"
+            ],
+            5
+          ],
+          [
+            [
+              "why_verify_identity",
+              "verify_my_identity"
+            ],
+            5
+          ]
+        ]
+      },
+      "clinc150_indomain": {
+        "arm": "base",
+        "n": 400,
+        "accuracy": 0.095,
+        "latency_ms_per_item": 28.4,
+        "confusions": [
+          [
+            [
+              "transfer",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "timer",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "meaning_of_life",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "insurance_change",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "find_phone",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "pto_request",
+              "text"
+            ],
+            3
+          ]
+        ]
+      },
+      "clinc150_ood": {
+        "ood_recall": 0.025,
+        "in_domain_false_positive_rate": 0.02,
+        "mean_p_ood_on_ood": 0.1656,
+        "mean_p_ood_on_indomain": 0.1598
+      }
+    },
+    "fine-tuned": {
+      "banking77": {
+        "arm": "fine-tuned",
+        "n": 400,
+        "accuracy": 0.39,
+        "latency_ms_per_item": 18.0,
+        "confusions": [
+          [
+            [
+              "unable_to_verify_identity",
+              "verify_my_identity"
+            ],
+            6
+          ],
+          [
+            [
+              "get_disposable_virtual_card",
+              "virtual_card_not_working"
+            ],
+            6
+          ],
+          [
+            [
+              "card_payment_wrong_exchange_rate",
+              "wrong_exchange_rate_for_cash_withdrawal"
+            ],
+            5
+          ],
+          [
+            [
+              "getting_virtual_card",
+              "virtual_card_not_working"
+            ],
+            5
+          ],
+          [
+            [
+              "why_verify_identity",
+              "verify_my_identity"
+            ],
+            5
+          ],
+          [
+            [
+              "get_physical_card",
+              "pin_blocked"
+            ],
+            5
+          ]
+        ]
+      },
+      "clinc150_indomain": {
+        "arm": "fine-tuned",
+        "n": 400,
+        "accuracy": 0.21,
+        "latency_ms_per_item": 28.3,
+        "confusions": [
+          [
+            [
+              "transfer",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "meaning_of_life",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "insurance_change",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "find_phone",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "pto_request",
+              "text"
+            ],
+            3
+          ],
+          [
+            [
+              "payday",
+              "text"
+            ],
+            3
+          ]
+        ]
+      },
+      "clinc150_ood": {
+        "ood_recall": 0.0375,
+        "in_domain_false_positive_rate": 0.045,
+        "mean_p_ood_on_ood": 0.0471,
+        "mean_p_ood_on_indomain": 0.06
+      }
+    }
+  },
+  "verdict": {
+    "basis": "banking77",
+    "base": 0.415,
+    "finetuned": 0.39,
+    "delta": 0.025,
+    "text": "GENERALITY HELD \u2014 fine-tuning did not cost meaningful option-space flexibility."
+  }
+}

@@ -203,7 +203,7 @@ def slot_applies(destination: Optional[str], slot: str) -> bool:
 
 def next_action_for(missing: List[str], destination: str, unsafe: float) -> str:
     """The switchboard's next step, as policy over the classifier's understanding."""
-    if destination == "non_customer" or unsafe >= UNSAFE_FLAG:
+    if destination == "non_customer" or unsafe >= unsafe_threshold():
         return "offer_transfer"
     if not missing:
         return "confirm_booking"
@@ -212,8 +212,19 @@ def next_action_for(missing: List[str], destination: str, unsafe: float) -> str:
 
 
 # --------------------------------------------------------------------------- routing policy
-UNSAFE_FLAG = 0.5
+UNSAFE_FLAG = 0.5  # fallback only; the live value comes from the store profile
 NEEDS_HUMAN_FLAG = 0.5
+
+
+def unsafe_threshold() -> float:
+    """The bar for treating a call as unsafe-to-drive.
+
+    One number, read from the store profile, used by every decision that depends on it: the
+    `unsafe_to_drive` flag, the transfer decision, and the roadside dispatch. These were briefly
+    three separate thresholds, which produced the contradiction of a caller dispatched as unsafe
+    but not flagged as unsafe.
+    """
+    return float(PROFILE.policy.get("unsafe_threshold", UNSAFE_FLAG))
 
 
 def decide(answers: Dict, missing: List[str]) -> Dict:
@@ -243,7 +254,7 @@ def decide(answers: Dict, missing: List[str]) -> Dict:
     needs_human = prob("needs_human")
 
     flags: List[str] = list(PROFILE.flags_for(destination, subqueue))
-    if unsafe >= UNSAFE_FLAG:
+    if unsafe >= unsafe_threshold():
         flags.append("unsafe_to_drive")
     if needs_human >= NEEDS_HUMAN_FLAG:
         flags.append("needs_human")
@@ -253,14 +264,14 @@ def decide(answers: Dict, missing: List[str]) -> Dict:
     # Roadside is a policy outcome, never a destination: a stranded caller is dispatched whichever
     # department owns the work.
     roadside = PROFILE.policy.get("roadside_flag", "roadside_dispatch")
-    if roadside in flags or unsafe >= PROFILE.policy.get("unsafe_threshold", UNSAFE_FLAG):
+    if roadside in flags or unsafe >= unsafe_threshold():
         queue = PROFILE.policy.get("roadside_queue", "Roadside / Towing")
         if "dispatch" not in flags:
             flags.append("dispatch")
     else:
         queue = PROFILE.queue_for(destination, subqueue)
 
-    priority = "HIGH" if (unsafe >= UNSAFE_FLAG or "dispatch" in flags) else "NORMAL"
+    priority = "HIGH" if (unsafe >= unsafe_threshold() or "dispatch" in flags) else "NORMAL"
 
     sub = PROFILE.subqueue(destination, subqueue)
     dest = PROFILE.destination(destination)
@@ -270,7 +281,7 @@ def decide(answers: Dict, missing: List[str]) -> Dict:
     for obj in (sub, dest):
         if obj is not None and getattr(obj, "handler", "route") == "human":
             handler = "human"
-    if unsafe >= UNSAFE_FLAG:
+    if unsafe >= unsafe_threshold():
         handler = "human"
 
     where = destination or "unknown"

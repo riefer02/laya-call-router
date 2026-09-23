@@ -137,6 +137,36 @@ def test_missing_info_is_flagged():
     assert "missing_info" in r["flags"]
 
 
+def test_the_unsafe_threshold_is_used_consistently():
+    """Regression: the flag, the priority, the handler, the dispatch and the transfer decision
+    briefly read three different thresholds, which produced a caller dispatched as unsafe but not
+    flagged as unsafe - a contradictory audit trail. One number now drives all of them.
+    """
+    threshold = D.unsafe_threshold()
+    for prob, unsafe in ((threshold - 0.01, False), (threshold + 0.01, True)):
+        r = D.decide(
+            {
+                **_choice("destination", "service"),
+                **_choice("subqueue", "mechanical_diagnostic"),
+                "is_safe_to_drive": {"type": "noul", "noul": prob},
+            },
+            [],
+        )
+        assert ("unsafe_to_drive" in r["flags"]) is unsafe, prob
+        assert (r["priority"] == "HIGH") is unsafe, prob
+        assert (r["handler"] == "human") is unsafe, prob
+        assert (r["queue"] == "Roadside / Towing") is unsafe, prob
+        assert ("dispatch" in r["flags"]) is unsafe, prob
+        assert (D.next_action_for([], "service", prob) == "offer_transfer") is unsafe, prob
+
+
+def test_the_shipped_unsafe_threshold_is_safety_biased():
+    """Measured on the 45-case severity set: 0.3 raises recall of unsafe callers from 0.778 to
+    0.833 with precision still 1.000. A missed stranded caller is someone at the side of a road;
+    a false alarm is a wasted journey, so the bar sits low."""
+    assert D.unsafe_threshold() <= 0.35
+
+
 # --------------------------------------------------------------------------- profile as config
 def test_a_store_can_promote_tires_to_a_destination(tmp_path):
     """A store with its own tyre centre promotes it out of the service sub-queues. No code change."""

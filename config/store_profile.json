@@ -328,7 +328,14 @@
   "policy": {
     "roadside_flag": "roadside_dispatch",
     "roadside_queue": "Roadside / Towing",
-    "unsafe_threshold": 0.5,
+    "_unsafe_threshold_note": [
+      "0.3, not 0.5, and that is a measured choice rather than a round number. On the 45-case",
+      "severity set, lowering dispatch from 0.5 to 0.3 raises recall of unsafe callers from 0.778",
+      "to 0.833 while precision stays at 1.000 - it catches one more stranded caller and sends no",
+      "extra trucks. The errors are asymmetric: a missed stranded caller is someone at the side of",
+      "a road, a false alarm is a wasted journey. Recall leads, so the bar sits low."
+    ],
+    "unsafe_threshold": 0.3,
     "needs_human_threshold": 0.5
   },
   "_facts_note": [
