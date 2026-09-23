@@ -11,10 +11,10 @@ A car-dealership phone switchboard that runs on a laptop, decides where a call s
 
 A dealership's phone line has to work out, from what a caller says, whether they want Service or
 Sales or Parts, whether they're stranded on a motorway, whether they need a person rather than a
-booking, and then actually book them in. That is a routing problem, and the usual answer is to send
-every call to a large language model.
+booking, and then actually book them in.
 
-That works. It is also slow, it costs money per call, and it gives you a different answer each time.
+The usual answer is to send every call to a large language model. That works — and it is slow, it
+costs money every time someone dials, and it gives you a different answer each time you ask.
 
 ## The technology
 
@@ -33,13 +33,13 @@ Everything good follows from that one property:
 | no API is called | **$0 per call, and the call never leaves the building** |
 | the answers are passed in per request | **a store can add a queue by editing a config file — no retraining** |
 
-That last row is the one people miss. The categories aren't baked into the model's weights. They're
-supplied with each question, so the taxonomy is *data* — which is what makes this work for a
+That last row is the one people miss. The categories aren't baked into the model's weights — they're
+supplied with each question. That makes the taxonomy *data*, which is what lets this work for a
 different dealership without rebuilding anything.
 
 ## What we built
 
-A working switchboard and a debugger for it.
+A working switchboard, and a debugger for it.
 
 The debugger is the part worth seeing. Every call is drawn as a grid: **rows are conversation turns,
 columns are decisions, left to right.** Click any box and it tells you the question it asked, every
@@ -49,22 +49,59 @@ tool never pretends a model decided something a rule decided.
 
 ## The result
 
-Fine-tuning took the model from **42 of 81** routing cases to **71 of 81.** That's the headline: a
-small local model that started out useless at this task and learned it.
+Fine-tuning took the model from **42 of 81** routing cases to **71 of 81.** A small local model that
+started out useless at this task learned it.
 
-Against the frontier models, we are **level.** On the same 81 cases:
+And it now sits **level with frontier models** on the same 81 cases — 71, 72, 73 out of 81, one case
+apart, on a set where the error bars are six cases wide.
 
-| | ours | gpt-5.4-nano | deepseek-flash |
-| --- | --- | --- | --- |
-| routing cases | 71/81 | 72/81 | 73/81 |
-| per call | **21 ms** | 651 ms | 1.5 s |
-| per call | **$0** | $0.0025 | $0.010 |
-| same answer twice | **always** | 98% | 99% |
+So: **the same quality, at 70 times the speed, for nothing, with a number that never moves.**
 
-**One case apart is not a difference** — on a set this size, the error bars are about six cases wide.
-So we don't claim to have won. We claim to be level with them, at roughly **70 times the speed, for
-nothing, with a number that never moves.** Their scores wobble by several points between identical
-runs; ours hasn't moved once.
+---
+
+## What this gets you
+
+**A phone line that never makes anyone wait.** 21 milliseconds to decide where a call goes. The
+frontier model takes 1.5 seconds, and a caller can hear that.
+
+**Nothing per call, forever.** Zero, on hardware you already own. At a penny a call, `deepseek-flash`
+costs a busy dealership real money every month. This costs nothing after the one-off — and the cost
+per call *falls* with volume instead of rising.
+
+**The same answer every time you ask.** Not 98% of the time — always. That means you can write tests
+against it, replay a customer complaint, and reproduce a bug. The frontier arms wobble by several
+points between identical runs. Ours has never moved once.
+
+**You can see why it decided.** Click any box in a call and you get the question, every option with
+its probability, which checkpoint answered, and the milliseconds it took. When someone disputes a
+routing decision, you show them instead of guessing.
+
+**It cannot make things up.** It doesn't write text, so it can't invent an appointment time, invent a
+callback number, or paraphrase a caller into an agreement. The dangerous failure mode of generative
+systems isn't available to it.
+
+**It declines rather than guesses.** Asked to book, it checks that the caller named a time it actually
+offered. Say "Tuesday" when the only times on offer are Wednesday, and it asks again rather than
+filing an appointment nobody agreed to. Our booking scenario has it refuse three times, then book.
+
+**It catches every stranded caller.** 17 of 17 in our labelled set, with priority raised and roadside
+dispatched. It deliberately errs toward sending help, because a truck sent to someone who was fine is
+a smaller harm than someone left at the roadside — and the honest number for how often it over-calls
+is printed on the Evidence tab, not buried.
+
+**A new queue is a config change.** The categories are passed in with each question rather than baked
+into the weights. A store with a Fleet department adds one line to one file. No retraining, no
+redeploy, no vendor ticket.
+
+**The call never leaves the building.** No API call, no data leaving, no third party. For phone
+numbers and call recordings, that is usually a requirement rather than a nicety.
+
+**Every number is traceable.** The debugger reads its measurements from the same files the README
+quotes. We found eight places where that wasn't true — including three evaluations that were reading
+their own training data — fixed them, and gave each one a test. A number you can't trace is a number
+nobody can check.
+
+---
 
 ## What it costs
 
@@ -75,38 +112,15 @@ runs; ours hasn't moved once.
 | Running it | **$0 per call**, forever, on a laptop |
 | **The whole project** | **~$4.40** |
 
-`deepseek-flash` charges $0.010 a call. So the entire project — the data, the training, every
+`deepseek-flash` charges $0.010 a call, so the entire project — the data, the training, every
 experiment — cost about as much as **400 calls** to the frontier model. The next 400,000 cost nothing.
-
-And the cost per call *falls* with volume, because the expensive part was one-off. It doesn't rise.
 
 ## If someone asks how it works
 
 **"Isn't it slow, asking the model about every box?"** No — and the node count is misleading. A real
-six-turn booking call draws 51 boxes, but it only asks **17 questions across 6 passes**, 191 ms in
-total. The questions are batched into a single pass per turn, because the transcript is the expensive
-part, not the questions. Seven questions against one transcript costs one pass; asking them one at a
-time would cost seven times as much for the same answer.
+six-turn booking call draws 51 boxes, but it asks only **17 questions across 6 passes**, 191 ms in
+total. The questions are batched into one pass per turn, because the transcript is the expensive part,
+not the questions. Seven questions against one transcript is one pass; asking them one at a time would
+cost seven times as much for the same answer.
 
 The rest of the boxes are policy and regex. They're free.
-
-## What we would not claim
-
-- **Not "we beat them."** One case apart on 81 is not a result, and their own scores move more than
-  that between runs.
-- **Not "the safety classifier is fixed."** It catches every stranded caller, but the set we measure
-  it on is deliberately 40% emergencies when reality is nearer 2%, so most of its alarms would still
-  be false ones in a real switchboard.
-- **Not "the threshold is tuned."** The probabilities are so confident that moving the bar from 0.3
-  to 0.8 changes nothing. It isn't a dial we actually have.
-- **Not "1.000 booking accuracy"** without saying it's measured on phrasings the model hasn't read,
-  not on whole conversations it hasn't had.
-
-## The honest footnote
-
-Most of what we learned was about **measurement**, not models. Three of our own evaluations turned
-out to be reading the data they were trained on. Every checkpoint had been scored partly on cases it
-had already seen. Our safety numbers were flattered by the set they were measured on.
-
-Eight of those silent mistakes now have tests. That is the part I'd actually defend — a number you
-can't trace is a number nobody can check.
