@@ -204,3 +204,39 @@ def test_a_profile_without_templates_falls_back_to_the_defaults():
     )
     assert bare.destination_question()["destination"]["instructions"] == SP.DEFAULT_QUESTIONS["destination"]
     assert "This is a Service call." in bare.subqueue_question("service")["subqueue"]["instructions"]
+
+
+# --------------------------------------------------------------------------- contact capture
+def test_phone_is_extracted_in_several_formats():
+    for text, want in [
+        ("my number is 555-0140", "555-0140"),
+        ("call me on (555) 019-2837", "(555) 019-2837"),
+        ("reach me at +1 555 010 9988", "+1 555 010 9988"),
+        ("my cell is 555.0192", "555.0192"),
+    ]:
+        assert D.extract_phone(text) == want, text
+
+
+def test_phone_is_not_invented_from_an_address_or_a_mileage():
+    """A plausible-looking number written into an appointment is the one field that does damage."""
+    assert D.extract_phone("the address is 1400 Riverside Drive") is None
+    assert D.extract_phone("a 2019 Honda with 45000 miles") is None
+    assert D.extract_phone("my car won't start") is None
+
+
+def test_name_capture_does_not_swallow_the_next_word():
+    """Regression: re.IGNORECASE made `[A-Z]` match lowercase and captured "Dana and"."""
+    assert D.extract_name("my name is Dana and my number is 555-0140") == "Dana"
+    assert D.extract_name("This is Sam Whitfield, call me") == "Sam Whitfield"
+    assert D.extract_name("I'm Alex. Reach me at 9") == "Alex"
+
+
+def test_name_is_not_invented_when_absent():
+    assert D.extract_name("my car won't start") is None
+    assert D.extract_name("I need a service") is None
+
+
+def test_extract_contact_returns_both_and_leaves_missing_missing():
+    got = D.extract_contact("Hi, my name is Dana and my number is 555-0140.")
+    assert got == {"caller_name": "Dana", "callback_number": "555-0140"}
+    assert D.extract_contact("my car won't start") == {"caller_name": None, "callback_number": None}

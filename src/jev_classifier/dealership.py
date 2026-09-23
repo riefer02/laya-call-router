@@ -287,6 +287,9 @@ def decide(answers: Dict, missing: List[str]) -> Dict:
 
 
 # --------------------------------------------------------------------------- extraction
+def extract_contact(text: str) -> dict:
+    """Name and number in one pass, for the booking. Missing values stay missing."""
+    return {"caller_name": extract_name(text), "callback_number": extract_phone(text)}
 _TIME_RE = re.compile(
     r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b"
     r"|\b(\d{1,2})\s*o'?clock\b"
@@ -294,11 +297,47 @@ _TIME_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Deliberately conservative. A phone number is a fact you must not invent, so this matches only
+# things that look like a number and nothing else: 7+ digits, optionally grouped, optionally with
+# a leading + or an opening bracket. A near-miss (an address, an order number) is left to the
+# caller to repeat rather than confidently written into an appointment.
+_PHONE_RE = re.compile(r"\(?\+?\d[\d\s().-]{5,}\d")
+
+# `my name is Dana`, `this is Dana`, `I'm Dana`, `Dana speaking`. Kept narrow on purpose: a wrong
+# name on a booking is worse than no name, because a person will act on it.
+#
+# The prefix is case-insensitive but the NAME IS NOT, and that is load-bearing: a blanket
+# re.IGNORECASE makes `[A-Z]` match lowercase, which captured "Dana and" out of
+# "my name is Dana and my number is...". The capitalisation is the only signal that a word is a
+# name rather than the next word of the sentence.
+_NAME_RE = re.compile(
+    r"\b(?i:my name is|this is|i am|i'm|it's)\s+([A-Z][a-z]+(?:[ '-][A-Z][a-z]+)?)"
+)
+
 
 def extract_time(text: str) -> str | None:
     """Deterministic clock/day extraction. Labelled as `extract` in the UI, not a model decision."""
     m = _TIME_RE.search(text)
     return m.group(0).strip() if m else None
+
+
+def extract_phone(text: str) -> str | None:
+    """Deterministic phone extraction, digits preserved as spoken.
+
+    Not a classifier question: Laya chooses among options, it does not parse spans, and a callback
+    number is the one field where a plausible-looking invention does real damage.
+    """
+    m = _PHONE_RE.search(text)
+    if not m:
+        return None
+    raw = m.group(0).strip()
+    return raw if len(re.sub(r"\D", "", raw)) >= 7 else None
+
+
+def extract_name(text: str) -> str | None:
+    """Deterministic name capture. Narrow by design - a wrong name is worse than none."""
+    m = _NAME_RE.search(text)
+    return m.group(1).strip() if m else None
 
 
 def display_name(key: str) -> str:
