@@ -256,15 +256,28 @@ ln -sfn "$(pwd)/models/kaggle-out-v7/laya-dealership-routing" models/active
 
 ## The demo script
 
-**1. Route a call.** Run `call-collision` — *"Someone rear-ended me in a parking lot yesterday. I need
-body work."* → **Body Shop**. Click the destination node to show the options and probabilities, and
-point out the badge: `choice`, a model decision.
+The UI dropdown has **seven** scenarios. Verified through the API, end to end:
 
-**2. Show the same decision working the other way.** Run `call-no-start` — *"my car won't start at
-all"* → **Roadside / Towing**, dispatched, priority HIGH. Same question, opposite answer. The two
-bookers and the three stranded callers in the table below are one decision working in both directions.
+| scenario | blurb | routes to | |
+| --- | --- | --- | --- |
+| `collision` | Body shop, collision repair | **Body Shop** | ✓ |
+| `no_start` | Roadside → Service, unsafe to drive | **Roadside / Towing**, HIGH | ✓ |
+| `flat_tire` | Roadside dispatch, urgent | **Roadside / Towing**, HIGH | ✓ |
+| `buy_car` | Sales floor | **Sales Floor** | ✓ books |
+| `part_order` | Parts counter | **Parts Counter** | ✓ |
+| `vague` | Ambiguous department | *Roadside / Towing* | ✗ known |
+| `out_of_scope` | Out of scope → transfer to a person | *Roadside / Towing* | ✗ known |
 
-**3. Book an appointment.** Run `buy_car`. Watch it refuse three times, then book:
+**1. Route a call — `collision`.** *"Someone rear-ended me in a parking lot yesterday. I need body
+work."* → **Body Shop**. Click the destination node: the options, their probabilities, the `choice`
+badge. Four turns.
+
+**2. Show the same decision working the other way — `no_start`.** *"my car won't start at all"* →
+**Roadside / Towing**, priority HIGH, dispatched. Same question, opposite answer, and the two calls
+side by side are the point: one decision sending bookers to a department and stranded callers to a
+tow.
+
+**3. Book an appointment — `buy_car`.** Watch it refuse three times, then book:
 
 ```
 turn 3  "maybe Thursday"             -> asks again   (Thursday is not offered)
@@ -274,28 +287,17 @@ turn 6  "the first one please"       -> books
 ```
 
 Turns 4 and 5 are the two failure modes this used to have — inventing an agreement from no time, and
-from the wrong day. **This is the best moment in the demo**: a system declining to act on something it
-cannot verify, three times, and then filing a real appointment with a name on it.
+from the wrong day. **This is the best moment in the demo**: a system declining three times to act on
+something it cannot verify, then filing a real appointment with a name on it.
 
 **4. Show the evidence.** The `Evidence` tab reads the measurements live from `results/*.json`.
-
-### Calls that demo well
-
-| scenario | what it shows |
-| --- | --- |
-| `call-collision` | booking body work → **Body Shop** |
-| `call-glass` | cracked windscreen → **Body Shop** |
-| `call-detailing` | full detail → **Detailing** |
-| `call-no-start` | won't start → **Roadside / Towing**, dispatched |
-| `call-flat-tire` | stuck on the highway → **Roadside / Towing**, dispatched |
-| `call-roadside` | dead on the shoulder, needs a tow → **Roadside / Towing** |
-| `buy_car` | the booking sequence above |
 
 ### If something goes wrong
 
 - **Calls route badly** → the app is on the base checkpoint. Check the startup line.
-- **A call misroutes to Roadside / Towing** → known: `call-vague` and `call-out-of-scope` both do. It
-  is the safety flag overwriting the queue, and it is the next thing to fix.
+- **`vague` and `out_of_scope` both go to Roadside / Towing** → known, and worth naming rather than
+  hiding. It is the safety flag overwriting the queue on a call where nobody is stranded, and it is
+  the next thing to fix. Both are one-turn calls because the dispatch fires immediately.
 - **The booking asks again instead of booking** → the offered-time veto doing its job. If the caller
   names a day that was not offered it will always ask again; that is the fix, not a fault.
 
