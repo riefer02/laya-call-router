@@ -11,6 +11,7 @@ and a fresh clone has none of them.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -217,3 +218,82 @@ def test_no_eval_set_is_a_substring_of_a_training_row():
         assert not leaked, (
             f"{eval_name} cases appear inside {train_name} rows: {leaked[:3]}"
         )
+
+
+# ------------------------------------------------------------------- no orphan generator category
+def _load_script(name: str):
+    import importlib.util
+
+    path = ROOT / "scripts" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"_jev_{name}", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_every_generator_prompt_is_actually_generated():
+    """A prompt that exists but is never generated is a silent no-op.
+
+    That is how the safety and booking questions spent a whole GPU run untrained: the code knew
+    about them, the job list did not. `minor_fault` was added the same way, so this asserts the
+    prompt table and the job list cannot drift apart - every category that has a prompt must be
+    produced when it is switched on.
+    """
+    import argparse
+
+    gen = _load_script("generate_severity")
+    args = argparse.Namespace(hazards=1, complaints=1, routine=1, minor_faults=1)
+    generated = {kind for kind, _ in gen.generation_jobs(args)}
+    assert generated == set(gen.PROMPTS), (
+        f"prompts with no job: {sorted(set(gen.PROMPTS) - generated)}; "
+        f"jobs with no prompt: {sorted(generated - set(gen.PROMPTS))}"
+    )
+
+    # And switching a category off must actually switch it off.
+    off = argparse.Namespace(hazards=1, complaints=1, routine=1, minor_faults=0)
+    assert "minor_fault" not in {kind for kind, _ in gen.generation_jobs(off)}
+
+
+# ------------------------------------------------------- a checkpoint carries its own provenance
+def test_leaky_checkpoints_record_their_leaks():
+    """The test that would have caught v6 being quoted at 0.963 while training on a scored case.
+
+    The existing guard checks `data/calls/`, but a checkpoint is scored on cases its *own snapshot*
+    may contain - and the snapshot on disk beside the weights is what it trained on. v3, v3-e8, v4
+    and v6 all shipped `gen-01` verbatim inside a training row, and v6 also carried `sev-04` six
+    times. The trim came later, which fixed the repository and not the checkpoints.
+
+    So: every checkpoint is either clean, or it has a manifest recording what it leaked. A leaky
+    checkpoint with no manifest fails, which is the state v6 was in when its numbers were published.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    from jev_classifier import snapshots
+
+    models = _Path(__file__).resolve().parents[1] / "models"
+    reports = [r for r in snapshots.audit_all(models) if r["files"]]
+    if not reports:
+        pytest.skip("no checkpoints on disk")
+
+    unrecorded = []
+    for report in reports:
+        if report["held_out_clean"]:
+            continue
+        manifest = models / report["snapshot"] / "snapshot_manifest.json"
+        if not manifest.is_file():
+            unrecorded.append(report["snapshot"])
+            continue
+        recorded = _json.loads(manifest.read_text())
+        assert not recorded["held_out_clean"], (
+            f"{report['snapshot']}/snapshot_manifest.json claims to be clean but leaks "
+            f"{len(report['leaks'])} case(s) now"
+        )
+        assert recorded["files"] == report["files"], (
+            f"{report['snapshot']} data changed since its manifest was written - re-run "
+            "scripts/audit_snapshots.py --write and re-read its numbers"
+        )
+    assert not unrecorded, (
+        f"{unrecorded} trained on data containing the cases they are scored on and have no "
+        "manifest. Run: uv run python scripts/audit_snapshots.py --write"
+    )

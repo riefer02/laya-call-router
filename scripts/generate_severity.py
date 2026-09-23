@@ -86,14 +86,27 @@ MINOR_FAULT_PROMPT = (
 # shortcut rather than the distinction, so it is dropped rather than labelled.
 MAX_MINOR_FAULT_WORDS = 18
 
+# One table, so `generate_utterances` and the job list cannot disagree about what exists. A prompt
+# defined here but never generated is a silent no-op - the shape of failure that left the safety
+# questions untrained for a whole GPU run - and a test asserts the two stay in step.
+PROMPTS = {
+    "hazard": HAZARD_PROMPT,
+    "complaint": COMPLAINT_PROMPT,
+    "routine": ROUTINE_PROMPT,
+    "minor_fault": MINOR_FAULT_PROMPT,
+}
+
+
+def generation_jobs(args: argparse.Namespace) -> List[tuple]:
+    """The (kind, batches) pairs to generate for this run."""
+    jobs = [("hazard", args.hazards), ("complaint", args.complaints), ("routine", args.routine)]
+    if args.minor_faults:
+        jobs.append(("minor_fault", args.minor_faults))
+    return jobs
+
 
 def generate_utterances(kind: str, n: int, *, provider: str, model: str) -> List[str]:
-    prompt = {
-        "hazard": HAZARD_PROMPT,
-        "complaint": COMPLAINT_PROMPT,
-        "routine": ROUTINE_PROMPT,
-        "minor_fault": MINOR_FAULT_PROMPT,
-    }[kind]
+    prompt = PROMPTS[kind]
     style = random.choice(synthgen.STYLES)
     schema = {
         "type": "object",
@@ -205,10 +218,7 @@ def main() -> int:
 
     # ---- generate the positive classes (and some routine, to keep the negatives varied)
     generated: List[str] = []
-    jobs = (
-        [("hazard", args.hazards), ("complaint", args.complaints), ("routine", args.routine)]
-        + ([("minor_fault", args.minor_faults)] if args.minor_faults else [])
-    )
+    jobs = generation_jobs(args)
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         futs = []
         for kind, batches in jobs:

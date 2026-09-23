@@ -173,6 +173,38 @@ def watch(owner: str, timeout_min: int, out_dir: Path) -> None:
         if p.is_file():
             print(f"  {p.relative_to(out_dir)}  {p.stat().st_size:,} bytes")
 
+    audit_snapshot(out_dir)
+
+
+def audit_snapshot(out_dir: Path) -> None:
+    """Record what the checkpoint was trained on, before anyone quotes a number from it.
+
+    A checkpoint is scored on cases its own snapshot may contain, and the snapshot on disk beside
+    the weights is what it trained on - not whatever `data/calls/` holds today. v6 was published at
+    0.963 destination while its snapshot carried `gen-01` verbatim inside a training row and
+    `sev-04` six times. That was found by a second reader, by hand, after the numbers were quoted.
+
+    So the audit runs at download and writes a manifest next to the weights. Its verdict travels
+    with the checkpoint instead of depending on someone remembering.
+    """
+    sys.path.insert(0, str(ROOT / "src"))
+    from jev_classifier import snapshots
+
+    report = snapshots.audit_snapshot(out_dir)
+    if not report["files"]:
+        return
+    (out_dir / snapshots.MANIFEST).write_text(json.dumps(report, indent=2) + "\n")
+    if report["held_out_clean"]:
+        print("\n  held out: no evaluated case appears in the packaged training data")
+    else:
+        print(
+            f"\n  WARNING: {len(report['leaks'])} evaluated case(s) appear in this checkpoint's "
+            "packaged training data. Its scores are not fully held out:"
+        )
+        for leak in report["leaks"][:6]:
+            print(f"    {leak['eval_id']} ({leak['eval_file']}) in {leak['train_file']}")
+        print(f"  recorded in {snapshots.MANIFEST} - quote the numbers with this caveat.")
+
 
 def diagnose(ref: str, out_dir: Path) -> None:
     """On failure, fetch the log and say what to do about the common causes."""
