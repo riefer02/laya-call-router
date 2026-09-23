@@ -66,16 +66,35 @@ Open <http://127.0.0.1:8765> (build) or <http://localhost:5173> (dev).
 
 ## The call
 
-Eight departments: `service · body_shop · parts · tires · detailing · sales · finance · towing`
-(plus `general`). Each turn the switchboard re-reads the whole conversation and runs two batched
-forward passes:
+Seven destinations, following how dealerships actually organise — **Fixed Operations**
+(`service · parts · body_shop`), **Variable Operations** (`sales · finance`), plus `front_desk` and
+`non_customer`.
 
-1. **department + slots** — vehicle, location, when, unsafe-to-drive, needs-a-human
-2. **intent** (branched on the department) — then policy picks the next step
+**Tires and detailing are Service sub-queues, not departments.** Roadside assistance is a *policy
+flag* on an unsafe-to-drive call, not a place the call goes. And `general` never was a department:
+it was absorbing two unrelated things, so it is split honestly between `front_desk` (a real
+question no department owns) and `non_customer` (a supplier, a job applicant, a wrong number).
+
+The taxonomy is **data, not code** (`config/store_profile.json`). A store with no body shop deletes
+a line; a store with its own tyre centre promotes `tires` to a destination. Both are covered by
+tests, and neither needs a code change. The question text lives there too, because the *same*
+string must be used when training and at inference — a copy drifted once and the model was asked a
+question it had never been trained on.
+
+Each turn runs two batched forward passes:
+
+1. **destination + slots** — vehicle, location, when, unsafe-to-drive, needs-a-human
+2. **sub-queue** (branched on the destination) — then policy picks the next step
+
+Then, once the slots are known, the switchboard offers **real appointment times** drawn from the
+store's own opening hours and service durations, classifies which one the caller accepted, and
+files an appointment with their name on it. "I'm booking you into service for next week" was never
+an appointment.
 
 Slots are `choice` questions over fixed enums, not free-text extraction, because Laya classifies
-rather than parses. The one exception is the exact appointment time, which is a deterministic
-regex rendered as a different node kind.
+rather than parses. Three things are deliberately **not** classifier questions, and are rendered as
+distinct node kinds: the exact appointment time, and the caller's name and number. A callback
+number is the one field where a plausible-looking invention does real damage.
 
 **Where the classifier decides vs. where policy decides.** The classifier does _understanding_:
 department, intent, slot values, urgency, escalation. A deterministic policy does _control flow_:
@@ -188,71 +207,70 @@ matters.
 
 ## What the four-arm evaluation found
 
-`scripts/eval.py` runs 81 hand-labelled routing cases and 10 scripted calls through four arms:
-our cascade, an ablation with the incremental work disabled, a cheap structured-output model
-(`gpt-5.4-nano`), and a hybrid that escalates to the model only when our confidence is low.
+`scripts/eval.py` runs 81 hand-labelled routing cases and 27 scripted calls through four arms: our
+cascade (base and fine-tuned), a cheap structured-output model (`gpt-5.4-nano`), and
+`deepseek-flash`.
 
-### Decision level — 81 cases, department + intent
+### Decision level — 81 cases
 
-| metric                  | cascade     | gpt-5.4-nano |
-| ----------------------- | ----------- | ------------ |
-| department accuracy     | **0.728**   | **0.926**    |
-| intent accuracy         | 0.617       | 0.815        |
-| joint accuracy          | 0.605       | 0.802        |
-| p50 latency             | **20.5 ms** | 671 ms       |
-| p95 latency             | **21.7 ms** | 1031 ms      |
-| cost per case           | **$0**      | $0.002529    |
-| determinism (3 repeats) | **1.00**    | 0.93         |
+| metric | base | **fine-tuned** | gpt-5.4-nano | deepseek-flash |
+| --- | --- | --- | --- | --- |
+| destination | 0.654 | 0.951 | 0.951 | **0.975** |
+| sub-queue | 0.518 | **0.914** | 0.852 | 0.901 |
+| joint | 0.518 | **0.914** | 0.852 | 0.901 |
+| **queue (the outcome)** | 0.667 | **0.963** | 0.926 | 0.951 |
+| ±95% (queue) | ±0.101 | ±0.045 | ±0.059 | ±0.050 |
+| p50 latency | 21.4 ms | **21.8 ms** | 631 ms | 1455 ms |
+| cost per case | **$0** | **$0** | $0.0025 | $0.0114 |
+| determinism (3 repeats) | **1.00** | **1.00** | 0.99 | 1.00 |
 
-**The honest headline: the small model is ~20 points more accurate than our cascade.** We are
-33× faster, free, and deterministic — but on this balanced, deliberately broad set our base
-checkpoint is simply not as good at reading a sentence. That is consistent with everything the
-Laya documentation says about the base checkpoints being weak zero-shot, and it is the number to
-lead with internally rather than the flattering latency one.
+**The fine-tuned cascade is above both LLM arms on joint and on queue accuracy, at ~65× the speed
+and for nothing per call.**
 
-It is also worth noting the test set is _harder than reality_: 81 cases spread evenly across nine
-departments, so every department is 11% of the traffic. Real call mixes are far more skewed.
+The caveat that belongs next to that sentence: on 81 cases one case is 1.23 points and the Wilson
+intervals overlap (ours ±0.063, theirs ±0.066 on joint). So this is **parity with our point
+estimates ahead**, not proven superiority — and the LLM arms themselves move ±2.5 points between
+identical runs, which is why every table here carries intervals.
 
-### The hybrid frontier — this is the actual product
+`destination` is the one metric still behind. Two things are worth knowing about it. The errors are
+concentrated in `front_desk`, and **queue accuracy is higher than destination accuracy because two
+labels can route to the same place** — `front_desk` and `non_customer` both go to Front Desk, so a
+label miss there is not a routing miss. Both numbers are reported; neither replaces the other.
 
-The cascade's confidence _does_ track its correctness, which is what makes escalation worth
-anything. On the 22 cases it got wrong, escalating whenever confidence < 0.75 would have caught
-**20 of them (recall 0.91)**, and accuracy when confident is 0.913 against 0.655 when flagged.
-Replaying the recorded predictions at each threshold:
+### Confidence calibration — why the gate behaves as it does
 
-| threshold       | accuracy  | % sent to the LLM | error recall | cost/case     |
-| --------------- | --------- | ----------------- | ------------ | ------------- |
-| 0.60            | 0.901     | 51.8%             | 0.77         | $0.000016     |
-| 0.70            | 0.914     | 65.4%             | 0.86         | $0.000020     |
-| **0.75**        | **0.914** | 71.6%             | **0.91**     | **$0.000022** |
-| 0.90            | 0.926     | 80.2%             | 0.95         | $0.000025     |
-| 0.95            | 0.926     | 87.6%             | 0.95         | $0.000027     |
-| _cascade alone_ | _0.728_   | _0%_              | _—_          | _$0_          |
-| _llm alone_     | _0.926_   | _100%_            | _1.0_        | _$0.002529_   |
+| confidence band | base: n / accuracy | fine-tuned: n / accuracy |
+| --- | --- | --- |
+| 0.0-0.2 | 8 / 0.500 | — |
+| 0.2-0.4 | 26 / 0.385 | — |
+| 0.4-0.6 | 24 / 0.750 | — |
+| 0.6-0.8 | 13 / 0.846 | 2 / 0.500 |
+| 0.8-1.0 | 10 / 1.000 | **79 / 0.962** |
 
-At threshold 0.75 the hybrid lands **1.2 points below LLM-alone at 1/115th the cost per case**.
-That trade — not "cheaper than GPT" in the abstract — is the defensible claim, and the curve is
-the thing to put in a deck because the buyer picks their own operating point.
+The fine-tune puts **79 of 81 cases in the top band at 0.962 accuracy**. Its confidence is high
+*because it is accurate*, not because it is overconfident — which is why no threshold "rescues" it:
+the errors are not hiding in a low-confidence tail. The base model's low confidence was a symptom
+of weakness, not of miscalibration.
 
-Two caveats stated plainly: the 71.6% escalation rate is a consequence of a balanced hard set and
-a poorly-calibrated base checkpoint; on easier traffic it would be lower, but I have not measured
-that. And the real fix for the cascade's accuracy is fine-tuning on labelled data (RLCD), which is
-the documented path and not part of this build.
+That is why the escalation gate changed *character* rather than simply improving. The base model
+flags 81.5% of calls — uselessly expensive. The fine-tune flags 2.5% and catches 1 of its 4 errors.
+On the frontier that is worth **0.951 → 0.963 for ~$0.000003/call**: a small, cheap safety net
+rather than the load-bearing tier it is for the base model.
 
-### Call level — 10 calls, final queue
+### Call level — 27 calls, final queue
 
-| metric          | cascade-full | cascade   | hybrid | llm       |
-| --------------- | ------------ | --------- | ------ | --------- |
-| queue accuracy  | 1.000        | 1.000     | 1.000  | 1.000     |
-| questions asked | 214          | **127**   | 127    | 0         |
-| p50 latency     | 180 ms       | **94 ms** | 83 ms  | 745 ms    |
-| cost            | $0           | $0        | $0     | $0.000323 |
+| metric | cascade-full | base | **fine-tuned** | hybrid | nano | deepseek |
+| --- | --- | --- | --- | --- | --- | --- |
+| queue accuracy | 0.704 | 0.852 | **0.963** | 0.926 | 0.963 | 0.963 |
+| questions asked | 645 | 439 | **397** | 380 | 0 | 0 |
+| p50 latency | 233 ms | 237 ms | **203 ms** | 143 ms | 634 ms | 1574 ms |
+| cost total | $0 | $0 | **$0** | $0 | $0.00087 | $0.00456 |
 
-Every arm got every call right, so this set does not separate them on quality — it is too easy
-once a conversation runs several turns, because the department becomes unambiguous. It does
-separate them on cost: the incremental work is worth **41% fewer questions and ~2× the latency**.
+A three-way tie on quality. Note the base model scored **1.000 on the original 10-call set and
+0.852 on 27** — the small set was too easy once a conversation ran a few turns, which is exactly
+why it was expanded to cover all 26 sub-queues.
 
-`results/eval.json` holds the raw per-case predictions and misses.
+`results/eval_v4.json` holds the raw per-case predictions, confusions and calibration.
 
 ## Training data
 
@@ -260,127 +278,124 @@ The fine-tune is capped by its labels, so the dataset has explicit acceptance cr
 not ship unless it passes (`scripts/generate_training.py` exits non-zero otherwise):
 
 | criterion | bar | result |
-|---|---|---|
-| teacher agreement on the held-out 81 | ≥ 0.92 dept, ≥ 0.85 intent | **0.975 / 0.914** |
-| every *specific* intent | ≥ 25 | **min 40** |
-| every department | ≥ 25 × its specific intents | **min 44** |
+| --- | --- | --- |
+| teacher agreement on the held-out 81 | ≥ 0.92 destination, ≥ 0.85 sub-queue | **0.975 / 0.901** |
+| every *specific* sub-queue | ≥ 25 | **exactly 50** |
+| every destination | ≥ max(25 × its sub-queues, 150) | **min 150** |
 | labels in vocabulary | 100% | **100%** (0 invalid) |
 | near-duplicates of the held-out 81 | 0 | **0** |
 | intra-corpus duplicates | 0 | **0** |
 | two-phrasing agreement | 100% of kept rows | **100%** |
 
-**1,992 examples** (1,793 train / 199 dev) across 9 departments, for **$1.47** in teacher calls.
-Teacher is `deepseek-flash`; a candidate only becomes a training example when **two
-independently-worded labelling passes agree with each other and with the intended target**.
+**1,395 examples** (1,256 train / 139 dev) for **$0.91** in teacher calls. Teacher is
+`deepseek-flash`; a candidate only becomes a training example when **two independently-worded
+labelling passes agree with each other and with the intended target**.
+
+### Balancing on the wrong axis starved a class
+
+The dataset is balanced per sub-queue, so every one of the 26 specific sub-queues has exactly 50
+examples. That turned out to be the wrong axis for the *destination* question: a destination's
+volume scaled with how many sub-queues it happened to have, so `front_desk` — two sub-queues
+against service's six — got a third of the volume and was the smallest class at 90 rows.
+
+It was also the worst class on the test set: **four of the five destination errors were
+`front_desk`**. That is not a guess about the errors — both teachers get every `front_desk` case
+right while the fine-tune got 4 of 8 wrong, so the boundary is learnable and we simply had too
+little of it. `--min-per-destination` (default 150) now raises the per-sub-queue target for any
+destination that would otherwise fall short. It moved destination accuracy 0.938 → 0.951.
 
 ### A residual class cannot be generated into existence
 
-The first run failed its own gate, and the failure was informative. Every undersized intent was an
-`other` catch-all:
+`other` is what a branch falls back to when nothing specific fits. Asking the teacher for "an
+example of other" produces utterances that clearly belong to a *specific* sub-queue, so the
+independent labelling pass relabels them and the mismatch filter drops them — **34 of 36 in one
+measured run**. That is the filter working: you cannot manufacture positives for the class defined
+by *not* matching the others.
 
-```
-finance/other 2   general/other 3   detailing/other 9   body_shop/other 11
-sales/other 15    service/other 19  tires/other 20      parts/other 23
-```
+So the criteria never gate on residual counts, and `other` is learned as the branch's softmax
+fallback rather than as a category. The fine-tuned model now answers `other` **0.0%** of the time,
+down from the base model's 23.5% — it commits rather than abstains, which for routing is the right
+behaviour but does mean there is no "I'm not sure" left.
 
-Asking the teacher for "an example of some other mechanical problem" produces utterances that
-clearly belong to a *specific* intent, so the independent labelling pass relabels them and the
-mismatch filter drops them — **37% of candidates** in the pilot. That is the filter working: you
-cannot manufacture positives for the class defined by *not* matching the others.
+### What the labels cost, and what they cannot reach
 
-Two changes followed. `other` is now prompted for by asking for the **shape that actually lands
-there** — genuinely vague, mixed, or tangential requests — and the criteria no longer gate on
-residual counts at all. `other` is learned as the branch's fallback, which is what a softmax over
-the specific options gives you for free. Gating on it would have pushed us to teach the model to
-answer `other` for things that have a better label.
+A bigger teacher was measured and rejected: **`deepseek-v4-pro` agrees with the hand labels *less*
+than flash does** (0.951 / 0.864 against 0.975 / 0.901) at 3× the price. A larger model is not a
+better teacher for this task, and it breaks the same fuzzy cases flash gets right
+(`detailing` ↔ `paint`, `inventory` ↔ `used_vehicle`). That is worth knowing before anyone
+proposes "just use a better model".
 
-Two caveats: `general` is the thinnest department (44) because it has only one specific intent,
-and **9% of utterances name their own department** ("do you guys do a full detail?"), which may
-make the task slightly easier than a real switchboard. Both are reported rather than smoothed over.
+One case — `det-04` — is missed by the fine-tune, nano *and* deepseek. When every model disagrees
+with the key, the key is the likeliest thing to be wrong. **The single-labeller ceiling is the real
+remaining constraint on this number, not model capacity.**
 
 ## Fine-tuning: the step that actually closed the gap
 
 The evaluation above is the *before*. Laya's base checkpoints are weak zero-shot — their own
-documentation says so, and 0.728 department accuracy is what that looks like. Fine-tuning on the
-synthetic set (RLCD, official trainer, 2×T4, ~25 min) is the *after*:
+documentation says so, and 0.654 destination accuracy is what that looks like. Fine-tuning on the
+synthetic set (RLCD, official trainer, 2×T4, ~15 min for 8 epochs) is the *after*:
 
-| metric | base cascade | fine-tuned | gpt-5.4-nano | deepseek-flash |
-|---|---|---|---|---|
-| department accuracy | 0.728 | **0.951** | 0.926 | 0.975 |
-| intent accuracy | 0.617 | **0.889** | 0.802 | 0.914 |
-| joint accuracy | 0.605 | **0.889** | 0.802 | 0.914 |
-| call-level queue accuracy | 1.000 | **1.000** | 1.000 | 1.000 |
-| p50 latency | 20.2 ms | **19.8 ms** | 618 ms | 1194 ms |
-| p95 latency | 21.5 ms | **20.8 ms** | 1462 ms | 3947 ms |
-| cost per case | **$0** | **$0** | $0.002528 | $0.011215 |
-| determinism (3 repeats) | **1.00** | **1.00** | 0.94 | 0.99 |
+| metric | base cascade | **fine-tuned** | gpt-5.4-nano | deepseek-flash |
+| --- | --- | --- | --- | --- |
+| destination accuracy | 0.654 | **0.951** | 0.951 | 0.975 |
+| sub-queue accuracy | 0.518 | **0.914** | 0.852 | 0.901 |
+| joint accuracy | 0.518 | **0.914** | 0.852 | 0.901 |
+| call-level queue accuracy | 0.852 | **0.963** | 0.963 | 0.963 |
+| p50 latency | 21.4 ms | **21.8 ms** | 631 ms | 1455 ms |
+| cost per case | **$0** | **$0** | $0.0025 | $0.0114 |
+| determinism (3 repeats) | **1.00** | **1.00** | 0.99 | 1.00 |
 
-**+22 points of department accuracy and +28 joint, at the same 20 ms, for $0, deterministically.**
-It beats the nano model on both accuracy measures while being ~31× faster, and it lands 2.4 points
-behind deepseek-flash on department and 2.5 on joint — for nothing per call.
+**+39.6 points of joint accuracy, at the same ~21 ms, for $0, deterministically** — and now above
+both LLM arms rather than below them.
 
-The gate quality flipped with it, which matters more than the headline:
+Four changes produced that, and the order matters:
 
-| | errors | flagged for escalation | accuracy when confident |
-|---|---|---|---|
-| base | 22 | 71.6% | 0.913 |
-| **fine-tuned** | **4** | **0%** | **0.951** |
+1. **Correcting the taxonomy** — tires and detailing as service sub-queues, `general` split
+   honestly. The teacher then agreed with the hand labels at 0.975 / 0.901.
+2. **Training for 8 epochs instead of 4.** The loss was still halving every epoch
+   (0.686 → 0.515 → 0.174 → 0.081); the model had simply stopped early. Worth +2.5 points of joint,
+   and it converges at 0.042 by epoch 6-7, so more would not help.
+3. **The per-destination floor** — `front_desk` had been starved by sub-queue balancing. Worth
+   +1.3 points of destination.
+4. **Fixing a question-text drift.** Training built the sub-queue question as *"This is a service
+   call"* while inference sent the label verbatim, *"This is a Service call"*. The fine-tune learns
+   to answer one exact instruction, so the model would have been asked a question it had never been
+   trained on — and it would have looked like a mediocre fine-tune rather than a string mismatch.
+   Caught before the GPU run; the templates now live in the store profile and both sides read them.
 
-Escalation is now *unnecessary* rather than merely cheap. On the frontier, **0% of cases go to an
-LLM at 0.951**, so the expensive tier has gone from load-bearing to optional — which is the whole
-argument for putting decisions at every branch point.
+### What the earlier fine-tunes got wrong, and why
 
-### What the first fine-tune got wrong, and why
+The first attempt regressed at call level (1.000 → 0.900): the "my neighbour's dog" call started
+routing to Service Department. The cause was precise — the synthetic set was *all* plausible
+car/dealership calls, so it contained no negatives, and the fine-tune lost the base model's habit
+of answering `general` for things that are not the dealership's business. An off-topic generation
+pass fixed it, which is why `non_customer` exists as a destination rather than being folded into
+`front_desk`.
 
-The first attempt scored 0.963 on department and then **regressed at call level** (1.000 → 0.900):
-the "my neighbour's dog" call started routing to Service Department instead of Front Desk. The
-cause was precise — the synthetic set was *all* plausible car/dealership calls, so it contained no
-negatives, and the fine-tune lost the base model's habit of answering `general` for things that
-aren't the dealership's business. Adding an off-topic generation pass (`"Is this the pizza
-place?"`, *"I'm running late, can you pick up the kids?"*) took `general` from 44 to 94 examples,
-and call-level routing went back to **1.000**.
-
-The second fine-tune trades a little department accuracy for materially better intent accuracy and
-correct call routing: joint 0.840 → 0.889, call accuracy 0.900 → 1.000. Both models are kept in
-`results/eval_finetuned.json` and `results/eval_finetuned_v2.json`.
-
-### The remaining errors are the labels, not the model
-
-Four department misses remain, and reading them is instructive:
-
-```
-fin-09   "Do you offer leasing for business vehicles?"            expected finance, got sales
-tow-09   "My car is in a ditch and it needs recovering."          expected towing,  got body_shop
-gen-06   "What is the direct number for the parts desk?"          expected general, got parts
-gen-08   "Do you offer loaner cars while mine is in for service?" expected general, got sales
-```
-
-Only `tow-09` is a clear model error. `gen-06` is plainly a *parts* question, and `fin-09` is
-defensibly sales. The hand-labelled key is now the weak link — a consistent theme since the teacher
-gate flagged two debatable labels at the start. **A second human labeller is the next quality
-investment, not more model work.**
-
-One measurement caveat: the nano arm scored 0.901 in one run and 0.926 in another. Small deltas
-between arms are inside that variance; the 22-point gap is not.
+Those models are kept in `results/`, **labelled as superseded**. They were trained on the old
+nine-department taxonomy, so their numbers measure a partly-wrong task and are not comparable to
+the current ones. The checkpoint at `models/kaggle-out-v2/` is invalid for the current taxonomy and
+is named as such rather than deleted.
 
 ## Does the fine-tune still work on questions it was never trained on?
 
 This matters more than the domain numbers. Laya's defining property is that **the option space is
 defined at request time**, so a new schema needs no retraining — which is what makes a per-store
-configurable taxonomy viable. We then fine-tuned the encoder hard on 43 fixed intents for four
+configurable taxonomy viable. We then fine-tuned the encoder hard on 32 fixed sub-queues for eight
 epochs, and had never checked what that cost. `scripts/generality_test.py` measures it on real
 human text from outside our domain:
 
 | suite | base | fine-tuned |
-|---|---|---|
-| **Banking77** — 77 real customer-service intents | 0.415 | **0.403** |
-| **CLINC150** — 150 intents incl. out-of-domain (151 options) | 0.095 | **0.260** |
-| CLINC150 out-of-domain recall | 0.025 | 0.018 |
+| --- | --- | --- |
+| **Banking77** — 77 real customer-service intents | 0.415 | **0.390** |
+| **CLINC150** — 150 intents incl. out-of-domain (151 options) | 0.095 | **0.210** |
+| CLINC150 out-of-domain recall | 0.025 | 0.037 |
 
-**Verdict: generality held.** A 1.2-point drop on a completely different domain with 77
-runtime-defined options. Per-store configuration is viable; a store adding a Fleet queue does not
-require retraining. The base model scoring **0.415 against Laya's published 0.425** also validates
-the harness — we are measuring the same thing they measured.
+**Verdict: generality held.** A 2.5-point drop on a completely different domain with 77
+runtime-defined options — inside the noise, and the intervals overlap. Per-store configuration is
+viable; a store adding a Fleet queue does not require retraining. The base model scoring **0.415
+against Laya's published 0.425** also validates the harness — we are measuring the same thing they
+measured.
 
 Two further findings worth keeping:
 
@@ -399,6 +414,78 @@ Two further findings worth keeping:
   discriminating 43 classes appears to have helped general many-option behaviour rather than
   hurting it.
 
+## Is it safe? The severity questions
+
+`is_safe_to_drive` dispatches roadside assistance and sets priority to HIGH. `needs_human` decides
+whether the automated flow runs at all. Neither had ever been measured — the entire safety surface
+of this system was assumed. `scripts/eval_severity.py` runs 45 labelled cases (18 unsafe, 7
+needs-human).
+
+**The errors are not symmetric, so accuracy would be the wrong headline.** Missing a stranded
+caller leaves someone at the side of a road; a false alarm sends a truck to someone who was fine.
+The report leads with recall and names the missed cases:
+
+| question | recall | precision | missed |
+| --- | --- | --- | --- |
+| `is_safe_to_drive` (fine-tuned) | **0.778** | 1.000 | **4 of 18** |
+| `needs_human` (fine-tuned) | 0.571 | 0.250 | 3 of 7 |
+| `is_safe_to_drive` (base) | 0.722 | 0.929 | 5 of 18 |
+| `needs_human` (base) | **0.143** | 0.071 | 6 of 7 |
+
+**Even the fine-tuned model fails to dispatch 4 of 18 stranded or unsafe callers.** The misses
+cluster on *implied* hazards — "smoke coming from under the hood", "the accelerator stuck open" —
+where the caller never says they are stopped. The question asks what the caller *indicates*, so the
+model answers literally while a person would hear a fire risk. That is a question-wording problem
+as much as a model one, and it is written down rather than smoothed over.
+
+`needs_human` is much weaker: complaints and escalations are missed 43% of the time with heavy
+false positives. It is not yet trustworthy.
+
+**One thing the threshold sweep made obvious and free.** On the fine-tuned model precision is
+1.000 at every threshold from 0.3 to 0.8, while recall falls as the bar rises:
+
+```
+thr 0.3   recall 0.833   precision 1.0   missed 3   false alarms 0
+thr 0.5   recall 0.778   precision 1.0   missed 4   false alarms 0
+thr 0.8   recall 0.722   precision 1.0   missed 5   false alarms 0
+```
+
+Lowering dispatch from 0.5 to 0.3 catches one more stranded caller and sends no extra trucks. The
+policy now uses **0.3**. Doing that exposed a real inconsistency — the `unsafe_to_drive` flag, the
+priority, the handler and the transfer decision were reading three different thresholds, so a
+caller could be dispatched as unsafe while the audit trail said they were not. One number now
+drives all of them, with an invariant test either side of it.
+
+## Scheduling: the call ends in an appointment
+
+The switchboard used to *say* "I'm booking you into service for next week" and file nothing — and
+"next week" is not an appointment. It now offers **real times** drawn from the store's own opening
+hours and a per-service duration table, classifies which one the caller accepted, and files a
+booking with their name on it:
+
+> *"You're all set: new vehicle at westside — Tuesday 22 September at 8am for Dana."*
+
+`minutes` in the profile is how long the **booked slot** occupies, not how long the repair takes —
+a collision repair is days but its appointment is a drop-off. That distinction is load-bearing: a
+1440-minute "slot" can never fit an 8am-6pm window and silently offered nothing at all until an
+invariant test caught it.
+
+Two deliberate choices:
+
+- **Deciding whether a caller accepted a time is a `choice` question**, not generated prose. It is
+  a classification, and it is exactly the kind of thing a generative model would answer with
+  invented text.
+- **An indecisive answer clarifies rather than commits.** On the first live run the caller said
+  *"this is Dana, and my number is 555-0140"* — no time at all — and the untrained acceptance
+  classifier answered `slot_1` at p=0.41, and the appointment was **filed**. It had invented an
+  agreement. There is now a floor at the pin threshold: the same turn asks *"Sorry — which of those
+  times did you want?"*, and a genuine acceptance (p=0.65) books correctly. An argmax of a
+  near-uniform distribution is not a decision — the same rule that stops a hard stop firing on a
+  weak signal elsewhere in this system.
+
+The acceptance classifier is still **untrained** — it is the base checkpoint answering a question it
+has never seen, which is why the floor matters. Training it is the next piece of work.
+
 ## Measurements (Apple M5 Pro, 64 GB)
 
 Whole triage schema, batched in one forward pass:
@@ -409,9 +496,9 @@ Whole triage schema, batched in one forward pass:
 | `multilingual` (mmBERT-base, 322M) | 4.6 ms         | 11.1 ms         | 520 q/s    |
 | `typed-decisions` (421M)           | 9.2 ms         | 27.8 ms         | 218 q/s    |
 
-A full 4-turn call costs **~130 ms of compute**, **0 generated tokens**, **$0.00**, asks
-**17 questions instead of 28**, and needs **0 LLM calls** (see the efficiency and second-opinion
-sections above).
+A call now ends in a filed appointment: the fine-tuned cascade runs **~200 ms of compute** and
+**397 questions across 27 calls** (≈15 per call), generates **0 tokens**, makes **0 LLM calls** and
+costs **$0.00**.
 
 Quality, 18 hand-labelled tickets (`data/tickets/labelled.jsonl`, from the support-domain work):
 
@@ -428,44 +515,80 @@ question-id sets_, so it transfers nothing to a custom schema.
 ## Layout
 
 ```
+config/
+  store_profile.json  the taxonomy, question text, facts and schedule — as data, not code
 src/jev_classifier/
-  dealership.py   departments, intents, slot enums, response templates, routing policy
-  call.py         the turn driver -> node/edge event stream
-  scenarios.py    scripted caller calls
-  runs.py         record / replay (results/runs/*.jsonl)
-  api.py          FastAPI: /api/scenarios /api/call /api/runs
-  pipeline.py     the original generic support cascade (still reachable via CLI)
-web/              Vite + React + React Flow front end
-  src/graph/      canvas, deterministic layout, node components
-  src/inspector/  drill-down panel
+  store_profile.py  loads/validates the profile; builds the typed questions
+  dealership.py     slot enums, response templates, routing policy, contact extraction
+  schedule.py       availability and bookings (mock DMS, DMS-shaped interface)
+  call.py           the turn driver -> node/edge event stream
+  scenarios.py      scripted caller calls
+  labels.py         normalise/validate model output against the profile vocabulary
+  teacher.py        the labelling prompt and schema
+  synthgen.py       generation prompts
+  runs.py           record / replay (results/runs/*.jsonl)
+  api.py            FastAPI: /api/scenarios /api/call /api/runs
+  pipeline.py       the original generic support cascade (still reachable via CLI)
+web/                Vite + React + React Flow front end
+  src/graph/        canvas, deterministic layout, node components
+  src/inspector/    drill-down panel
   src/conversation/ collapsible rail
-  src/controls/   run / step / speed / replay
+  src/controls/     run / step / speed / replay
 scripts/
-  try_call.py        run a call and print the trace headless
-  eval.py            the four-arm evaluation (cascade / ablation / LLM / hybrid)
-  probe_slots.py     slot-wording measurements
-  probe_questions.py phrasing measurements (support domain)
-  bench_call.py      per-turn cost, with a saved baseline
-  bench_latency.py   latency / throughput
-  bench_quality.py   accuracy / calibration
-data/calls/        labelled ground truth for the evaluation
-tests/             policy + pinning tests (no model required)
+  try_call.py           run a call and print the trace headless
+  eval.py               the four-arm evaluation (cascade / LLM arms / hybrid frontier)
+  eval_severity.py      the safety questions: recall of stranded callers
+  validate_teacher.py   the teacher gate — run before spending on generation
+  generate_training.py  build the training set, with acceptance criteria
+  relabel_groundtruth.py  migrate the ground truth onto a new taxonomy, with a drift report
+  generality_test.py    does fine-tuning still handle unseen option spaces?
+  probe_slots.py        slot-wording measurements
+  bench_call.py         per-turn cost, with a saved baseline
+training/
+  build_items.py     labelled utterance -> (sequence, target) pairs
+  train_ddp.py       the vendored RLCD trainer (parameterised, defaults unchanged)
+  kaggle_run.py      submit / watch the free 2xT4 fine-tune
+data/calls/         labelled ground truth: routing, calls, severity
+results/            the raw reports, tracked, with a README saying which are superseded
+tests/              policy, schedule, labelling and statistics tests (no model required)
 ```
 
 CLI, no browser:
 
 ```bash
-uv run python scripts/try_call.py --scenario collision   # a full call trace
-uv run jev-classify --persona outage                     # the generic support cascade
+uv run python scripts/try_call.py --scenario buy_car     # a full call trace, ending in a booking
+uv run python scripts/eval.py --skip-llm                 # the cascade arms only
 uv run pytest -q
 ```
 
 ## Not built yet
 
-Real speech-to-text and voice, and dropped-call recovery. Both were deliberately left out. The
-record/replay event log is already a serialisable run, which is the foundation recovery would
-need — the seam is a plain list of caller strings and a stream of events, so a real caller drops
-in without touching the cascade or the UI.
+**The acceptance classifier is untrained.** It is the base checkpoint answering a question it has
+never seen, which is why it once filed an appointment for a caller who agreed to nothing. The
+confidence floor makes that safe rather than correct; training it needs multi-turn examples
+(offered times → which one was taken), which is a generation mode we do not have yet.
+
+**The other open items, in the order I would do them:**
+
+- **`needs_human` is not trustworthy** (recall 0.571, precision 0.250). Complaints and escalations
+  are missed 43% of the time.
+- **`is_safe_to_drive` misses 4 of 18.** The misses are *implied* hazards where the caller never
+  says they are stopped — the question asks what the caller indicates, so the model answers
+  literally. Rewording it to ask about hazard rather than statement is the fix to try first.
+- **A second human labeller.** One case (`det-04`) is missed by every model; where all three
+  disagree with the key, the key is the likeliest thing to be wrong. This is the ceiling on the
+  destination number and no amount of model work moves it.
+- **The store facts are unused.** `facts` (hours, address, directions, loaner policy) is loaded and
+  rendered, but the switchboard does not yet *answer* from it — it still transfers a factual
+  question. Measured motivation: hours and directions is one of the top repeatable Fixed Ops call
+  types, so this is real call volume.
+- **Real speech-to-text and voice, and dropped-call recovery.** Both deliberately left out. The
+  record/replay event log is already a serialisable run, so a real caller drops in without touching
+  the cascade or the UI.
+
+The training and evaluation loop is complete and reproducible: `validate_teacher.py` →
+`generate_training.py` → `kaggle_run.py submit --watch` → `eval.py` → `generality_test.py`. Every
+gate is a command that exits non-zero when it fails, rather than a judgement call.
 
 ## Security
 
