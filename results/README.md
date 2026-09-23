@@ -24,7 +24,10 @@ it used.
 | `severity_reworded.json` | **same model, reworded question**, threshold 0.7: recall **1.000**, missed **0 of 18**. No training involved — the question asked what the caller *said* rather than whether the *vehicle* was unsafe. |
 | `severity_trained.json` | the yes/no questions after they were finally **trained** (v5). `needs_human` recall **0.571 → 0.857** on genuinely held-out cases, but precision collapses (0.207) and the probabilities are saturated, so the threshold sweep is flat. |
 | `severity_calibrated.json` | the **temperature experiment**. `temperature_by_options` is inherited from the base checkpoint and overrides the trainer's fitted vector — a real bug. Removing it moves a noul probability from 1.000 to **0.996**, so it is *not* the cause of the saturation. Recorded because it killed a hypothesis I had already half-written up. |
-| `eval_v5.json` | four-arm eval, the multi-task 4-epoch fine-tune. destination 0.938, **joint 0.877**, call-level 0.889 — down from v4's 0.914 / 0.963. Confounded with the epoch count; the 8-epoch run is in flight. |
+| `eval_v5.json` | four-arm eval, the multi-task 4-epoch fine-tune. destination 0.938, **joint 0.877**, call-level 0.889 — down from v4's 0.914 / 0.963. Superseded by v6: **the regression was the epoch count, not the new tasks.** |
+| `eval_v6.json` | four-arm eval, **the best checkpoint** (8 epochs, all five tasks). destination 0.963, joint **0.926**, queue **0.975** — ties `deepseek-flash` on joint and beats it on queue. Call level 0.852, which is *not* a regression from training; see below. |
+| `eval_v4_currentpolicy.json` | the same v4 checkpoint re-measured under the **current** safety policy. Call level **0.852**, identical to v6 — which is what proves the call-level drop was the safety rewording, not the new training tasks. `eval_v4.json` predates that policy change and its 0.963 is not comparable. |
+| `severity_v6.json` | the safety questions on the 8-epoch checkpoint. Recall unchanged from v5 (`is_safe_to_drive` 1.000, `needs_human` 0.857) and precision still below untrained (0.692 vs 0.857). The fitted noul temperature is **1.0** here against v5's 3.683 — the 4-epoch head was the pathological one. |
 | `acceptance.json` | the mid-conversation question, before training: overall 0.644, and `unclear` **0 of 130**. It never abstains, which is why the booking demo is flaky. Measured on `acceptance_train.jsonl`, but the model was untrained on it, so this reads as zero-shot. |
 | `acceptance_leaky.json` | ⚠️ **Do not quote.** The trained acceptance model reporting **1.000 accuracy** — scored against `acceptance_train.jsonl`, the file training is built from. Kept as the example of what a leak looks like from the inside. |
 
@@ -59,3 +62,9 @@ ones** and must not be quoted as if they were.
   catch. Tests now assert exact disjointness *and* containment disjointness for routing and severity,
   and phrasing disjointness for acceptance. Re-run `scripts/trim_heldout_echoes.py` if a generator
   changes.
+- **Check what policy a report was measured under, not just what model.** `eval_v4.json` shows a
+  call-level queue accuracy of 0.963; `eval_v4_currentpolicy.json` shows **0.852 for the same
+  checkpoint**. The only difference is that the safety question was reworded and the dispatch
+  threshold moved between them — and because an unsafe call's queue is *overwritten* with
+  `Roadside / Towing`, that policy change silently re-routed 3 of 27 calls. Comparing across a
+  policy change is the same mistake as comparing across a taxonomy change.

@@ -22,16 +22,18 @@ put.** It also books real appointments now, not just routes.
 That distinction — a stable number versus a noisy one — turned out to be the more defensible thing
 to say, and I only found it by running the same evaluation four times.
 
-**Then the retrain that was meant to make it better made it worse.** Teaching the model the two
-safety questions and the booking question cost **3.7 points of joint accuracy** (0.914 → 0.877), and
-the run that would say whether that was the new tasks or just too few epochs was still training when
-these notes were written. A project that only reports the runs where the number went up is not
-measuring anything, so the regression is the headline here rather than a footnote.
+**Then the retrain that looked like a regression wasn't one.** Teaching the model the two safety
+questions and the booking question appeared to cost **3.7 points of joint accuracy** (0.914 → 0.877)
+— but that run also did 4 epochs where the previous one did 8, and at 8 epochs the multi-task model
+is the best we have built (joint **0.926**, tying `deepseek-flash` and beating it on the routing
+outcome). Two confounds in a row, both of them mine, and the second one took a second-order check to
+find: the apparent call-level drop was not the training either, but the safety rewording, which I
+proved by re-running the *same* checkpoint under the old policy.
 
-And the more useful lesson came from the opposite direction: three of the numbers we were proudest
-of turned out to be **reading their own training data**. A perfect acceptance score was
-memorisation, and the safety case the whole rewording exercise was built around was sitting in the
-training set. The improvements that survived that audit are the ones worth anything.
+The more useful lesson came from the opposite direction: three of the numbers we were proudest of
+turned out to be **reading their own training data**. A perfect acceptance score was memorisation,
+and the safety case the whole rewording exercise was built around was sitting in the training set.
+The improvements that survived that audit are the ones worth anything.
 
 But the interesting part isn't the final number. It's that almost every improvement came from
 fixing something in *how we had framed the problem* — not from the model, the data volume, or the
@@ -383,6 +385,51 @@ calibration.
 
 ---
 
+## The cost nobody measured
+
+Rewording the safety question was right, and it was free. It was neither.
+
+The rewording took `is_safe_to_drive` from missing 3 of 18 stranded callers to missing none. That
+result held up under every audit — it was measured on held-out cases, before any training existed.
+Good.
+
+What we did not measure was **what consumes the answer**. `dealership.py` does not just set a flag:
+
+```python
+if roadside in flags or unsafe >= unsafe_threshold():
+    queue = PROFILE.policy.get("roadside_queue", "Roadside / Towing")
+```
+
+The unsafe question **replaces the call's final queue**. So a false positive is not a line in a
+report — it is a *correct routing decision thrown away*. The ledger, all measured:
+
+| | stranded callers caught | false dispatches | call-level queue |
+| --- | --- | --- | --- |
+| old wording, threshold 0.3 | 15 of 18 | **0** | **0.963** |
+| new wording, threshold 0.7 | **18 of 18** | 3 | 0.852 |
+
+We caught four more people who were actually stranded, and misrouted three who were booking body
+work, a windscreen and a recall appointment. Eleven points of the metric we quote, for three false
+alarms.
+
+**I had the explanation wrong first, and a second-order check caught it.** I saw the call-level drop
+in the same run as the multi-task training and attributed it to training — a tidy story, since
+training had just changed. The check that settled it was re-running the *same* v4 checkpoint under
+the *current* policy: **0.852, identical to the new model.** Same model, different policy, the whole
+regression. Training cost nothing at the product level.
+
+> **The lesson:** when you change how sensitive a decision is, measure the thing that *consumes* it,
+> not the decision. The severity report said "precision 0.857, three false alarms" and that sounded
+> acceptable — because a false alarm sounds like a wasted truck. It was actually a discarded
+> routing decision, and the report had no way to say so.
+
+There is a structural version of this too, and it is the same shape as the eight above: **"where
+does this call belong" and "does a truck roll" are two different questions, and they share one
+field.** The dispatch *should* be an action alongside the routing, not a replacement for it. A
+correct answer to one question is silently overwriting a correct answer to the other.
+
+---
+
 ## Things we know but haven't fixed
 
 - **The acceptance question is trained but unmeasurable.** The 1.000 it reports is memorisation; the
@@ -395,8 +442,13 @@ calibration.
   questions the sweep is flat from 0.3 to 0.8. Where the model is confidently wrong there is nothing
   to tune, and every reported operating point should be read as "the model's opinion", not "the
   point we chose".
-- **Routing went backwards in the multi-task retrain** (joint 0.914 → 0.877), and we do not yet know
-  whether that is the four new training tasks or four fewer epochs.
+- **The safety flag overwrites the routing, and that is the biggest win on the table.**
+  `dealership.py` replaces the call's queue with `Roadside / Towing` whenever the unsafe question
+  fires, so a false alarm discards a correct routing decision. It costs 3 of 27 calls. Dispatch
+  should run alongside the routing, not instead of it.
+- **The call-level number in `results/eval_v4.json` is not comparable to the later ones.** It was
+  measured before the safety rewording, and the same checkpoint scores 0.963 or 0.852 depending on
+  which policy was live. Check the policy, not just the model.
 - **The store facts are loaded but unused.** The switchboard could answer "what time do you open?"
   from them. Right now it still transfers.
 - **The `other` fallback is dead.** The fine-tuned model never uses it (0.0%, down from the base

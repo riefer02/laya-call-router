@@ -1,0 +1,1438 @@
+{
+  "llm_arms": [
+    "openai:gpt-5.4-nano",
+    "deepseek:deepseek-flash"
+  ],
+  "finetuned": "models/kaggle-out-v6/laya-dealership-routing",
+  "routing": {
+    "laya": {
+      "n": 81,
+      "destination_accuracy": 0.6543,
+      "subqueue_accuracy": 0.5185,
+      "joint_accuracy": 0.5185,
+      "destination_ci95": {
+        "lo": 0.5459,
+        "hi": 0.7488,
+        "half_width": 0.1014
+      },
+      "subqueue_ci95": {
+        "lo": 0.4114,
+        "hi": 0.624,
+        "half_width": 0.1063
+      },
+      "joint_ci95": {
+        "lo": 0.4114,
+        "hi": 0.624,
+        "half_width": 0.1063
+      },
+      "queue_accuracy": 0.6667,
+      "queue_ci95": {
+        "lo": 0.5585,
+        "hi": 0.7597,
+        "half_width": 0.1006
+      },
+      "destination_confusion": {
+        "body_shop": {
+          "body_shop": 9
+        },
+        "finance": {
+          "finance": 6,
+          "front_desk": 2,
+          "sales": 1
+        },
+        "front_desk": {
+          "front_desk": 4,
+          "non_customer": 3,
+          "service": 1
+        },
+        "non_customer": {
+          "front_desk": 1
+        },
+        "parts": {
+          "parts": 7,
+          "body_shop": 1,
+          "service": 1
+        },
+        "sales": {
+          "sales": 7,
+          "non_customer": 1,
+          "front_desk": 1
+        },
+        "service": {
+          "service": 20,
+          "body_shop": 9,
+          "front_desk": 3,
+          "parts": 2,
+          "non_customer": 2
+        }
+      },
+      "subqueue_confusion": {
+        "accessory": {
+          "order_part": 2,
+          "other": 1
+        },
+        "availability": {
+          "availability": 3
+        },
+        "collision": {
+          "collision": 2
+        },
+        "dent_scratch": {
+          "dent_scratch": 2
+        },
+        "detailing": {
+          "other": 4,
+          "detailing": 3,
+          "paint": 2
+        },
+        "express_maintenance": {
+          "express_maintenance": 2
+        },
+        "feedback": {
+          "wrong_number": 1,
+          "other": 1
+        },
+        "general_question": {
+          "other": 4,
+          "wrong_number": 1
+        },
+        "glass": {
+          "glass": 3
+        },
+        "insurance": {
+          "other": 1,
+          "loan": 1
+        },
+        "inventory": {
+          "inventory": 1,
+          "used_vehicle": 1,
+          "other": 1
+        },
+        "jobseeker": {
+          "other": 1
+        },
+        "lease_terms": {
+          "lease_terms": 2,
+          "new_vehicle": 1
+        },
+        "loan": {
+          "loan": 1,
+          "general_question": 1
+        },
+        "mechanical_diagnostic": {
+          "mechanical_diagnostic": 5,
+          "other": 2
+        },
+        "new_vehicle": {
+          "new_vehicle": 2
+        },
+        "order_part": {
+          "order_part": 2,
+          "other": 1
+        },
+        "other": {
+          "vendor": 1
+        },
+        "paint": {
+          "paint": 2
+        },
+        "paperwork": {
+          "paperwork": 2
+        },
+        "roadside_assistance": {
+          "roadside_assistance": 3,
+          "collision": 2,
+          "other": 2,
+          "wrong_number": 2
+        },
+        "tires": {
+          "tires": 5,
+          "order_part": 2,
+          "other": 1,
+          "mechanical_diagnostic": 1
+        },
+        "trade_in": {
+          "trade_in": 1,
+          "new_vehicle": 1
+        },
+        "used_vehicle": {
+          "used_vehicle": 1,
+          "vendor": 1
+        }
+      },
+      "queue_confusion": {
+        "Appraisal Desk": {
+          "Appraisal Desk": 1,
+          "Sales Floor": 1
+        },
+        "Body Shop": {
+          "Body Shop": 9
+        },
+        "Detailing": {
+          "Body Shop": 4,
+          "Detailing": 3,
+          "Front Desk": 2
+        },
+        "Express Bay": {
+          "Express Bay": 2
+        },
+        "Finance & Insurance": {
+          "Finance & Insurance": 6,
+          "Front Desk": 2,
+          "Sales Floor": 1
+        },
+        "Front Desk": {
+          "Front Desk": 8,
+          "Service Department": 1
+        },
+        "Parts Counter": {
+          "Parts Counter": 7,
+          "Body Shop": 1,
+          "Service Department": 1
+        },
+        "Roadside / Towing": {
+          "Body Shop": 3,
+          "Roadside / Towing": 3,
+          "Front Desk": 3
+        },
+        "Sales Floor": {
+          "Sales Floor": 5,
+          "Front Desk": 2
+        },
+        "Service Department": {
+          "Service Department": 5,
+          "Body Shop": 2
+        },
+        "Tire Bay": {
+          "Tire Bay": 5,
+          "Parts Counter": 2,
+          "Service Department": 2
+        }
+      },
+      "other": {
+        "predicted_other": 19,
+        "rate_of_subqueue_predictions": 0.2346,
+        "subqueue_misses": 39,
+        "miss_absorbed_by_other": 19,
+        "share_of_misses": 0.4872
+      },
+      "errors": 0,
+      "invalid_labels": 0,
+      "latency_ms": {
+        "p50": 22.3,
+        "p95": 39.2,
+        "mean": 30.1
+      },
+      "prompt_tokens": 25618,
+      "prompt_cache_hit_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "cost_model": null,
+      "gate": {
+        "threshold": 0.75,
+        "flagged": 66,
+        "flag_rate": 0.8148,
+        "errors": 28,
+        "errors_caught": 27,
+        "recall": 0.9643,
+        "precision": 0.4091,
+        "accuracy_when_confident": 0.9333,
+        "accuracy_when_flagged": 0.5909
+      },
+      "calibration": {
+        "0.0-0.2": {
+          "n": 8,
+          "accuracy": 0.5
+        },
+        "0.2-0.4": {
+          "n": 26,
+          "accuracy": 0.385
+        },
+        "0.4-0.6": {
+          "n": 24,
+          "accuracy": 0.75
+        },
+        "0.6-0.8": {
+          "n": 13,
+          "accuracy": 0.846
+        },
+        "0.8-1.0": {
+          "n": 10,
+          "accuracy": 1.0
+        }
+      },
+      "misses": [
+        {
+          "id": "svc-04",
+          "text": "There is a rattling noise coming from under the car when I drive over bumps.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "svc-08",
+          "text": "There is a burning smell coming from the engine bay after I drive.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "part-06",
+          "text": "I want to add a tow hitch to my SUV.",
+          "expected": "parts",
+          "got": "body_shop"
+        },
+        {
+          "id": "part-07",
+          "text": "I need a serpentine belt for a 2015 Accord, can you get one?",
+          "expected": "parts",
+          "got": "service"
+        },
+        {
+          "id": "tire-02",
+          "text": "I need four new tires for my pickup truck.",
+          "expected": "service",
+          "got": "parts"
+        },
+        {
+          "id": "tire-06",
+          "text": "I would like winter tires fitted before the season starts.",
+          "expected": "service",
+          "got": "parts"
+        },
+        {
+          "id": "det-01",
+          "text": "I would like to book a full detail, inside and out.",
+          "expected": "service",
+          "got": "front_desk"
+        },
+        {
+          "id": "det-02",
+          "text": "Can I get a wash and vacuum today?",
+          "expected": "service",
+          "got": "front_desk"
+        },
+        {
+          "id": "det-04",
+          "text": "I want the paint machine polished to remove light scratches.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "det-06",
+          "text": "My dog rides in the back and it smells, I need the interior shampooed.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "det-07",
+          "text": "I would like a full valet before I sell the car.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "det-09",
+          "text": "I want the swirl marks buffed out of the clear coat.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "sale-08",
+          "text": "I would like to see a certified pre owned sedan.",
+          "expected": "sales",
+          "got": "non_customer"
+        },
+        {
+          "id": "sale-09",
+          "text": "Has the new model year arrived yet?",
+          "expected": "sales",
+          "got": "front_desk"
+        },
+        {
+          "id": "fin-03",
+          "text": "Does the advertised price include insurance?",
+          "expected": "finance",
+          "got": "front_desk"
+        },
+        {
+          "id": "fin-06",
+          "text": "What interest rate can I get with a 720 credit score?",
+          "expected": "finance",
+          "got": "front_desk"
+        },
+        {
+          "id": "fin-09",
+          "text": "Do you offer leasing for business vehicles?",
+          "expected": "finance",
+          "got": "sales"
+        },
+        {
+          "id": "tow-01",
+          "text": "I need a tow, my car died on the freeway.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "tow-03",
+          "text": "I have locked my keys in the car and I am stuck.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "tow-04",
+          "text": "I ran out of gas on the side of the road.",
+          "expected": "service",
+          "got": "non_customer"
+        },
+        {
+          "id": "tow-07",
+          "text": "I am locked out of my vehicle in a parking garage.",
+          "expected": "service",
+          "got": "front_desk"
+        },
+        {
+          "id": "tow-08",
+          "text": "I need a fuel delivery, I am on the shoulder of the interstate.",
+          "expected": "service",
+          "got": "non_customer"
+        },
+        {
+          "id": "tow-09",
+          "text": "My car is in a ditch and it needs recovering.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "gen-02",
+          "text": "Where are you located?",
+          "expected": "front_desk",
+          "got": "non_customer"
+        },
+        {
+          "id": "gen-04",
+          "text": "I want to make a complaint about my last visit.",
+          "expected": "front_desk",
+          "got": "non_customer"
+        },
+        {
+          "id": "gen-05",
+          "text": "Can you tell me whether you are hiring technicians?",
+          "expected": "non_customer",
+          "got": "front_desk"
+        },
+        {
+          "id": "gen-08",
+          "text": "Do you offer loaner cars while mine is in for service?",
+          "expected": "front_desk",
+          "got": "service"
+        },
+        {
+          "id": "gen-09",
+          "text": "I am calling to ask about your sponsorship of the local football club.",
+          "expected": "front_desk",
+          "got": "non_customer"
+        }
+      ],
+      "determinism": 1.0
+    },
+    "cascade-ft": {
+      "n": 81,
+      "destination_accuracy": 0.963,
+      "subqueue_accuracy": 0.9259,
+      "joint_accuracy": 0.9259,
+      "destination_ci95": {
+        "lo": 0.8967,
+        "hi": 0.9873,
+        "half_width": 0.0453
+      },
+      "subqueue_ci95": {
+        "lo": 0.8477,
+        "hi": 0.9656,
+        "half_width": 0.059
+      },
+      "joint_ci95": {
+        "lo": 0.8477,
+        "hi": 0.9656,
+        "half_width": 0.059
+      },
+      "queue_accuracy": 0.9753,
+      "queue_ci95": {
+        "lo": 0.9144,
+        "hi": 0.9932,
+        "half_width": 0.0394
+      },
+      "destination_confusion": {
+        "body_shop": {
+          "body_shop": 9
+        },
+        "finance": {
+          "finance": 9
+        },
+        "front_desk": {
+          "front_desk": 5,
+          "non_customer": 2,
+          "service": 1
+        },
+        "non_customer": {
+          "non_customer": 1
+        },
+        "parts": {
+          "parts": 9
+        },
+        "sales": {
+          "sales": 9
+        },
+        "service": {
+          "service": 36
+        }
+      },
+      "subqueue_confusion": {
+        "accessory": {
+          "accessory": 3
+        },
+        "availability": {
+          "availability": 3
+        },
+        "collision": {
+          "collision": 2
+        },
+        "dent_scratch": {
+          "dent_scratch": 2
+        },
+        "detailing": {
+          "detailing": 9
+        },
+        "express_maintenance": {
+          "express_maintenance": 2
+        },
+        "feedback": {
+          "feedback": 1,
+          "jobseeker": 1
+        },
+        "general_question": {
+          "general_question": 4,
+          "express_maintenance": 1
+        },
+        "glass": {
+          "glass": 3
+        },
+        "insurance": {
+          "insurance": 2
+        },
+        "inventory": {
+          "inventory": 1,
+          "used_vehicle": 1,
+          "new_vehicle": 1
+        },
+        "jobseeker": {
+          "jobseeker": 1
+        },
+        "lease_terms": {
+          "lease_terms": 3
+        },
+        "loan": {
+          "loan": 2
+        },
+        "mechanical_diagnostic": {
+          "mechanical_diagnostic": 7
+        },
+        "new_vehicle": {
+          "new_vehicle": 2
+        },
+        "order_part": {
+          "order_part": 3
+        },
+        "other": {
+          "wrong_number": 1
+        },
+        "paint": {
+          "paint": 2
+        },
+        "paperwork": {
+          "paperwork": 2
+        },
+        "roadside_assistance": {
+          "roadside_assistance": 9
+        },
+        "tires": {
+          "tires": 8,
+          "other": 1
+        },
+        "trade_in": {
+          "trade_in": 2
+        },
+        "used_vehicle": {
+          "used_vehicle": 2
+        }
+      },
+      "queue_confusion": {
+        "Appraisal Desk": {
+          "Appraisal Desk": 2
+        },
+        "Body Shop": {
+          "Body Shop": 9
+        },
+        "Detailing": {
+          "Detailing": 9
+        },
+        "Express Bay": {
+          "Express Bay": 2
+        },
+        "Finance & Insurance": {
+          "Finance & Insurance": 9
+        },
+        "Front Desk": {
+          "Front Desk": 8,
+          "Express Bay": 1
+        },
+        "Parts Counter": {
+          "Parts Counter": 9
+        },
+        "Roadside / Towing": {
+          "Roadside / Towing": 9
+        },
+        "Sales Floor": {
+          "Sales Floor": 7
+        },
+        "Service Department": {
+          "Service Department": 7
+        },
+        "Tire Bay": {
+          "Tire Bay": 8,
+          "Service Department": 1
+        }
+      },
+      "other": {
+        "predicted_other": 1,
+        "rate_of_subqueue_predictions": 0.0123,
+        "subqueue_misses": 6,
+        "miss_absorbed_by_other": 1,
+        "share_of_misses": 0.1667
+      },
+      "errors": 0,
+      "invalid_labels": 0,
+      "latency_ms": {
+        "p50": 22.9,
+        "p95": 221.7,
+        "mean": 54.6
+      },
+      "prompt_tokens": 26865,
+      "prompt_cache_hit_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "cost_model": null,
+      "gate": {
+        "threshold": 0.75,
+        "flagged": 0,
+        "flag_rate": 0.0,
+        "errors": 3,
+        "errors_caught": 0,
+        "recall": 0.0,
+        "precision": null,
+        "accuracy_when_confident": 0.963,
+        "accuracy_when_flagged": null
+      },
+      "calibration": {
+        "0.8-1.0": {
+          "n": 81,
+          "accuracy": 0.963
+        }
+      },
+      "misses": [
+        {
+          "id": "gen-07",
+          "text": "I would like to speak to the manager.",
+          "expected": "front_desk",
+          "got": "non_customer"
+        },
+        {
+          "id": "gen-08",
+          "text": "Do you offer loaner cars while mine is in for service?",
+          "expected": "front_desk",
+          "got": "service"
+        },
+        {
+          "id": "gen-09",
+          "text": "I am calling to ask about your sponsorship of the local football club.",
+          "expected": "front_desk",
+          "got": "non_customer"
+        }
+      ],
+      "determinism": 1.0
+    },
+    "gpt-5.4-nano": {
+      "n": 81,
+      "destination_accuracy": 0.9506,
+      "subqueue_accuracy": 0.8765,
+      "joint_accuracy": 0.8765,
+      "destination_ci95": {
+        "lo": 0.8798,
+        "hi": 0.9806,
+        "half_width": 0.0504
+      },
+      "subqueue_ci95": {
+        "lo": 0.7874,
+        "hi": 0.9315,
+        "half_width": 0.072
+      },
+      "joint_ci95": {
+        "lo": 0.7874,
+        "hi": 0.9315,
+        "half_width": 0.072
+      },
+      "queue_accuracy": 0.9259,
+      "queue_ci95": {
+        "lo": 0.8477,
+        "hi": 0.9656,
+        "half_width": 0.059
+      },
+      "destination_confusion": {
+        "body_shop": {
+          "body_shop": 9
+        },
+        "finance": {
+          "finance": 8,
+          "sales": 1
+        },
+        "front_desk": {
+          "front_desk": 7,
+          "finance": 1
+        },
+        "non_customer": {
+          "non_customer": 1
+        },
+        "parts": {
+          "parts": 9
+        },
+        "sales": {
+          "sales": 9
+        },
+        "service": {
+          "service": 34,
+          "body_shop": 2
+        }
+      },
+      "subqueue_confusion": {
+        "accessory": {
+          "accessory": 2,
+          "availability": 1
+        },
+        "availability": {
+          "availability": 3
+        },
+        "collision": {
+          "collision": 2
+        },
+        "dent_scratch": {
+          "dent_scratch": 2
+        },
+        "detailing": {
+          "detailing": 7,
+          "paint": 2
+        },
+        "express_maintenance": {
+          "express_maintenance": 2
+        },
+        "feedback": {
+          "feedback": 1,
+          "general_question": 1
+        },
+        "general_question": {
+          "general_question": 4,
+          "other": 1
+        },
+        "glass": {
+          "glass": 3
+        },
+        "insurance": {
+          "None": 1,
+          "insurance": 1
+        },
+        "inventory": {
+          "inventory": 2,
+          "used_vehicle": 1
+        },
+        "jobseeker": {
+          "jobseeker": 1
+        },
+        "lease_terms": {
+          "lease_terms": 3
+        },
+        "loan": {
+          "loan": 2
+        },
+        "mechanical_diagnostic": {
+          "mechanical_diagnostic": 7
+        },
+        "new_vehicle": {
+          "new_vehicle": 2
+        },
+        "order_part": {
+          "order_part": 3
+        },
+        "other": {
+          "general_question": 1
+        },
+        "paint": {
+          "paint": 2
+        },
+        "paperwork": {
+          "paperwork": 2
+        },
+        "roadside_assistance": {
+          "roadside_assistance": 9
+        },
+        "tires": {
+          "tires": 7,
+          "roadside_assistance": 1,
+          "mechanical_diagnostic": 1
+        },
+        "trade_in": {
+          "trade_in": 2
+        },
+        "used_vehicle": {
+          "used_vehicle": 2
+        }
+      },
+      "queue_confusion": {
+        "Appraisal Desk": {
+          "Appraisal Desk": 2
+        },
+        "Body Shop": {
+          "Body Shop": 9
+        },
+        "Detailing": {
+          "Detailing": 7,
+          "Body Shop": 2
+        },
+        "Express Bay": {
+          "Express Bay": 2
+        },
+        "Finance & Insurance": {
+          "Finance & Insurance": 8,
+          "Sales Floor": 1
+        },
+        "Front Desk": {
+          "Front Desk": 8,
+          "Finance & Insurance": 1
+        },
+        "Parts Counter": {
+          "Parts Counter": 9
+        },
+        "Roadside / Towing": {
+          "Roadside / Towing": 9
+        },
+        "Sales Floor": {
+          "Sales Floor": 7
+        },
+        "Service Department": {
+          "Service Department": 7
+        },
+        "Tire Bay": {
+          "Tire Bay": 7,
+          "Roadside / Towing": 1,
+          "Service Department": 1
+        }
+      },
+      "other": {
+        "predicted_other": 1,
+        "rate_of_subqueue_predictions": 0.0125,
+        "subqueue_misses": 10,
+        "miss_absorbed_by_other": 1,
+        "share_of_misses": 0.1
+      },
+      "errors": 0,
+      "invalid_labels": 1,
+      "latency_ms": {
+        "p50": 747.3,
+        "p95": 1683.5,
+        "mean": 861.9
+      },
+      "prompt_tokens": 38743,
+      "prompt_cache_hit_tokens": 0,
+      "completion_tokens": 1424,
+      "cost_usd": 0.00250675,
+      "cost_model": "openai:gpt-5.4-nano",
+      "gate": {},
+      "calibration": {},
+      "misses": [
+        {
+          "id": "det-04",
+          "text": "I want the paint machine polished to remove light scratches.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "det-09",
+          "text": "I want the swirl marks buffed out of the clear coat.",
+          "expected": "service",
+          "got": "body_shop"
+        },
+        {
+          "id": "fin-03",
+          "text": "Does the advertised price include insurance?",
+          "expected": "finance",
+          "got": "sales"
+        },
+        {
+          "id": "gen-08",
+          "text": "Do you offer loaner cars while mine is in for service?",
+          "expected": "front_desk",
+          "got": "finance"
+        }
+      ],
+      "determinism": 0.9753
+    },
+    "deepseek-flash": {
+      "n": 81,
+      "destination_accuracy": 0.9877,
+      "subqueue_accuracy": 0.9259,
+      "joint_accuracy": 0.9259,
+      "destination_ci95": {
+        "lo": 0.9333,
+        "hi": 0.9978,
+        "half_width": 0.0322
+      },
+      "subqueue_ci95": {
+        "lo": 0.8477,
+        "hi": 0.9656,
+        "half_width": 0.059
+      },
+      "joint_ci95": {
+        "lo": 0.8477,
+        "hi": 0.9656,
+        "half_width": 0.059
+      },
+      "queue_accuracy": 0.963,
+      "queue_ci95": {
+        "lo": 0.8967,
+        "hi": 0.9873,
+        "half_width": 0.0453
+      },
+      "destination_confusion": {
+        "body_shop": {
+          "body_shop": 9
+        },
+        "finance": {
+          "finance": 9
+        },
+        "front_desk": {
+          "front_desk": 7,
+          "service": 1
+        },
+        "non_customer": {
+          "non_customer": 1
+        },
+        "parts": {
+          "parts": 9
+        },
+        "sales": {
+          "sales": 9
+        },
+        "service": {
+          "service": 36
+        }
+      },
+      "subqueue_confusion": {
+        "accessory": {
+          "accessory": 3
+        },
+        "availability": {
+          "availability": 3
+        },
+        "collision": {
+          "collision": 2
+        },
+        "dent_scratch": {
+          "dent_scratch": 2
+        },
+        "detailing": {
+          "detailing": 9
+        },
+        "express_maintenance": {
+          "express_maintenance": 2
+        },
+        "feedback": {
+          "feedback": 2
+        },
+        "general_question": {
+          "general_question": 4,
+          "other": 1
+        },
+        "glass": {
+          "glass": 2,
+          "collision": 1
+        },
+        "insurance": {
+          "insurance": 2
+        },
+        "inventory": {
+          "inventory": 3
+        },
+        "jobseeker": {
+          "jobseeker": 1
+        },
+        "lease_terms": {
+          "lease_terms": 3
+        },
+        "loan": {
+          "loan": 2
+        },
+        "mechanical_diagnostic": {
+          "mechanical_diagnostic": 7
+        },
+        "new_vehicle": {
+          "new_vehicle": 2
+        },
+        "order_part": {
+          "order_part": 3
+        },
+        "other": {
+          "general_question": 1
+        },
+        "paint": {
+          "paint": 2
+        },
+        "paperwork": {
+          "paperwork": 2
+        },
+        "roadside_assistance": {
+          "roadside_assistance": 9
+        },
+        "tires": {
+          "tires": 7,
+          "roadside_assistance": 1,
+          "mechanical_diagnostic": 1
+        },
+        "trade_in": {
+          "trade_in": 2
+        },
+        "used_vehicle": {
+          "inventory": 1,
+          "used_vehicle": 1
+        }
+      },
+      "queue_confusion": {
+        "Appraisal Desk": {
+          "Appraisal Desk": 2
+        },
+        "Body Shop": {
+          "Body Shop": 9
+        },
+        "Detailing": {
+          "Detailing": 9
+        },
+        "Express Bay": {
+          "Express Bay": 2
+        },
+        "Finance & Insurance": {
+          "Finance & Insurance": 9
+        },
+        "Front Desk": {
+          "Front Desk": 8,
+          "Service Department": 1
+        },
+        "Parts Counter": {
+          "Parts Counter": 9
+        },
+        "Roadside / Towing": {
+          "Roadside / Towing": 9
+        },
+        "Sales Floor": {
+          "Sales Floor": 7
+        },
+        "Service Department": {
+          "Service Department": 7
+        },
+        "Tire Bay": {
+          "Tire Bay": 7,
+          "Roadside / Towing": 1,
+          "Service Department": 1
+        }
+      },
+      "other": {
+        "predicted_other": 1,
+        "rate_of_subqueue_predictions": 0.0123,
+        "subqueue_misses": 6,
+        "miss_absorbed_by_other": 1,
+        "share_of_misses": 0.1667
+      },
+      "errors": 0,
+      "invalid_labels": 0,
+      "latency_ms": {
+        "p50": 1432.2,
+        "p95": 3658.8,
+        "mean": 1661.3
+      },
+      "prompt_tokens": 32353,
+      "prompt_cache_hit_tokens": 20736,
+      "completion_tokens": 16499,
+      "cost_usd": 0.01170416,
+      "cost_model": "deepseek:deepseek-flash",
+      "gate": {},
+      "calibration": {},
+      "misses": [
+        {
+          "id": "gen-08",
+          "text": "Do you offer loaner cars while mine is in for service?",
+          "expected": "front_desk",
+          "got": "service"
+        }
+      ],
+      "determinism": 0.9877
+    },
+    "hybrid_frontier:gpt-5.4-nano": [
+      {
+        "threshold": 0.6,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.7,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.75,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.8,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.85,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.9,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.95,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      }
+    ],
+    "hybrid_frontier:deepseek-flash": [
+      {
+        "threshold": 0.6,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.7,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.75,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.8,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.85,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.9,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      },
+      {
+        "threshold": 0.95,
+        "accuracy": 0.963,
+        "flag_rate": 0.0,
+        "recall": 0.0,
+        "cost_per_case": 0.0,
+        "cost_total": 0.0
+      }
+    ]
+  },
+  "calls": {
+    "laya-full": {
+      "n": 27,
+      "queue_accuracy": 0.5926,
+      "llm_calls": 0,
+      "would_escalate": 0,
+      "questions": 657,
+      "latency_ms": {
+        "p50": 228.2,
+        "p95": 1080.0,
+        "mean": 284.3
+      },
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "misses": [
+        {
+          "id": "call-no-start",
+          "expected": "Roadside / Towing",
+          "got": "Service Department"
+        },
+        {
+          "id": "call-flat-tire",
+          "expected": "Roadside / Towing",
+          "got": "Tire Bay"
+        },
+        {
+          "id": "call-trade-in",
+          "expected": "Appraisal Desk",
+          "got": "Front Desk"
+        },
+        {
+          "id": "call-recall",
+          "expected": "Warranty Desk",
+          "got": "Roadside / Towing"
+        },
+        {
+          "id": "call-glass",
+          "expected": "Body Shop",
+          "got": "Service Department"
+        },
+        {
+          "id": "call-paint",
+          "expected": "Body Shop",
+          "got": "Front Desk"
+        },
+        {
+          "id": "call-loan",
+          "expected": "Finance & Insurance",
+          "got": "Sales Floor"
+        },
+        {
+          "id": "call-insurance",
+          "expected": "Finance & Insurance",
+          "got": "Roadside / Towing"
+        },
+        {
+          "id": "call-paperwork",
+          "expected": "Finance & Insurance",
+          "got": "Sales Floor"
+        },
+        {
+          "id": "call-part-availability",
+          "expected": "Parts Counter",
+          "got": "Service Department"
+        },
+        {
+          "id": "call-accessory",
+          "expected": "Parts Counter",
+          "got": "Sales Floor"
+        }
+      ]
+    },
+    "laya": {
+      "n": 27,
+      "queue_accuracy": 0.7778,
+      "llm_calls": 0,
+      "would_escalate": 2,
+      "questions": 450,
+      "latency_ms": {
+        "p50": 247.3,
+        "p95": 1016.6,
+        "mean": 392.0
+      },
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "misses": [
+        {
+          "id": "call-no-start",
+          "expected": "Roadside / Towing",
+          "got": "Service Department"
+        },
+        {
+          "id": "call-flat-tire",
+          "expected": "Roadside / Towing",
+          "got": "Tire Bay"
+        },
+        {
+          "id": "call-recall",
+          "expected": "Warranty Desk",
+          "got": "Roadside / Towing"
+        },
+        {
+          "id": "call-insurance",
+          "expected": "Finance & Insurance",
+          "got": "Roadside / Towing"
+        },
+        {
+          "id": "call-paperwork",
+          "expected": "Finance & Insurance",
+          "got": "Front Desk"
+        },
+        {
+          "id": "call-part-availability",
+          "expected": "Parts Counter",
+          "got": "Service Department"
+        }
+      ]
+    },
+    "cascade-ft": {
+      "n": 27,
+      "queue_accuracy": 0.8519,
+      "llm_calls": 0,
+      "would_escalate": 0,
+      "questions": 345,
+      "latency_ms": {
+        "p50": 185.1,
+        "p95": 1013.8,
+        "mean": 347.4
+      },
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": null,
+      "misses": [
+        {
+          "id": "call-collision",
+          "expected": "Body Shop",
+          "got": "Roadside / Towing"
+        },
+        {
+          "id": "call-vague",
+          "expected": "Service Department",
+          "got": "Roadside / Towing"
+        },
+        {
+          "id": "call-out-of-scope",
+          "expected": "Front Desk",
+          "got": "Roadside / Towing"
+        },
+        {
+          "id": "call-glass",
+          "expected": "Body Shop",
+          "got": "Roadside / Towing"
+        }
+      ]
+    },
+    "hybrid\u2192gpt-5.4-nano": {
+      "n": 27,
+      "queue_accuracy": 0.8519,
+      "llm_calls": 2,
+      "would_escalate": 2,
+      "questions": 398,
+      "latency_ms": {
+        "p50": 182.7,
+        "p95": 1111.2,
+        "mean": 338.6
+      },
+      "prompt_tokens": 998,
+      "completion_tokens": 32,
+      "cost_usd": 6.27e-05,
+      "misses": [
+        {
+          "id": "call-no-start",
+          "expected": "Roadside / Towing",
+          "got": "Service Department"
+        },
+        {
+          "id": "call-flat-tire",
+          "expected": "Roadside / Towing",
+          "got": "Tire Bay"
+        },
+        {
+          "id": "call-recall",
+          "expected": "Warranty Desk",
+          "got": "Roadside / Towing"
+        },
+        {
+          "id": "call-paperwork",
+          "expected": "Finance & Insurance",
+          "got": "Front Desk"
+        }
+      ]
+    },
+    "gpt-5.4-nano": {
+      "n": 27,
+      "queue_accuracy": 0.963,
+      "llm_calls": 27,
+      "would_escalate": 27,
+      "questions": 0,
+      "latency_ms": {
+        "p50": 719.9,
+        "p95": 954.0,
+        "mean": 763.6
+      },
+      "prompt_tokens": 13563,
+      "completion_tokens": 475,
+      "cost_usd": 0.00086815,
+      "misses": [
+        {
+          "id": "call-no-start",
+          "expected": "Roadside / Towing",
+          "got": "Service Department"
+        }
+      ]
+    },
+    "deepseek-flash": {
+      "n": 27,
+      "queue_accuracy": 0.963,
+      "llm_calls": 27,
+      "would_escalate": 27,
+      "questions": 0,
+      "latency_ms": {
+        "p50": 1631.9,
+        "p95": 2836.2,
+        "mean": 1801.5
+      },
+      "prompt_tokens": 11552,
+      "completion_tokens": 6039,
+      "cost_usd": 0.00434014,
+      "misses": [
+        {
+          "id": "call-no-start",
+          "expected": "Roadside / Towing",
+          "got": "Service Department"
+        }
+      ]
+    }
+  }
+}

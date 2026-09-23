@@ -213,29 +213,29 @@ cascade (base and fine-tuned), a cheap structured-output model (`gpt-5.4-nano`),
 
 ### Decision level — 81 cases
 
-| metric | base | **fine-tuned** | gpt-5.4-nano | deepseek-flash |
+| metric | base | **fine-tuned (v6)** | gpt-5.4-nano | deepseek-flash |
 | --- | --- | --- | --- | --- |
-| destination | 0.654 | 0.951 | 0.963 | **0.988** |
-| sub-queue | 0.518 | **0.914** | 0.876 | **0.926** |
-| joint | 0.518 | 0.914 | 0.876 | **0.926** |
-| **queue (the outcome)** | 0.667 | **0.963** | 0.926 | **0.963** |
-| ±95% (queue) | ±0.101 | ±0.045 | ±0.059 | ±0.045 |
-| p50 latency | 21.4 ms | **21.8 ms** | 631 ms | 1455 ms |
-| cost per case | **$0** | **$0** | $0.0025 | $0.0114 |
+| destination | 0.654 | 0.963 | 0.951 | **0.988** |
+| sub-queue | 0.518 | **0.926** | 0.876 | **0.926** |
+| joint | 0.518 | **0.926** | 0.876 | **0.926** |
+| **queue (the outcome)** | 0.667 | **0.975** | 0.926 | 0.963 |
+| ±95% (queue) | ±0.101 | ±0.039 | ±0.059 | ±0.045 |
+| p50 latency | 22.3 ms | **22.9 ms** | 747 ms | 1432 ms |
+| cost per case | **$0** | **$0** | $0.0025 | $0.0113 |
 | determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
 
-**The fine-tuned cascade matches both LLM arms on the decision, at ~65× the speed and for nothing
+**The fine-tuned cascade matches both LLM arms on the decision, at ~60× the speed and for nothing
 per call — and unlike them, its number does not move.**
 
-> **These are the 8-epoch, two-question checkpoint (`models/kaggle-out-v4`).** A later run trained the
-> four yes/no and booking questions as well and **regressed** to joint 0.877 / call-level 0.889 — but
-> it also ran 4 epochs instead of 8, so the two changes are confounded and the disentangling run was
-> still training. `results/eval_v5.json` has it. The table above is the best measured checkpoint, not
-> the newest one.
+> **This is the 8-epoch, five-question checkpoint (`models/kaggle-out-v6`).** An earlier 4-epoch run
+> of the same recipe scored joint 0.877 and looked like a regression; it was the epoch count, not the
+> four extra training tasks. At 8 epochs the multi-task model is strictly better than the
+> two-question one it replaced (0.914 → 0.926 joint). `results/eval_v5.json` and `eval_v6.json` hold
+> both.
 
 Read that carefully, because the tempting version of that sentence is wrong. Across four runs on
 identical inputs, `deepseek-flash` scored joint **0.914, 0.889, 0.901 and 0.926** — it leads us in
-some runs and trails in others. Our 0.914 has not moved once, because the cascade is deterministic:
+some runs and trails in others. Our 0.926 has not moved once, because the cascade is deterministic:
 measured at **1.00 agreement across three repeats** for every arm of ours, against 0.98–0.99 for the
 LLMs.
 
@@ -349,17 +349,22 @@ The evaluation above is the *before*. Laya's base checkpoints are weak zero-shot
 documentation says so, and 0.654 destination accuracy is what that looks like. Fine-tuning on the
 synthetic set (RLCD, official trainer, 2×T4, ~15 min for 8 epochs) is the *after*:
 
-| metric | base cascade | **fine-tuned** | gpt-5.4-nano | deepseek-flash |
+| metric | base cascade | **fine-tuned (v6)** | gpt-5.4-nano | deepseek-flash |
 | --- | --- | --- | --- | --- |
-| destination accuracy | 0.654 | **0.951** | 0.963 | 0.988 |
-| sub-queue accuracy | 0.518 | **0.914** | 0.876 | 0.926 |
-| joint accuracy | 0.518 | **0.914** | 0.876 | 0.926 |
-| call-level queue accuracy | 0.852 | **0.963** | 0.963 | 0.963 |
-| p50 latency | 21.4 ms | **21.8 ms** | 631 ms | 1455 ms |
-| cost per case | **$0** | **$0** | $0.0025 | $0.0114 |
+| destination accuracy | 0.654 | **0.963** | 0.951 | 0.988 |
+| sub-queue accuracy | 0.518 | **0.926** | 0.876 | 0.926 |
+| joint accuracy | 0.518 | **0.926** | 0.876 | 0.926 |
+| call-level queue accuracy | 0.778 | 0.852\* | 0.963 | 0.963 |
+| p50 latency | 22.3 ms | **22.9 ms** | 747 ms | 1432 ms |
+| cost per case | **$0** | **$0** | $0.0025 | $0.0113 |
 | determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
 
-**+39.6 points of joint accuracy, at the same ~21 ms, for $0, deterministically** — and level with
+\* This is the safety policy's doing, not the model's — see above. The same checkpoint scores 0.963
+under the policy that was live before the safety rewording. **The unsafe flag overwrites the queue**,
+so three callers booking body work, a windscreen and a recall appointment were dispatched to
+Roadside / Towing. Fixing that is the single largest win available.
+
+**+40.8 points of joint accuracy, at ~23 ms, for $0, deterministically** — and level with
 both LLM arms rather than 20 points behind them.
 
 Four changes produced that, and the order matters:
@@ -470,6 +475,48 @@ errors are confident ones. Dispatch and escalation now share a single threshold 
 `unsafe_to_drive` flag, the priority, the handler and the transfer decision — those used to read
 three different numbers, so a caller could be dispatched as unsafe while the audit trail said they
 were not.
+
+### The hidden cost: an unsafe flag overwrites the routing
+
+`is_safe_to_drive` does not merely set a flag. It **replaces the call's final queue**:
+
+```python
+# dealership.py
+if roadside in flags or unsafe >= unsafe_threshold():
+    queue = PROFILE.policy.get("roadside_queue", "Roadside / Towing")
+```
+
+So a false "unsafe" does not add one line to a report — it **discards a correct routing decision**.
+The rewording traded, on measured numbers:
+
+| | stranded callers caught | false dispatches | call-level queue |
+| --- | --- | --- | --- |
+| old wording, threshold 0.3 | 15 of 18 | **0** | **0.963** |
+| new wording, threshold 0.7 | **18 of 18** | 3 | 0.852 |
+
+Every call-level failure is that one line, and none of the callers involved — "rear-ended me
+yesterday, I need body work", "a stone cracked my windscreen", "I got a recall notice" — was
+stranded:
+
+```
+call-collision     expected Body Shop      got Roadside / Towing
+call-glass         expected Body Shop      got Roadside / Towing
+call-recall        expected Warranty Desk  got Roadside / Towing
+```
+
+That is **11 points of the metric we quote, paid for three false alarms**, and it was not measured
+at the time. The trade is defensible — a truck sent to someone who was fine is a smaller harm than
+someone left at the roadside — but **the routing cost is a bug, not a price**: "where does this call
+belong" and "does a truck roll" are two different questions, and collapsing them into one `queue`
+string is what turns a safety false-positive into a misrouted call.
+
+Note also the direction of travel: the threshold went **up** (0.3 → 0.7) and the false alarms went
+**up** too (0 → 3), because the rewording lifted the whole distribution. The threshold is not a
+control we actually have.
+
+**Confirmed by re-measuring the same checkpoint under the new policy.** `models/kaggle-out-v4`
+scores 0.963 call-level under the old policy and **0.852** under the current one — identical to v6,
+which is how we know the new training tasks cost nothing here.
 
 ## Scheduling: the call ends in an appointment
 
@@ -595,15 +642,16 @@ reported was memorisation — it was scoring its own training file. The held-out
 scoring it honestly needs a retrain. Until then the confidence floor is what keeps a wrong answer
 safe rather than correct.
 
-**The multi-task retrain cost routing accuracy** — joint 0.914 → 0.877, call-level 0.963 → 0.889.
-That run trained all four yes/no and booking questions *and* ran 4 epochs instead of 8, so the two
-changes are confounded; the 8-epoch run is in flight. `results/eval_v5.json` is the raw report.
-
 **The other open items, in the order I would do them:**
 
+- **Stop the safety flag overwriting the routing** (see above). This is the largest measured win on
+  the table: `dealership.py` replaces the call's queue with `Roadside / Towing` whenever the unsafe
+  question fires, which costs 3 of 27 calls. Dispatch should be a parallel action, not a replacement
+  for where the call goes.
 - **The severity questions over-fire.** `needs_human` recall is genuinely better (0.571 → 0.857 on
-  held-out data), but precision is 0.207, and the probabilities are saturated so no threshold helps.
-  The 40% positive training rate is the prime suspect — a real switchboard is nowhere near it.
+  held-out data), but precision is 0.240, and the probabilities are saturated so no threshold helps.
+  The 40% positive training rate is the prime suspect — a real switchboard is nowhere near it, and
+  capping at 40% was my call, not a measurement.
 - **A second human labeller.** One case (`det-04`) is missed by every model; `gen-08` is answered
   against our label by all three. Where every model disagrees with the key, the key is the likeliest
   thing to be wrong. This is the ceiling on the destination number and no model work moves it.
