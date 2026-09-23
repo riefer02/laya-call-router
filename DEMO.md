@@ -51,12 +51,17 @@ hours, classifies which one was accepted, and files it with the caller's name.
 turn 3  "maybe Thursday"             -> asks again   (Thursday is not offered)
 turn 4  "this is Dana, 555-0140"     -> asks again   (no time mentioned at all)
 turn 5  "Tuesday at 8 works for me"  -> asks again   (Tuesday is not offered)
-turn 6  "the 8am one please"         -> books        (8am was offered)
+turn 6  "the first one please"       -> books        (whatever the first slot is)
 ```
 
 That sequence is worth showing deliberately: it is the system refusing three times to act on
 something it cannot verify, and then booking. Turns 4 and 5 are the two failure modes it used to
 have — inventing an agreement from no time, and from the wrong day.
+
+**The closing turn says "the first one" rather than a time on purpose.** It used to say "the 8am
+one", which only booked while 8am was still free — after one booking the offer moved to 9am and the
+reply was correctly vetoed, so the call completed with no appointment and nothing looked wrong.
+Run it as many times as you like now.
 
 ## Numbers to quote
 
