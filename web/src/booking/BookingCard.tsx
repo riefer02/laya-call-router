@@ -1,4 +1,5 @@
 import { useRun } from "../store/run";
+import { choiceLabel } from "../copy";
 
 /** "2026-09-22" + "08:00" -> "Tuesday 22 September, 8am". Spoken form, because it was spoken. */
 function spoken(day: string, time: string): string {
@@ -17,10 +18,6 @@ function spoken(day: string, time: string): string {
   } catch {
     return `${day} ${clock}`;
   }
-}
-
-function pretty(key: string | null | undefined): string {
-  return (key ?? "").replace(/_/g, " ");
 }
 
 export default function BookingCard() {
@@ -44,11 +41,11 @@ export default function BookingCard() {
       <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[12px]">
         <span className="text-slate-100">
           <span className="text-slate-400">what </span>
-          {pretty(booking.subqueue ?? booking.destination)}
+          {choiceLabel(booking.subqueue ?? booking.destination)}
         </span>
         <span className="text-slate-100">
           <span className="text-slate-400">where </span>
-          {pretty(booking.location)}
+          {choiceLabel(booking.location)}
         </span>
         <span className="font-semibold text-emerald-200">
           {spoken(booking.slot_day, booking.slot_time)}
@@ -65,11 +62,11 @@ export default function BookingCard() {
         {booking.vehicle && (
           <span className="text-slate-400">
             <span className="text-slate-500">vehicle </span>
-            {pretty(booking.vehicle)}
+            {choiceLabel(booking.vehicle)}
           </span>
         )}
         <span className="ml-auto text-slate-500">
-          queued to <span className="text-amber-300">{booking.queue}</span>
+          team <span className="text-amber-300">{booking.queue}</span>
         </span>
       </div>
     </div>

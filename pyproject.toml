@@ -1,7 +1,7 @@
 [project]
 name = "jev-classifier"
 version = "0.1.0"
-description = "Local, staged support-triage cascade built on Laya-MLX typed decision models"
+description = "Inspectable dealership call routing with a fine-tuned typed-decision model"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [

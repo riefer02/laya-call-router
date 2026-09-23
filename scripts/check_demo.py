@@ -14,7 +14,33 @@ from pathlib import Path
 from jev_classifier.agent import get_router, resolve_checkpoint
 from jev_classifier.call import CallSession
 from jev_classifier.scenarios import SCENARIOS
-from jev_classifier.schedule import Scheduler
+from jev_classifier.schedule import Scheduler, Slot
+
+
+def spoken_path(events: list[dict], expected_actions: list[str] | None = None) -> tuple[bool, str]:
+    """Check what the audience hears as well as where the call ends."""
+    results = [event for event in events if event.get("type") == "node_result"]
+    callers = [event for event in results if event["id"].endswith(".caller")]
+    replies = [event for event in results if event["id"].endswith(".agent")]
+    actions = [event["value"] for event in results if event["id"].endswith(".next_action")]
+    if len(replies) != len(callers):
+        return False, f"{len(callers)} caller turns but {len(replies)} spoken replies"
+    if any(not isinstance(event.get("value"), str) or not event["value"].strip() for event in replies):
+        return False, "an empty spoken reply"
+    if expected_actions is not None and actions != expected_actions:
+        return False, f"actions {actions}, expected {expected_actions}"
+    if any("Let me take a look at that for you" in event["value"] for event in replies):
+        return False, "a generic filler reply returned"
+    end = events[-1]
+    booking = end.get("booking")
+    if booking and replies:
+        closing = replies[-1]["value"]
+        slot = Slot(booking["slot_day"], booking["slot_time"]).spoken()
+        if slot not in closing:
+            return False, "the spoken confirmation does not match the filed appointment"
+        if booking["caller_name"] and booking["caller_name"] not in closing:
+            return False, "the spoken confirmation omits the booked caller's name"
+    return True, ""
 
 
 def main() -> int:
@@ -49,7 +75,8 @@ def main() -> int:
             future_booking = not booking or datetime.fromisoformat(
                 f"{booking['slot_day']}T{booking['slot_time']}"
             ) > datetime.now()
-            match = actual == expect and future_booking
+            speech_ok, speech_note = spoken_path(events, scenario.get("expect_actions"))
+            match = actual == expect and future_booking and speech_ok
             is_known = bool(scenario.get("known_issue"))
             label = "PASS" if match else "KNOWN FAIL" if is_known else "FAIL"
             print(f"{label:10} {scenario['id']:24} {actual['queue']} / {actual['completion']}")
@@ -57,6 +84,8 @@ def main() -> int:
                 print(f"           expected {expect}")
                 if not future_booking:
                     print("           booked slot is already in the past")
+                if not speech_ok:
+                    print(f"           dialogue: {speech_note}")
                 known += int(is_known)
                 failures += int(not is_known or args.strict)
             else:

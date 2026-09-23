@@ -1,0 +1,19 @@
+{
+  "snapshot": "kaggle-out-v7",
+  "files": {
+    "synthetic.jsonl": {
+      "sha256": "d84dfe2ccd09f1dce0304bec5651f216ecb0f93cb4b81ddb7ffc116e26ba6e7f",
+      "rows": 1255
+    },
+    "severity_train.jsonl": {
+      "sha256": "c8093584f0d28318409d8f0d6cf9137f1f6d8d8f2137422b5024bf51f1ce2209",
+      "rows": 1786
+    },
+    "acceptance_train.jsonl": {
+      "sha256": "e2aeb041cbcaa2f5bc971ef4757343d0a4085832b0fdb41129b340e40b2006a5",
+      "rows": 281
+    }
+  },
+  "leaks": [],
+  "held_out_clean": true
+}

@@ -49,3 +49,7 @@ export async function fetchRun(runId: string): Promise<RunPayload> {
 export async function fetchEvidence(): Promise<Evidence> {
   return json<Evidence>(await fetch("/api/results"));
 }
+
+export async function fetchHealth(): Promise<{ model: "base" | "fine-tuned"; checkpoint: string | null }> {
+  return json(await fetch("/api/health"));
+}

@@ -124,3 +124,14 @@ def test_the_evidence_tab_reads_the_served_checkpoints_reports():
         assert abs(reported["joint"] - on_disk["joint_accuracy"]) < 1e-9, (
             "the Evidence tab and the served checkpoint's report disagree"
         )
+
+
+def test_reference_report_is_not_presented_as_the_loaded_model(monkeypatch):
+    """The stock base model must not inherit the bundled fine-tune's report."""
+    from jev_classifier import api
+
+    monkeypatch.setattr(api, "_results_tag", lambda: "")
+    payload = api.results()
+    assert payload["sources"]["checkpoint"] == "base"
+    assert payload["sources"]["matches_served_model"] is False
+    assert payload["sources"]["routing"] == "eval_v7.json"

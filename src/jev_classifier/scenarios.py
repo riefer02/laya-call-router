@@ -45,6 +45,7 @@ SCENARIOS: List[Dict] = [
         "label": "Buying a car",
         "blurb": "Sales floor → appointment",
         "expect": {"queue": "Sales Floor", "completion": "booked", "subqueue": "new_vehicle"},
+        "expect_actions": ["ask_location", "ask_time", "offer_slots", "booked"],
         "turns": [
             "Hi, I'm looking for an electric car.",
             "Westside is easiest for me.",
@@ -57,6 +58,7 @@ SCENARIOS: List[Dict] = [
         "label": "Unavailable appointment time",
         "blurb": "Sales floor → reject unoffered time → book",
         "expect": {"queue": "Sales Floor", "completion": "booked", "subqueue": "new_vehicle"},
+        "expect_actions": ["ask_location", "ask_time", "offer_slots", "ask_which_slot", "booked"],
         "turns": [
             "I'd like to look at an electric car.",
             "Westside showroom, please.",
@@ -92,6 +94,7 @@ SCENARIOS: List[Dict] = [
         "label": "Wrong number",
         "blurb": "Wrong number → polite close",
         "expect": {"queue": "Front Desk", "completion": "closed"},
+        "expect_actions": ["close_wrong_number"],
         "turns": [
             "Sorry, I have the wrong number. I meant to call the dentist.",
         ],
@@ -108,6 +111,7 @@ SCENARIOS: List[Dict] = [
         "label": "Opening hours",
         "blurb": "Front Desk → answer from store schedule",
         "expect": {"queue": "Front Desk", "completion": "answered"},
+        "expect_actions": ["answer_hours"],
         "turns": ["What time do you close today?"],
     },
     {

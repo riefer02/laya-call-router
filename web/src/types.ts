@@ -188,11 +188,18 @@ export interface SeverityRow {
 }
 
 export interface Evidence {
+  sources: {
+    routing: string;
+    severity: string;
+    checkpoint: string;
+    matches_served_model: boolean;
+  };
   taxonomy: TaxonomyNode[];
   n_cases: number;
   arms: ArmScore[];
   calls: Array<{
     label: string;
+    n: number | null;
     queue: number | null;
     questions: number | null;
     latency_p50: number | null;

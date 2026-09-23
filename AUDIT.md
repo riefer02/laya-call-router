@@ -1,5 +1,10 @@
 # Audit brief
 
+**Historical brief.** This records questions posed before the v7 and v14 audits. Some claims and
+counts below are superseded. Use [README.md](README.md) for the current demo,
+[results/README.md](results/README.md) for measured reports, and [NEXT.md](NEXT.md) for current
+work.
+
 A second agent is auditing this project's approach and conclusions. This file exists so the audit is
 adversarial and specific rather than a re-read. It is a briefing, not a status report — `NEXT.md` is
 the plan and `LEARNINGS.md` is the narrative.

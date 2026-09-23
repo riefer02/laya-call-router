@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRun } from "../store/run";
 import type { AppliedNode } from "../store/run";
 import { runTurns } from "../api";
@@ -8,6 +8,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
   const select = useRun((s) => s.select);
   const selected = useRun((s) => s.selected);
   const load = useRun((s) => s.load);
+  const scenarioLabel = useRun((s) => s.scenarioLabel);
 
   // Live mode: the turns you type are kept here and the whole list is re-sent on each submit, so the
   // call is recomputed from the top and the graph stays consistent with the scripted path. Nothing
@@ -15,6 +16,12 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
   const [draft, setDraft] = useState("");
   const [typed, setTyped] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+
+  // A newly loaded scenario or replay is a different call. Keep the typed caller's hidden
+  // turn list from leaking into the next call they try.
+  useEffect(() => {
+    if (scenarioLabel !== "Typed call") setTyped([]);
+  }, [scenarioLabel]);
 
   async function send() {
     const text = draft.trim();
@@ -125,8 +132,8 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
           </div>
         ))}
       </div>
-      {/* Live input. Press Enter and the switchboard answers; keep typing and it continues the call,
-          because each submit replays the whole turn list. */}
+      {/* Each submit replays the typed turns from the start. This is text input for the demo,
+          not a voice connection or a persistent server session. */}
       <div className="border-t border-slate-800 p-2">
         <div className="flex items-center gap-1.5">
           <input
@@ -138,7 +145,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
             onKeyDown={(e) => {
               if (e.key === "Enter") void send();
             }}
-            placeholder={busy ? "routing…" : "type a caller turn, press Enter"}
+            placeholder={busy ? "Checking this turn…" : "Type what the caller says, then press Enter"}
             className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-[11px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-violet-500/60"
           />
           <button
@@ -153,7 +160,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
         </div>
         <div className="mt-1 flex items-center justify-between px-0.5">
           <span className="font-mono text-[9px] text-slate-600">
-            {typed.length ? `${typed.length} typed turn${typed.length === 1 ? "" : "s"}` : "live — no model generates text"}
+            {typed.length ? `${typed.length} turn${typed.length === 1 ? "" : "s"} entered · full call reruns each time` : "Try your own caller lines here · text only"}
           </span>
           {typed.length > 0 && (
             <button

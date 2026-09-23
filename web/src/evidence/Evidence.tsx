@@ -53,97 +53,69 @@ export default function Evidence() {
     fetchEvidence().then(setData).catch((e) => setError(String(e)));
   }, []);
 
-  // The headline verdict is derived from the numbers on screen, not written by hand. It used to be a
-  // fixed sentence claiming the fine-tune "matches both LLM arms", which was true of the v4 run it
-  // was written for and false of the v7 numbers the tab now shows — a caption contradicting its own
-  // table. Now it cannot drift: change the report and the sentence changes with it.
+  // Keep the summary tied to the report being shown. This is a description of the sample,
+  // not a claim that a small difference establishes a model ranking.
   const headline = useMemo(() => {
     const arms = data?.arms ?? [];
     const ours = arms.find((a) => a.key === "cascade-ft");
-    const theirs = arms.filter((a) => a.key !== "cascade-ft" && a.key !== "laya");
-    const best = theirs.length ? Math.max(...theirs.map((a) => a.joint)) : null;
-    const fastest = ours?.latency_p50 ?? null;
-    const theirSlowest = theirs.length ? Math.max(...theirs.map((a) => a.latency_p50)) : null;
-    const speed = fastest && theirSlowest ? Math.round(theirSlowest / fastest) : null;
-
-    const speedPhrase = speed ? ` at roughly ${speed}x the speed` : "";
-    if (ours == null || best == null) {
-      return `Read against two frontier arms${speedPhrase}, for nothing per call.`;
-    }
-    const gap = (ours.joint - best) * 100;
-    const verdict =
-      Math.abs(gap) < 1.5
-        ? "is level with the best LLM arm"
-        : gap > 0
-          ? `leads the best LLM arm by ${gap.toFixed(1)} points`
-          : `trails the best LLM arm by ${Math.abs(gap).toFixed(1)} points`;
-    return (
-      `On the decision the fine-tuned cascade ${verdict}${speedPhrase} and for nothing per call — ` +
-      "and unlike the LLM arms its number does not move. Across four runs on identical inputs " +
-      "deepseek-flash scored joint 0.914, 0.889, 0.901 and 0.926; ours has not moved once. On this " +
-      "sample one case is 1.23 points and the intervals overlap, so a small gap either way is noise."
+    const hosted = arms.filter((a) => a.key !== "cascade-ft" && a.key !== "laya" && a.joint != null);
+    const best = hosted.reduce<(typeof hosted)[number] | null>(
+      (winner, arm) => !winner || (arm.joint ?? 0) > (winner.joint ?? 0) ? arm : winner, null
     );
+    if (!ours?.joint || !best?.joint || !data?.n_cases) return "Compare the models on the same labelled calls below.";
+    const localCorrect = Math.round(ours.joint * data.n_cases);
+    const hostedCorrect = Math.round(best.joint * data.n_cases);
+    const speed = ours.latency_p50 && best.latency_p50
+      ? ` The local routing pass took ${ms(ours.latency_p50)}; ${best.label} took ${ms(best.latency_p50)} per case.`
+      : "";
+    return `The fine-tuned model got ${localCorrect}/${data.n_cases} complete routing decisions right; ${best.label} got ${hostedCorrect}/${data.n_cases}.${speed} This small set cannot reliably rank scores this close.`;
   }, [data]);
 
-  // A gap is only a finding if it is bigger than the interval. On 81 cases the Wilson interval is
-  // about +/-6 points, so a one-case difference - which is what most of these arms differ by - is
-  // not resolvable. The table used to render that as a ranking with a verdict sentence attached.
-  const ours = data?.arms.find((a) => a.key === "cascade-ft");
-  const withinNoise = (a: { key: string; joint: number | null }) => {
-    if (!ours?.joint || a.key === ours.key || a.joint == null) return false;
-    const n = data?.n_cases ?? 0;
-    if (!n) return false;
-    // 95% half-width of the difference of two proportions, same n on both sides.
-    const se = Math.sqrt(2 * 0.25 / n) * 1.96;
-    return Math.abs(ours.joint - a.joint) < se;
-  };
-
   if (error) {
-    return <div className="p-6 text-[12px] text-rose-400">could not load evidence: {error}</div>;
+    return <div className="p-6 text-[12px] text-rose-400">Could not load the results: {error}</div>;
   }
   if (!data) {
-    return <div className="p-6 text-[12px] text-slate-500">loading measurements…</div>;
+    return <div className="p-6 text-[12px] text-slate-500">Loading results…</div>;
   }
 
   const arms = data.arms;
-  const best = (pick: (a: (typeof arms)[number]) => number | null) => {
-    const vals = arms.map(pick).filter((v): v is number => v !== null);
-    return vals.length ? Math.max(...vals) : 0;
-  };
 
   return (
     <div className="h-full overflow-y-auto bg-slate-950 px-6 py-5 text-slate-200">
       <div className="mx-auto max-w-5xl">
         <header className="mb-6">
           <h1 className="text-[15px] font-semibold text-slate-100">
-            The measurements behind the design
+            What the tests found
           </h1>
           <p className="mt-1 max-w-3xl text-[11.5px] leading-relaxed text-slate-500">
-            Read live from <code className="text-slate-400">results/*.json</code> — the same files
-            the README quotes, so any number here can be traced to a report. Intervals are Wilson
-            95%: on {data.n_cases} cases one case is{" "}
-            {(100 / data.n_cases).toFixed(2)} points, so two arms whose intervals overlap are not
-            distinguishable.
+            These figures come from the versioned reports in <code className="text-slate-400">results/</code>.
+            The routing test has {data.n_cases} labelled cases. One case changes the score by{" "}
+            {(100 / data.n_cases).toFixed(2)} percentage points, so read small gaps with care.
+          </p>
+          <p className={`mt-2 max-w-3xl text-[11px] ${data.sources.matches_served_model ? "text-slate-500" : "text-amber-300"}`}>
+            {data.sources.matches_served_model
+              ? `Report for the loaded checkpoint: ${data.sources.routing} and ${data.sources.severity}.`
+              : `Reference reports: ${data.sources.routing} and ${data.sources.severity}. The loaded model is ${data.sources.checkpoint}; these results may not match calls you run here.`}
           </p>
         </header>
 
         {/* ------------------------------------------------------------ headline */}
         <Section
-          title={`Decision level — ${data.n_cases} hand-labelled routing cases`}
+          title={`Routing decisions — ${data.n_cases} labelled cases`}
           hint={headline}
         >
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-[12px]">
               <thead>
                 <tr className="border-b border-slate-800 text-left text-[10px] uppercase tracking-wider text-slate-500">
-                  <th className="py-1.5 pr-4 font-medium">arm</th>
+                  <th className="py-1.5 pr-4 font-medium">model</th>
                   <th className="py-1.5 pr-4 font-medium">destination</th>
-                  <th className="py-1.5 pr-4 font-medium">joint</th>
+                  <th className="py-1.5 pr-4 font-medium" title="Both destination and specific queue are correct">both right</th>
                   <th className="py-1.5 pr-4 font-medium">cases</th>
                   <th className="py-1.5 pr-4 font-medium">queue</th>
-                  <th className="py-1.5 pr-4 font-medium">p50</th>
+                  <th className="py-1.5 pr-4 font-medium" title="Median time for one routing case">median time</th>
                   <th className="py-1.5 pr-4 font-medium">cost/case</th>
-                  <th className="py-1.5 font-medium">determinism</th>
+                  <th className="py-1.5 font-medium" title="Agreement across three identical runs">repeatability</th>
                 </tr>
               </thead>
               <tbody>
@@ -171,14 +143,6 @@ export default function Evidence() {
                         className={`py-1.5 pr-4 font-mono ${isOurs ? "text-emerald-300" : ""}`}
                       >
                         {pct(a.joint)}
-                        {!isOurs && withinNoise(a) && (
-                          <span
-                            className="ml-1 text-[10px] text-slate-500"
-                            title="this gap is smaller than the interval on 81 cases - not resolvable"
-                          >
-                            ≈
-                          </span>
-                        )}
                       </td>
                       <td className="py-1.5 pr-4 font-mono text-slate-500">
                         {a.joint != null && data.n_cases
@@ -202,17 +166,17 @@ export default function Evidence() {
             </table>
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
-            Destination accuracy is agreement with the taxonomy labels; queue accuracy is where the
-            call actually went. They differ because two labels can route to the same place —{" "}
-            <code className="text-slate-400">front_desk</code> and{" "}
-            <code className="text-slate-400">non_customer</code> both go to Front Desk.
+            “Destination” means the right department. “Both right” also requires the right type
+            of request within that department. “Queue” is the team selected for the call. Two labels
+            can lead to the same team: a store question and a non-customer call both go to Front
+            Desk.
           </p>
         </Section>
 
         {/* ------------------------------------------------------------ calls */}
         <Section
-          title={`Call level — ${data.calls[0]?.questions != null ? "27" : "—"} scripted calls, final queue`}
-          hint="End-to-end, covering all 26 specific sub-queues. The base model scored 1.000 on the original 10-call set and 0.852 on 27 — the small set was too easy to measure anything."
+          title={`Whole calls — ${data.calls[0]?.n ?? "—"} scripted examples`}
+          hint="Each score checks the final team across a full scripted call. These calls cover all 26 specific request types. The earlier 10-call set was too small to expose several failures."
         >
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {data.calls.map((c) => (
@@ -229,8 +193,8 @@ export default function Evidence() {
 
         {/* ------------------------------------------------------------ calibration */}
         <Section
-          title="Confidence calibration — is confidence worth anything?"
-          hint="The escalation gate is only as good as this. The fine-tuned model is confident because it is accurate, not because it is overconfident — which is why no threshold rescues it: its errors are not hiding in a low-confidence tail."
+          title="When is the model confident?"
+          hint="A useful confidence score would separate correct answers from wrong ones. This model gives high confidence to several wrong routes, so confidence alone does not catch them."
         >
           <div className="grid gap-4 sm:grid-cols-2">
             {arms
@@ -241,7 +205,7 @@ export default function Evidence() {
                   {Object.entries(a.calibration).map(([band, row]) => (
                     <div key={band} className="mb-1.5">
                       <div className="flex items-baseline justify-between text-[10.5px]">
-                        <span className="font-mono text-slate-400">conf {band}</span>
+                        <span className="font-mono text-slate-400">confidence {band}</span>
                         <span className="text-slate-500">
                           n={row.n} · accuracy{" "}
                           <span className="font-mono text-slate-300">{row.accuracy.toFixed(3)}</span>
@@ -258,16 +222,16 @@ export default function Evidence() {
         {/* ------------------------------------------------------------ severity */}
         {data.severity.length > 0 && (
           <Section
-            title="Is it safe? The questions that drive dispatch"
-            hint="A missed stranded caller leaves someone at the side of a road; a false alarm sends a truck to someone who was fine. The errors are not symmetric, so recall leads — and the sweep is how we picked the dispatch threshold."
+            title="Safety and human handoff"
+            hint="A missed stranded caller may need help; a false alarm routes a safe call to Roadside in this prototype. No truck is sent. Recall is the share of real positives caught; precision is the share of flags that were right."
           >
             {data.severity.map((row) => (
               <div key={row.arm} className="mb-4">
                 <div className="mb-1.5 text-[11px] font-medium text-slate-300">{row.arm}</div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {[
-                    { key: "is_safe_to_drive", label: "is_safe_to_drive", score: row.safe },
-                    { key: "needs_human", label: "needs_human", score: row.human },
+                    { key: "is_safe_to_drive", label: "Unsafe to drive", score: row.safe },
+                    { key: "needs_human", label: "Needs a person", score: row.human },
                   ].map(({ key, label, score }) =>
                     score ? (
                       <div key={key} className="rounded border border-slate-800 bg-slate-900/30 p-2.5">
@@ -317,7 +281,7 @@ export default function Evidence() {
                             >
                               <td className="py-0.5 pr-4 font-mono">
                                 {s.threshold.toFixed(1)}
-                                {shipped && <span className="ml-2 text-[9px]">← shipped</span>}
+                                {shipped && <span className="ml-2 text-[9px]">← used in demo</span>}
                               </td>
                               <td className="py-0.5 pr-4 font-mono">{pct(s.recall)}</td>
                               <td className="py-0.5 pr-4 font-mono">{pct(s.precision)}</td>
@@ -337,8 +301,8 @@ export default function Evidence() {
 
         {/* ------------------------------------------------------------ taxonomy */}
         <Section
-          title="The taxonomy, as data"
-          hint="Structure follows how dealerships actually publish themselves: Fixed Operations (service, parts, body shop) and Variable Operations (sales, F&I). Tires and detailing are service sub-queues, not departments; roadside is a dispatch flag, not a place. This whole table is config/store_profile.json."
+          title="Teams and request types"
+          hint="Each card is a department. The tags show the requests it handles. A store can edit this structure in config/store_profile.json, then test its own examples before using it."
         >
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {data.taxonomy.map((d) => (
@@ -359,7 +323,7 @@ export default function Evidence() {
                           : "border-slate-700 bg-slate-800/60 text-slate-300"
                       }`}
                     >
-                      {s.key}
+                      {s.label}
                     </span>
                   ))}
                 </div>
@@ -371,11 +335,11 @@ export default function Evidence() {
         {/* ------------------------------------------------------------ dataset */}
         <Section
           title="Training data"
-          hint="Every specific sub-queue has exactly 50 examples. Balanced per sub-queue turned out to be the wrong axis for the destination question — front_desk has only two sub-queues, so it was starved and was the worst class until a per-destination floor was added."
+          hint="Examples were checked for valid labels, duplicates and overlap with the test set. We also set a minimum number of examples for each department so smaller departments were represented."
         >
           <div className="mb-3 flex flex-wrap gap-4 text-[11px] text-slate-400">
             <span>
-              rows <span className="font-mono text-slate-200">{data.dataset.kept ?? "—"}</span>
+              examples kept <span className="font-mono text-slate-200">{data.dataset.kept ?? "—"}</span>
             </span>
             <span>
               teacher cost{" "}
@@ -403,8 +367,8 @@ export default function Evidence() {
         {/* ------------------------------------------------------------ generality */}
         {data.generality.verdict && (
           <Section
-            title="Does it still work on questions it was never trained on?"
-            hint="Laya's defining property is that the option space is defined at request time, which is what makes a per-store taxonomy viable. This checks what fine-tuning on 32 fixed sub-queues cost."
+            title="Can it handle new answer choices?"
+            hint="The answer choices are supplied with each question. This check asks whether fine-tuning for this store hurt the model's ability to answer different questions."
           >
             <p className="mb-2 text-[11.5px] text-emerald-300">{data.generality.verdict}</p>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -424,7 +388,7 @@ export default function Evidence() {
         )}
 
         <p className="pb-8 text-[10.5px] text-slate-600">
-          Generated by <code>scripts/eval.py</code>, <code>scripts/eval_severity.py</code>,{" "}
+          Reproduce these reports with <code>scripts/eval.py</code>, <code>scripts/eval_severity.py</code>,{" "}
           <code>scripts/generate_training.py</code> and <code>scripts/generality_test.py</code>. The
           full narrative is in <code>LEARNINGS.md</code>.
         </p>

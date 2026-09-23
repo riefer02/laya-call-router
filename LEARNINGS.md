@@ -1,7 +1,7 @@
 # What we learned building this
 
-Notes from taking a small local decision model and trying to make it as good as a frontier LLM at
-routing car-dealership phone calls — at a fraction of the cost.
+Notes from fine-tuning a small typed-decision model for car-dealership calls, measuring it against
+two hosted models, and turning its decisions into an inspectable conversation.
 
 Written for a person, not a changelog. The numbers are all in `results/`.
 
@@ -9,14 +9,15 @@ Written for a person, not a changelog. The numbers are all in `results/`.
 
 ## The short version — active v7 checkpoint
 
-We set out to make a small local typed-decision model competitive with `deepseek-flash` on dealership
+We set out to make a small typed-decision model competitive with `deepseek-flash` on dealership
 call routing. The active v7 fine-tune scores **71/81 joint routing cases**. `gpt-5.4-nano` scored
 72/81 and `deepseek-flash` 73/81 in that run. That is close on this small set, but it does not
 establish a tie or a win. The local routing pass took about **21 ms**, versus 651 ms and 1,451 ms
 for the API arms, with no per-call API fee. See `results/eval_v7.json`.
 
-The demo now checks its own endings: **11 of 12 scenarios** complete as stated, including four real
-bookings, two roadside dispatches and five handoffs. The twelfth is a deliberately visible failure:
+The demo now checks its own endings: **12 of 13 scenarios** complete as stated, including five real
+bookings, two roadside cases, three transfers, an hours answer, and a wrong-number close. The
+thirteenth is a deliberately visible failure:
 an off-topic caller is sent to Roadside / Towing after the first sentence, before the caller can
 clarify. On the separate 27-call evaluation v7 routes 25 correctly, missing that call and one vague
 service call. The former demo had quietly presented both as normal endings.
@@ -35,9 +36,9 @@ and the snapshot manifest are the ones to cite. We also found that evaluation sc
 load the active fine-tune into an arm labelled `base`; they now construct the stock router explicitly.
 
 The work is shareable as a study of typed decisions, evaluation leaks, model calibration and call
-flow design. The remaining false dispatch and handoff rates are part of the result, not details to
-hide. The sections below follow the experiments in the order we learned from them; older checkpoint
-numbers are historical unless they name v7.
+flow design. The bundled v7 checkpoint lets readers run the example; the reports make its measured
+strengths and remaining misses inspectable. The sections below follow the experiments in the order
+we learned from them; older checkpoint numbers are historical unless they name v7.
 
 ---
 

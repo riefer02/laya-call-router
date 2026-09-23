@@ -88,7 +88,16 @@ def _warm() -> None:
 # ----------------------------------------------------------------------------- scenarios
 @app.get("/api/health")
 def health() -> Dict[str, Any]:
-    return {"ok": True, "version": __version__, "runs_dir": str(runs_store.RUNS_DIR)}
+    from .agent import resolve_checkpoint
+
+    checkpoint = resolve_checkpoint()
+    return {
+        "ok": True,
+        "version": __version__,
+        "runs_dir": str(runs_store.RUNS_DIR),
+        "model": "fine-tuned" if checkpoint else "base",
+        "checkpoint": str(checkpoint.resolve()) if checkpoint else None,
+    }
 
 
 @app.get("/api/scenarios")
@@ -191,10 +200,11 @@ def results() -> Dict[str, Any]:
     ]
 
     tag = _results_tag()
-    # Prefer the served checkpoint's own report; fall back to the oldest kept one only so the tab is
-    # never empty, and record which file was used so the number stays traceable.
-    eval_name = (f"eval_{tag}.json" if tag else "") or ""
-    evaluation = (_read_json(eval_name) if eval_name else None) or _read_json("eval_v4.json") or {}
+    # A custom checkpoint may have no matching report, so name the reference report actually
+    # shown and flag when its numbers do not belong to the served model.
+    eval_candidates = ([f"eval_{tag}.json"] if tag else []) + ["eval_v7.json", "eval_v4.json"]
+    eval_name = next((name for name in eval_candidates if _read_json(name) is not None), "")
+    evaluation = _read_json(eval_name) or {}
     routing = evaluation.get("routing") or {}
     arms = []
     for key, score in routing.items():
@@ -236,6 +246,7 @@ def results() -> Dict[str, Any]:
         calls.append(
             {
                 "label": ARM_LABELS.get(key, key),
+                "n": score.get("n"),
                 "queue": score.get("queue_accuracy"),
                 "questions": score.get("questions"),
                 "latency_p50": (score.get("latency_ms") or {}).get("p50"),
@@ -243,8 +254,9 @@ def results() -> Dict[str, Any]:
             }
         )
 
-    sev_name = (f"severity_{tag}.json" if tag else "") or ""
-    severity = (_read_json(sev_name) if sev_name else None) or _read_json("severity.json") or {}
+    sev_candidates = ([f"severity_{tag}.json"] if tag else []) + ["severity_v7.json", "severity.json"]
+    sev_name = next((name for name in sev_candidates if _read_json(name) is not None), "")
+    severity = _read_json(sev_name) or {}
     sev_rows = []
     for arm, blob in (severity.get("arms") or {}).items():
         at = blob.get("at_default") or {}
@@ -271,9 +283,10 @@ def results() -> Dict[str, Any]:
         # Which reports these numbers came from, so the UI can say - a measurement in the UI that
         # cannot be traced to a file is one nobody can check.
         "sources": {
-            "routing": eval_name or "eval_v4.json",
-            "severity": sev_name or "severity.json",
+            "routing": eval_name,
+            "severity": sev_name,
             "checkpoint": tag or "base",
+            "matches_served_model": bool(tag and eval_name == f"eval_{tag}.json"),
         },
         "taxonomy": taxonomy,
         "n_cases": n_cases,

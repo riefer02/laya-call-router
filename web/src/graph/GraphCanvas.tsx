@@ -29,9 +29,9 @@ function Legend() {
   const items = [
     ["#3b82f6", "caller"],
     ["#8b5cf6", "model decision"],
-    ["#64748b", "rule / regex"],
+    ["#64748b", "rule or text match"],
     ["#10b981", "switchboard"],
-    ["#f59e0b", "route out"],
+    ["#f59e0b", "call outcome"],
   ];
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-1.5 backdrop-blur">

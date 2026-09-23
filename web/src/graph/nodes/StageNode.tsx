@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { AppliedNode } from "../../store/run";
+import { binaryLabel, choiceLabel, endingLabel, handlerLabel, policyValue } from "../../copy";
 import { confColor, styleFor, STATUS_ACCENT } from "../../theme";
 
 function Bar({ p, accent }: { p: number; accent: string }) {
@@ -74,9 +75,9 @@ export default function StageNode({ data, selected }: NodeProps) {
             <div className="text-[10.5px] text-slate-500">already known</div>
             <div className="mt-0.5 text-[10.5px] font-medium text-slate-400">
               {summary.primitive === "choice"
-                ? String(summary.choice)
+                ? choiceLabel(summary.choice)
                 : summary.primitive === "noul"
-                  ? `P(true) ${(summary.noul ?? 0).toFixed(2)}`
+                  ? `${binaryLabel(node.key)}: ${Math.round((summary.noul ?? 0) * 100)}%`
                   : "—"}
             </div>
             <div className="mt-1 font-mono text-[8.5px] text-slate-600">
@@ -90,13 +91,13 @@ export default function StageNode({ data, selected }: NodeProps) {
         ) : isTerminal ? (
           <div>
             <div className="text-[12px] font-semibold text-amber-300 truncate">
-              {String(result?.value ?? "…")}
+              {endingLabel(result?.completion)}
             </div>
             {result?.routing && (
               <div className="mt-1 flex gap-2 text-[9px] text-slate-400">
-                <span>{result.routing.priority}</span>
+                <span>{result.routing.queue}</span>
                 <span>·</span>
-                <span>{result.routing.handler}</span>
+                <span>{handlerLabel(result.routing.handler)}</span>
               </div>
             )}
           </div>
@@ -104,7 +105,7 @@ export default function StageNode({ data, selected }: NodeProps) {
           <div>
             <div className="flex items-baseline gap-1.5">
               <span className="truncate text-[11.5px] font-semibold text-slate-100">
-                {summary.choice}
+                {choiceLabel(summary.choice)}
               </span>
               <span
                 className="ml-auto shrink-0 font-mono text-[9px]"
@@ -117,7 +118,7 @@ export default function StageNode({ data, selected }: NodeProps) {
               {ranked.map(([label, p]) => (
                 <div key={label} className="flex items-center gap-1.5">
                   <span className="w-[86px] shrink-0 truncate text-[8.5px] text-slate-400">
-                    {label}
+                    {choiceLabel(label)}
                   </span>
                   <Bar p={p} accent={label === summary.choice ? "#8b5cf6" : "#475569"} />
                   <span className="w-6 shrink-0 text-right font-mono text-[8.5px] text-slate-500">
@@ -131,7 +132,7 @@ export default function StageNode({ data, selected }: NodeProps) {
           <div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-[11.5px] font-semibold text-slate-100">
-                P(true) {(summary.noul ?? 0).toFixed(2)}
+                {binaryLabel(node.key)}: {Math.round((summary.noul ?? 0) * 100)}%
               </span>
               <span
                 className="ml-auto shrink-0 font-mono text-[9px]"
@@ -146,18 +147,20 @@ export default function StageNode({ data, selected }: NodeProps) {
           </div>
         ) : (
           <div className="text-[11px] text-slate-200 line-clamp-2">
-            {typeof result?.value === "string"
-              ? result.value
-              : JSON.stringify(result?.value ?? "…")}
+            {node.kind === "policy"
+              ? policyValue(result?.value)
+              : typeof result?.value === "string"
+                ? result.value
+                : JSON.stringify(result?.value ?? "…")}
           </div>
         )}
 
         {(isVerified || isUncertain) && verification && (
           <div className="mt-1 flex items-center gap-1 font-mono text-[8.5px]">
             <span className={isVerified ? "text-emerald-400" : "text-rose-400"}>
-              {isVerified ? "✓ 2nd phrasing agrees" : "⚠ 2nd phrasing differs"}
+              {isVerified ? "✓ second check agrees" : "⚠ second check differs"}
             </span>
-            <span className="truncate text-slate-500">({verification.paraphrase.choice})</span>
+            <span className="truncate text-slate-500">({choiceLabel(verification.paraphrase.choice)})</span>
           </div>
         )}
 

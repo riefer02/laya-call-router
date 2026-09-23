@@ -5,6 +5,10 @@ measurement that is not versioned cannot be audited, and gets quietly overwritte
 That already happened once — the old-taxonomy dataset report was lost this way, which is why these
 are now committed.
 
+**Start with v7:** `eval_v7.json`, `severity_v7.json`, and `acceptance_v7.json` describe the
+checkpoint bundled under `models/active`. The v6 and v14 files below are useful comparisons from
+earlier experiments; their praise and rankings describe those runs, not the active demo.
+
 **Ground truth is `data/calls/*.jsonl`** and the taxonomy is `config/store_profile.json`. Every
 report here was produced by `scripts/eval.py`, `scripts/validate_teacher.py`,
 `scripts/generality_test.py` or `scripts/generate_training.py`, and every one names the checkpoint
@@ -25,7 +29,7 @@ it used.
 | `severity_trained.json` | the yes/no questions after they were finally **trained** (v5). `needs_human` recall **0.571 → 0.857** on genuinely held-out cases, but precision collapses (0.207) and the probabilities are saturated, so the threshold sweep is flat. |
 | `severity_calibrated.json` | the **temperature experiment**. `temperature_by_options` is inherited from the base checkpoint and overrides the trainer's fitted vector — a real bug. Removing it moves a noul probability from 1.000 to **0.996**, so it is *not* the cause of the saturation. Recorded because it killed a hypothesis I had already half-written up. |
 | `eval_v5.json` | four-arm eval, the multi-task 4-epoch fine-tune. destination 0.938, **joint 0.877**, call-level 0.889 — down from v4's 0.914 / 0.963. Superseded by v6: **the regression was the epoch count, not the new tasks.** |
-| `eval_v6.json` | four-arm eval, **the best checkpoint** (8 epochs, all five tasks). destination 0.963, joint **0.926**, queue **0.975** — ties `deepseek-flash` on joint and beats it on queue. Call level 0.852, which is *not* a regression from training; see below. |
+| `eval_v6.json` | Historical four-arm eval (8 epochs, all five tasks). destination 0.963, joint **0.926**, queue **0.975**. This run predates the clean v7 snapshot and its call level was 0.852; see below. |
 | `eval_v4_currentpolicy.json` | the same v4 checkpoint re-measured under the **current** safety policy. Call level **0.852**, identical to v6 — which is what proves the call-level drop was the safety rewording, not the new training tasks. `eval_v4.json` predates that policy change and its 0.963 is not comparable. |
 | `severity_v6.json` | the safety questions on the 8-epoch checkpoint. Recall unchanged from v5 (`is_safe_to_drive` 1.000, `needs_human` 0.857) and precision still below untrained (0.692 vs 0.857). The fitted noul temperature is **1.0** here against v5's 3.683 — the 4-epoch head was the pathological one. |
 | `eval_v7.json` | four-arm eval, **the first checkpoint with clean provenance** (v13: register-corrected data, the calibration fix, the held-out acceptance split). destination 0.914, **joint 0.876** — worse than v6. But the **call level is 0.926 against v6's 0.852**, because the dispatch hijacks halved (4 → 2). `results/severity_v7.json` and `acceptance_v7.json` come from the same run. |

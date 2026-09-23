@@ -65,7 +65,7 @@ export default function Controls() {
         setScenarios(s);
         if (s.length) setScenarioId(s[0].id);
       })
-      .catch(() => setError("backend not reachable — start uvicorn on :8765"));
+      .catch(() => setError("Cannot reach the demo server. Start the backend on port 8765."));
     fetchRuns().then(setRuns).catch(() => {});
   }, []);
 
@@ -81,7 +81,7 @@ export default function Controls() {
       const actual = payload.summary as { routing?: { queue?: string }; completion?: string };
       if (expected && (actual.routing?.queue !== expected.queue || actual.completion !== expected.completion)) {
         setOutcomeNotice(
-          `Scenario miss: expected ${expected.queue} (${expected.completion}); got ${actual.routing?.queue ?? "no queue"} (${actual.completion ?? "unknown"}).`
+          `This call ended differently than expected: ${actual.routing?.queue ?? "no team"} (${actual.completion ?? "unknown"}). Expected ${expected.queue} (${expected.completion}).`
         );
       }
       fetchRuns().then(setRuns).catch(() => {});
@@ -136,7 +136,7 @@ export default function Controls() {
         ⏭ Step
       </Btn>
       <Btn onClick={applyAll} disabled={total === 0 || done} title="reveal everything">
-        ⏩ Skip
+        ⏩ Show all
       </Btn>
       <Btn onClick={reset} disabled={total === 0}>
         ↺ Reset
@@ -162,7 +162,7 @@ export default function Controls() {
         onClick={() => fitView({ padding: 0.12, minZoom: 0.22, maxZoom: 1, duration: 400 })}
         title="frame the whole call (F)"
       >
-        ⤢ Fit
+        ⤢ Full call
       </Btn>
       <label className="flex items-center gap-1.5 text-[10px] text-slate-400" title="camera follows the active decision">
         <input
@@ -179,14 +179,14 @@ export default function Controls() {
 
       <div className="ml-auto flex items-center gap-2">
         <span className="font-mono text-[10px] text-slate-500">
-          {applied}/{total || 0} events
+          {applied}/{total || 0} steps
         </span>
         <select
           onChange={(e) => e.target.value && replay(e.target.value)}
           value=""
           className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-300 outline-none"
         >
-          <option value="">↺ replay recording…</option>
+          <option value="">↺ Replay a call…</option>
           {/* Most recent first, capped. Every eval run is recorded too, so this list grows into the
               hundreds and becomes unusable in a demo - and the useful ones are always the newest. */}
           {[...runs]
