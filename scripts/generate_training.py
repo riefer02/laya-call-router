@@ -116,6 +116,17 @@ def main() -> int:
     ap.add_argument("--model", default="")
     ap.add_argument("--concurrency", type=int, default=5)
     ap.add_argument("--min-per-subqueue", type=int, default=25)
+    ap.add_argument(
+        "--min-per-destination",
+        type=int,
+        default=150,
+        help=(
+            "floor on rows per destination, independent of how many sub-queues it has. The "
+            "destination question is a 7-way decision and needs per-class coverage; balancing "
+            "only per sub-queue starves destinations that have few of them (front_desk has 2, "
+            "so it got a third of service's volume and was the worst class on the test set)."
+        ),
+    )
     ap.add_argument("--resume", action="store_true", default=True,
                     help="reuse validated rows already on disk and top up only the shortfalls")
     ap.add_argument("--no-resume", dest="resume", action="store_false")
@@ -159,8 +170,21 @@ def main() -> int:
         if unknown:
             raise SystemExit(f"unknown --only targets: {sorted(unknown)}")
         pairs = [p for p in pairs if p in wanted]
-    short = [(d, i) for d, i in pairs if len(seeded[(d, i)]) < args.per_subqueue]
-    print(f"generating: {len(short)}/{len(pairs)} pairs below target x {args.per_subqueue} "
+    # How many rows each sub-queue should reach. Normally `--per-subqueue`, but a destination with
+    # few sub-queues is raised so the destination as a whole reaches `--min-per-destination` —
+    # the destination question is what gets starved otherwise.
+    n_specific = {
+        d.key: max(1, len([s for s in D.PROFILE.subqueue_keys(d.key) if s != "other"]))
+        for d in D.PROFILE.destinations
+    }
+
+    def target_for(dest: str) -> int:
+        per_dest = -(-args.min_per_destination // n_specific.get(dest, 1))  # ceil
+        return max(args.per_subqueue, per_dest)
+
+    short = [(d, i) for d, i in pairs if len(seeded[(d, i)]) < target_for(d)]
+    print(f"generating: {len(short)}/{len(pairs)} pairs below target "
+          f"({args.per_subqueue}/sub-queue, {args.min_per_destination}/destination) "
           f"({provider}:{model})")
     print(f"held out from training: {len(protected)} hand-labelled cases "
           f"(near-duplicate guard at Jaccard >= 0.6)\n")
@@ -168,7 +192,9 @@ def main() -> int:
     results: List[Dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         futures = {
-            pool.submit(make_pair, d, i, args.per_subqueue, provider, model, args.rounds, seeded[(d, i)]): (d, i)
+            pool.submit(
+                make_pair, d, i, target_for(d), provider, model, args.rounds, seeded[(d, i)]
+            ): (d, i)
             for d, i in short
         }
         done = 0
@@ -214,9 +240,14 @@ def main() -> int:
         if n < args.min_per_subqueue:
             problems.append(f"sub-queue {dest}/{sub} has {n} < {args.min_per_subqueue}")
     for dest, n in by_dept.items():
-        required = max(1, len(specific[dest])) * args.min_per_subqueue
+        n_spec = max(1, len(specific[dest]))
+        required = max(n_spec * args.min_per_subqueue, args.min_per_destination)
         if n < required:
-            problems.append(f"destination {dest} has {n} < {required} (={len(specific[dest])} specific sub-queues x {args.min_per_subqueue})")
+            problems.append(
+                f"destination {dest} has {n} < {required} "
+                f"(max({n_spec} specific sub-queues x {args.min_per_subqueue}, "
+                f"floor {args.min_per_destination}))"
+            )
     for dest, subs in specific.items():
         for sub in subs:
             if (dest, sub) not in by_intent:
