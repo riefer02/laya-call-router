@@ -70,6 +70,8 @@ class StoreProfile:
     locations: Tuple[Dict[str, str], ...] = ()
     policy: Dict[str, Any] = field(default_factory=dict)
     questions: Dict[str, str] = field(default_factory=dict)
+    facts: Dict[str, Any] = field(default_factory=dict)
+    schedule: Dict[str, Any] = field(default_factory=dict)
 
     def question_text(self, key: str, **fmt: Any) -> str:
         """The instruction for a question, from one place.
@@ -187,6 +189,8 @@ def _load(path_str: str) -> StoreProfile:
         locations=tuple(raw.get("locations", ())),
         policy=raw.get("policy", {}),
         questions=dict(raw.get("questions", {})),
+        facts=dict(raw.get("facts", {})),
+        schedule=dict(raw.get("schedule", {})),
     )
     profile.validate()
     return profile

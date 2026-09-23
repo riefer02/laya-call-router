@@ -154,15 +154,28 @@ def main() -> None:
     base = report["suites"].get("base", {}).get("banking77", {}).get("accuracy")
     ft = report["suites"].get("fine-tuned", {}).get("banking77", {}).get("accuracy")
     if base is not None and ft is not None:
-        drop = base - ft
+        change = ft - base  # signed: positive means fine-tuning gained
+        drop = base - ft  # unsigned amount lost, which is what the verdict thresholds mean
         if drop <= 0.03:
             verdict = "GENERALITY HELD — fine-tuning did not cost meaningful option-space flexibility."
         elif drop <= 0.12:
             verdict = "PARTIAL LOSS — fine-tuning cost some generality; per-store config is still plausible but check it."
         else:
             verdict = "GENERALITY LOST — the fine-tune no longer handles new option spaces; per-store config means per-store retraining."
-        print(f"\n{verdict}\n  Banking77 base {base:.3f} -> fine-tuned {ft:.3f}  (delta {drop:+.3f})")
-        report["verdict"] = {"basis": "banking77", "base": base, "finetuned": ft, "delta": round(drop, 4), "text": verdict}
+        # Report the signed change. Printing the drop as "delta" reads as a gain when generality
+        # was lost, which is the one direction this must never be wrong about.
+        print(
+            f"\n{verdict}\n  Banking77 base {base:.3f} -> fine-tuned {ft:.3f}  "
+            f"(change {change:+.3f}, {drop:+.3f} lost)"
+        )
+        report["verdict"] = {
+            "basis": "banking77",
+            "base": base,
+            "finetuned": ft,
+            "change": round(change, 4),
+            "drop": round(drop, 4),
+            "text": verdict,
+        }
 
     out = ROOT / args.out
     out.parent.mkdir(parents=True, exist_ok=True)

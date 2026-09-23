@@ -330,5 +330,61 @@
     "roadside_queue": "Roadside / Towing",
     "unsafe_threshold": 0.5,
     "needs_human_threshold": 0.5
+  },
+  "_facts_note": [
+    "What the switchboard can ANSWER rather than route. Measured: hours and directions is one of",
+    "the top repeatable Fixed Ops call types, so answering it is real call volume, not a nicety.",
+    "A store edits these; the agent reads them instead of transferring a factual question."
+  ],
+  "facts": {
+    "name": "Riverside Motors",
+    "address": "1400 Riverside Drive",
+    "phone": "555-0140",
+    "hours": "Monday to Friday 8am to 6pm, Saturday 8am to 4pm, closed Sunday",
+    "loaner_policy": "A loaner car is available on request for any service taking longer than a day",
+    "directions": "From the highway take exit 12 and follow Riverside Drive for half a mile"
+  },
+  "_schedule_note": [
+    "`minutes` is how long the BOOKED SLOT occupies, not how long the repair takes. A collision",
+    "repair takes days but the appointment is a drop-off and assessment, so its slot is an hour.",
+    "That distinction is what makes a slot offer fit inside a working day; a 1440-minute 'slot'",
+    "could never be offered at all.",
+    "`bays` is how many jobs of that type can run at once.",
+    "Sub-queues absent from `services` fall back to `default`; `no_appointment` marks work that is",
+    "dispatched rather than booked."
+  ],
+  "schedule": {
+    "opening_hours": {
+      "weekday": ["08:00", "18:00"],
+      "saturday": ["08:00", "16:00"],
+      "sunday": null
+    },
+    "slot_interval_min": 30,
+    "default": { "minutes": 60, "bays": 2 },
+    "no_appointment": [
+      "roadside_assistance",
+      "general_question",
+      "feedback",
+      "vendor",
+      "jobseeker",
+      "wrong_number"
+    ],
+    "services": {
+      "express_maintenance": { "minutes": 45, "bays": 3 },
+      "tires": { "minutes": 60, "bays": 2 },
+      "detailing": { "minutes": 120, "bays": 2 },
+      "mechanical_diagnostic": { "minutes": 240, "bays": 6 },
+      "warranty_recall": { "minutes": 180, "bays": 4 },
+      "collision": { "minutes": 60, "bays": 4, "note": "drop-off and assessment; the repair takes days" },
+      "dent_scratch": { "minutes": 60, "bays": 2, "note": "drop-off and assessment" },
+      "glass": { "minutes": 240, "bays": 2 },
+      "paint": { "minutes": 60, "bays": 2, "note": "drop-off and assessment" },
+      "trade_in": { "minutes": 45, "bays": 2 },
+      "new_vehicle": { "minutes": 60, "bays": 3 },
+      "used_vehicle": { "minutes": 60, "bays": 3 },
+      "order_part": { "minutes": 15, "bays": 4 },
+      "availability": { "minutes": 15, "bays": 4 },
+      "accessory": { "minutes": 15, "bays": 4 }
+    }
   }
 }
