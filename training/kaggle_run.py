@@ -62,6 +62,14 @@ def username() -> str:
     return name
 
 
+def _shipped_files():
+    """The dataset manifest, read from its one source so the two cannot drift apart."""
+    sys.path.insert(0, str(ROOT / "training"))
+    import make_kaggle_dataset
+
+    return make_kaggle_dataset.FILES
+
+
 def submit_dataset(owner: str) -> None:
     print("packaging dataset ...")
     subprocess.run(
@@ -90,21 +98,31 @@ def submit_dataset(owner: str) -> None:
 
     # Verify the bytes actually landed, rather than trusting the exit code. Kaggle processes a new
     # version asynchronously, so poll briefly before declaring a mismatch.
-    local = (folder / "synthetic.jsonl").stat().st_size
-    remote = "?"
-    for attempt in range(10):
+    #
+    # **Every** shipped file, not just the first. This checked only `synthetic.jsonl`, so a round
+    # where the changed files were `severity_train.jsonl` and `acceptance_train.jsonl` would have
+    # reported OK while the kernel trained on the previous copy of the data that mattered - the same
+    # "the check is pointed at the wrong thing" failure as the held-out guard.
+    def remote_size(name: str) -> str:
         listing = kaggle("datasets", "files", ref, check=False)
-        remote_line = next(
-            (l for l in (listing.stdout or "").splitlines() if "synthetic.jsonl" in l), ""
-        )
-        remote = remote_line.split()[1] if len(remote_line.split()) > 1 else "?"
-        if str(local) == remote:
+        line = next((l for l in (listing.stdout or "").splitlines() if name in l), "")
+        return line.split()[1] if len(line.split()) > 1 else "?"
+
+    names = [dst for _, dst in _shipped_files()]
+    sizes = {name: (folder / name).stat().st_size for name in names}
+    remote = {name: "?" for name in names}
+    for _ in range(10):
+        remote = {name: remote_size(name) for name in names}
+        if all(str(sizes[n]) == remote[n] for n in names):
             break
         time.sleep(15)
-    flag = "OK" if str(local) == remote else "MISMATCH"
-    print(f"  synthetic.jsonl local={local} remote={remote}  [{flag}]")
-    if flag == "MISMATCH":
-        print("  !! the dataset did not update; the kernel would train on stale data")
+
+    mismatched = [n for n in names if str(sizes[n]) != remote[n]]
+    for name in names:
+        flag = "OK" if name not in mismatched else "MISMATCH"
+        print(f"  {name:26s} local={sizes[name]} remote={remote[name]}  [{flag}]")
+    if mismatched:
+        print(f"  !! {', '.join(mismatched)} did not update; the kernel would train on stale data")
 
 
 def submit_kernel(owner: str) -> None:
