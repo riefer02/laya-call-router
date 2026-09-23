@@ -139,7 +139,16 @@ def main() -> None:
         noul_rows = [json.loads(line) for line in open(sev_src) if line.strip()]
         print(f"loaded {len(noul_rows)} severity-labelled utterances from {sev_src}")
     else:
-        print(f"no severity data at {sev_src} - training choice questions only")
+        # A missing file used to print a note and carry on, which is how a run trained 2,512 items
+        # instead of 6,210 and reported nothing wrong. The dataset ships these files, so their
+        # absence means the notebook did not copy them. That is a failure, not a smaller job.
+        if not os.environ.get("JEV_ALLOW_CHOICE_ONLY"):
+            raise SystemExit(
+                f"no severity data at {sev_src}, but the dataset ships it. The notebook probably "
+                "did not copy it - which is how a run silently trained choice questions only. "
+                "Set JEV_ALLOW_CHOICE_ONLY=1 to train choice questions deliberately."
+            )
+        print(f"no severity data at {sev_src} - training choice questions only (explicitly allowed)")
 
     for row in noul_rows:
         for key, spec in noul_spec.items():
@@ -172,7 +181,12 @@ def main() -> None:
                 it["task"] = "acceptance"
                 items.append(it)
     else:
-        print(f"no acceptance data at {acc_src} - the booking flow stays untrained")
+        if not os.environ.get("JEV_ALLOW_CHOICE_ONLY"):
+            raise SystemExit(
+                f"no acceptance data at {acc_src}, but the dataset ships it. The notebook probably "
+                "did not copy it. Set JEV_ALLOW_CHOICE_ONLY=1 to skip it deliberately."
+            )
+        print(f"no acceptance data at {acc_src} - the booking flow stays untrained (explicitly allowed)")
 
     for row in rows:
         destination, subqueue, text = row["destination"], row.get("subqueue"), row["text"]

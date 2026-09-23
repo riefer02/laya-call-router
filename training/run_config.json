@@ -1,0 +1,14 @@
+{
+  "_comment": [
+    "The fine-tune recipe, committed rather than passed in the environment.",
+    "It lived in JEV_EPOCHS for one run, and regenerating the notebook without that variable set",
+    "silently reset the run to 4 epochs - the same one-fact-in-two-places failure this project keeps",
+    "meeting. A committed file cannot be forgotten at the shell.",
+    "train_ddp.py still reads the environment; the notebook exports these values, so this file is the",
+    "single source.",
+    "8 epochs matched the v4 run, so the epoch count is not a confound when comparing them."
+  ],
+  "epochs": 8,
+  "lr_encoder": 2.5e-5,
+  "lr_head": 1.0e-4
+}

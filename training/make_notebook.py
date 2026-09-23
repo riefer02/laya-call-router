@@ -15,10 +15,14 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent / "notebooks" / "laya_finetune_dealership_kaggle.ipynb"
 
-# The epoch count is the one knob we ablate. 4 is the vendored recipe's default; the training
-# loss was still halving per epoch at 4 (0.686 -> 0.515 -> 0.174 -> 0.081), so the ablation asks
-# whether the model simply stopped early. Override with JEV_EPOCHS when generating the notebook.
-EPOCHS = os.environ.get("JEV_EPOCHS", "4")
+# The recipe comes from a committed file, never from the environment. It was `JEV_EPOCHS` for one
+# run, and regenerating the notebook without that variable exported silently reset the run to the
+# 4-epoch default - a whole GPU run that was 4 epochs short with nothing to show for it. An env var
+# that must be remembered at the shell is a fact stored in two places.
+RUN_CONFIG = json.loads((HERE / "run_config.json").read_text())
+EPOCHS = int(RUN_CONFIG["epochs"])
+LR_ENCODER = float(RUN_CONFIG["lr_encoder"])
+LR_HEAD = float(RUN_CONFIG["lr_head"])
 
 MD_HEADER = """# Fine-tuning Laya for dealership call routing
 
@@ -178,10 +182,15 @@ from huggingface_hub import snapshot_download
 snapshot_download("convaiinnovations/laya", local_dir=MODEL_DIR)
 print("base checkpoint at", MODEL_DIR)
 
-# Epochs is the one ablated knob (train_ddp.py reads JEV_EPOCHS). 4 is the vendored default.
+# The recipe, from training/run_config.json. train_ddp.py reads the environment, so this cell is
+# what carries it across; there is no second copy to forget.
 EPOCHS = {EPOCHS}
+LR_ENCODER = {LR_ENCODER}
+LR_HEAD = {LR_HEAD}
 os.environ["JEV_EPOCHS"] = str(EPOCHS)
-print(f"training for {{EPOCHS}} epochs")
+os.environ["JEV_LR_ENCODER"] = str(LR_ENCODER)
+os.environ["JEV_LR_HEAD"] = str(LR_HEAD)
+print(f"training for {{EPOCHS}} epochs at lr {{LR_ENCODER}}/{{LR_HEAD}}")
 
 OUTPUT_DIR = "/kaggle/working/laya-dealership-routing"
 cmd = (f"torchrun --standalone --nproc_per_node={{NPROC}} /kaggle/working/train_ddp.py "

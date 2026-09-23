@@ -123,6 +123,20 @@ def _wanted(source: str) -> set:
     return set(re.findall(r'"([^"]+)"', m.group(1))) if m else set()
 
 
+def test_the_notebook_recipe_matches_the_committed_config():
+    """The epoch count lived in `JEV_EPOCHS` for one run, and regenerating the notebook without it
+    set silently reset the run to 4 epochs - a whole GPU run four epochs short, with nothing to
+    show for it. It now comes from `training/run_config.json`, and this is the guard.
+    """
+    recipe = json.loads((ROOT / "training" / "run_config.json").read_text())
+    notebook = json.loads((ROOT / "notebooks" / "laya_finetune_dealership_kaggle.ipynb").read_text())
+    src = "\n".join("".join(c.get("source", [])) for c in notebook["cells"])
+    assert f"EPOCHS = {recipe['epochs']}" in src, (
+        "the notebook's epoch count disagrees with training/run_config.json - "
+        "regenerate with: uv run python training/make_notebook.py"
+    )
+
+
 def test_the_notebook_copies_every_file_the_dataset_ships():
     """The notebook is a generated artefact, and changing its generator without regenerating it
     cost a GPU run.
