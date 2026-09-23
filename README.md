@@ -14,6 +14,9 @@ that is the point of the technology, and the reason the economics work.
 
 ![the debugger](docs/overview.png)
 
+> **Presenting this?** `DEMO.md` is the one-page version: how a call flows, what to show,
+> the numbers with their caveats, and what not to claim.
+
 ## Run it
 
 Backend (Apple Silicon, Python 3.12 — `uv` fetches it):
