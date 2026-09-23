@@ -85,6 +85,19 @@ export default function Evidence() {
     );
   }, [data]);
 
+  // A gap is only a finding if it is bigger than the interval. On 81 cases the Wilson interval is
+  // about +/-6 points, so a one-case difference - which is what most of these arms differ by - is
+  // not resolvable. The table used to render that as a ranking with a verdict sentence attached.
+  const ours = data?.arms.find((a) => a.key === "cascade-ft");
+  const withinNoise = (a: { key: string; joint: number | null }) => {
+    if (!ours?.joint || a.key === ours.key || a.joint == null) return false;
+    const n = data?.n_cases ?? 0;
+    if (!n) return false;
+    // 95% half-width of the difference of two proportions, same n on both sides.
+    const se = Math.sqrt(2 * 0.25 / n) * 1.96;
+    return Math.abs(ours.joint - a.joint) < se;
+  };
+
   if (error) {
     return <div className="p-6 text-[12px] text-rose-400">could not load evidence: {error}</div>;
   }
@@ -126,6 +139,7 @@ export default function Evidence() {
                   <th className="py-1.5 pr-4 font-medium">arm</th>
                   <th className="py-1.5 pr-4 font-medium">destination</th>
                   <th className="py-1.5 pr-4 font-medium">joint</th>
+                  <th className="py-1.5 pr-4 font-medium">cases</th>
                   <th className="py-1.5 pr-4 font-medium">queue</th>
                   <th className="py-1.5 pr-4 font-medium">p50</th>
                   <th className="py-1.5 pr-4 font-medium">cost/case</th>
@@ -157,6 +171,19 @@ export default function Evidence() {
                         className={`py-1.5 pr-4 font-mono ${isOurs ? "text-emerald-300" : ""}`}
                       >
                         {pct(a.joint)}
+                        {!isOurs && withinNoise(a) && (
+                          <span
+                            className="ml-1 text-[10px] text-slate-500"
+                            title="this gap is smaller than the interval on 81 cases - not resolvable"
+                          >
+                            ≈
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1.5 pr-4 font-mono text-slate-500">
+                        {a.joint != null && data.n_cases
+                          ? `${Math.round(a.joint * data.n_cases)}/${data.n_cases}`
+                          : "—"}
                       </td>
                       <td
                         className={`py-1.5 pr-4 font-mono ${isOurs ? "text-emerald-300" : ""}`}
