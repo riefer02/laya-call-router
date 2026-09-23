@@ -226,50 +226,72 @@ def main() -> int:
 
 
 def rebalance(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Cap each question's positive rate, and merge to one row per utterance.
+    """Merge to one row per utterance, then cap each question's positive rate.
 
     Split out so it can be re-run without touching the API: `--rebalance-only`. Getting the rate
     wrong is a judgement call, and a judgement call should be cheap to revisit.
+
+    **The cap has to come after the merge.** Capping each question's source rows independently and
+    then merging undoes it: a row kept for one question carries the other question's label too, so
+    the union drifts back towards whichever class was over-generated. Measured - `needs_human` was
+    capped to 40% and came out at 57% once merged.
     """
 
-    def usable(r, key):
+    def labelled(row, key) -> bool:
         # Presence of the key IS the agreement. The pipeline tracks a `{key}_agreed` flag while
-        # labelling, but it is dropped when rows are merged to one-per-utterance — so checking for
+        # labelling, but it is dropped when rows are merged to one-per-utterance - so checking for
         # it here matched nothing and emptied this file once. The data was recoverable only by
         # paying for it again; the guard below exists so that cannot happen twice.
-        return key in r and r[key] is not None
-
-    rng = random.Random(3)
-    out: List[Dict[str, Any]] = []
-    for key in KEYS:
-        pos = [r for r in rows if usable(r, key) and r[key] is True]
-        neg = [r for r in rows if usable(r, key) and r[key] is False]
-        rng.shuffle(pos)
-        rng.shuffle(neg)
-        keep_pos = pos[: max(len(neg), 1) * 2 // 3]
-        keep_neg = neg[: max(len(keep_pos) * 2, 200)]
-        out.extend(keep_pos)
-        out.extend(keep_neg)
-        rate = len(keep_pos) / max(1, len(keep_pos) + len(keep_neg))
-        print(
-            f"{key}: {len(keep_pos)} true / {len(keep_neg)} false kept "
-            f"({rate:.0%} positive, from {len(pos)}/{len(neg)} available)"
-        )
+        return key in row and row[key] is not None
 
     merged: Dict[str, Dict[str, Any]] = {}
-    for r in out:
-        m = merged.setdefault(r["text"], {"text": r["text"], "src": r.get("src", "")})
+    for row in rows:
+        if not any(labelled(row, k) for k in KEYS):
+            continue
+        m = merged.setdefault(row["text"], {"text": row["text"], "src": row.get("src", "")})
         for key in KEYS:
-            if usable(r, key):
-                m[key] = r[key]
-    final = [m for m in merged.values() if any(k in m for k in KEYS)]
+            if labelled(row, key):
+                m[key] = row[key]
+    final = list(merged.values())
 
-    if not final:
+    rng = random.Random(3)
+    keep = set(range(len(final)))
+    for key in KEYS:
+        idx = [i for i in keep if key in final[i]]
+        pos = [i for i in idx if final[i][key] is True]
+        neg = [i for i in idx if final[i][key] is False]
+        # at most 2 positives per 3 negatives, i.e. a 40% ceiling
+        allowed = max(len(neg), 1) * 2 // 3
+        if len(pos) <= allowed:
+            rate = len(pos) / max(1, len(pos) + len(neg))
+            print(f"{key}: {len(pos)} true / {len(neg)} false kept ({rate:.0%} positive, no cap)")
+            continue
+        # Which rows to drop matters, because dropping a row removes it from BOTH questions.
+        # Measured: capping `needs_human` cost 354 of 759 `is_safe_to_drive` positives - it thinned
+        # the safety class by half as collateral. So rows that carry a positive label for another
+        # question are dropped last. The two questions are trained as separate items, so preferring
+        # to keep one does not distort the other's conditional distribution.
+        def other_positive(i: int) -> bool:
+            return any(final[i].get(k) is True for k in KEYS if k != key)
+
+        rng.shuffle(pos)
+        # sort DESCENDING by "carries another positive label", so the tail - the part that gets
+        # dropped - is the rows whose removal costs the other question nothing
+        pos.sort(key=other_positive, reverse=True)
+        keep -= set(pos[allowed:])
+        rate = allowed / max(1, allowed + len(neg))
+        print(
+            f"{key}: {allowed} true / {len(neg)} false kept "
+            f"({rate:.0%} positive, capped from {len(pos)})"
+        )
+
+    out = [final[i] for i in sorted(keep) if any(k in final[i] for k in KEYS)]
+    if not out:
         raise SystemExit(
             f"refusing to write an empty file from {len(rows)} input rows. "
             "Zero out of many is a bug, not a result."
         )
-    return final
+    return out
 
 
 def write_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
