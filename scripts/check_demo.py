@@ -44,6 +44,8 @@ def main() -> int:
                 "completion": end.get("completion"),
             }
             booking = end.get("booking")
+            if "subqueue" in expect:
+                actual["subqueue"] = (booking or {}).get("subqueue")
             future_booking = not booking or datetime.fromisoformat(
                 f"{booking['slot_day']}T{booking['slot_time']}"
             ) > datetime.now()
@@ -52,7 +54,7 @@ def main() -> int:
             label = "PASS" if match else "KNOWN FAIL" if is_known else "FAIL"
             print(f"{label:10} {scenario['id']:24} {actual['queue']} / {actual['completion']}")
             if not match:
-                print(f"           expected {expect['queue']} / {expect['completion']}")
+                print(f"           expected {expect}")
                 if not future_booking:
                     print("           booked slot is already in the past")
                 known += int(is_known)

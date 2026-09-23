@@ -14,14 +14,17 @@ Response text is templated — Laya never generates.
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import asdict
+from datetime import date
 from typing import Any, Dict, Iterator, List, Optional
 
 import laya_mlx as laya
 
 from . import dealership as D
 from .agent import get_router
+from .dialogue import render_response
 from .schedule import Scheduler, Slot, acceptance_question, resolve_acceptance
 
 # Fixed column per node key so the frontend can lay out deterministically.
@@ -47,7 +50,7 @@ COLUMNS: Dict[str, int] = {
 
 TITLES: Dict[str, str] = {
     "caller": "Caller",
-    "ack": "Switchboard (ack)",
+    "ack": "Input received",
     "changed": "Anything new?",
     "destination": "Destination",
     "vehicle": "Vehicle",
@@ -64,14 +67,6 @@ TITLES: Dict[str, str] = {
     "agent": "Switchboard",
     "terminal": "Route",
 }
-
-# Spoken the moment the caller stops talking, before any classification runs — the "speak sooner"
-# half of latency. It is a fixed phrase, not generated: Laya cannot write, and we do not want it to.
-ACK_PHRASES = [
-    "Let me take a look at that for you.",
-    "One moment while I pull that up.",
-    "Got it — let me check that.",
-]
 
 DEFAULT_THRESHOLD = 0.75
 
@@ -256,18 +251,15 @@ class CallSession:
         yield self._node(caller_id, turn, "caller", "utterance")
         yield self._result(caller_id, turn, value=utterance, note="caller speaks")
 
-        # Acknowledge before classifying. The voice channel needs *something* within a few hundred
-        # milliseconds; this fixed phrase is emitted before any forward pass so the caller is never
-        # met with silence while the cascade runs.
-        ack_text = ACK_PHRASES[(turn - 1) % len(ACK_PHRASES)]
+        # Keep the input event visible in the graph without pretending the switchboard spoke a
+        # filler phrase. At local inference latency a second spoken turn only interrupts the flow.
         ack_id = f"t{turn}.ack"
-        yield self._node(ack_id, turn, "ack", "utterance")
+        yield self._node(ack_id, turn, "ack", "policy")
         yield self._result(
             ack_id,
             turn,
-            value=ack_text,
-            note="acknowledgement — spoken before any classification",
-            extra={"template_id": "ack"},
+            value="Caller turn received",
+            note="input event, not spoken dialogue",
         )
         yield self._edge(caller_id, ack_id)
 
@@ -430,7 +422,10 @@ class CallSession:
                 ),
             )
             yield self._edge(prev_id, subqueue_id, kind="skip")
-        elif subqueue_settled and not changed_fired:
+        elif subqueue_settled and (not changed_fired or bool(self.offered)):
+            # A reply about offered appointment times is new information, but it does not
+            # redefine the service the caller asked for. Reclassifying the whole transcript
+            # here turned a new-vehicle visit into the sales "other" subqueue.
             yield self._node(subqueue_id, turn, "subqueue", "decision", primitive="choice")
             yield self._result(
                 subqueue_id,
@@ -481,7 +476,24 @@ class CallSession:
         location = self.answers.get("location", {}).get("choice") or ""
         subqueue = self.answers.get("subqueue", {}).get("choice")
         action = D.next_action_for(missing, destination, unsafe)
+        if (
+            action == "offer_transfer"
+            and destination == "front_desk"
+            and subqueue == "general_question"
+            and unsafe < D.unsafe_threshold()
+            and re.search(r"\b(?:open|close|closing|hours)\b", utterance, re.IGNORECASE)
+            and ("today" in utterance.lower() or self.scheduler.profile.facts.get("hours"))
+        ):
+            action = "answer_hours"
+        if (
+            action == "offer_transfer"
+            and destination == "non_customer"
+            and subqueue == "wrong_number"
+            and unsafe < D.unsafe_threshold()
+        ):
+            action = "close_wrong_number"
 
+        no_slots = False
         if action == "confirm_booking" and self.offered:
             question = acceptance_question(self.offered)
             accepted = self._run(question)
@@ -525,13 +537,16 @@ class CallSession:
                     subqueue=subqueue,
                     queue=D.decide(self.answers, [])["queue"],
                     slot=slot,
+                    vehicle=(self.answers.get("vehicle", {}).get("choice") or ""),
                     **{k: v for k, v in (self.contact or {}).items() if v},
                 )
                 action = "booked"
             elif verdict == "reject":
-                # they rejected every time we had; ask availability again rather than inventing one
+                # A rejected offer must not be read back verbatim as a new offer.
                 self.offered = []
-                action = "offer_slots"
+                self.facts.pop("time_preference", None)
+                self.asked.discard("time_preference")
+                action = "ask_alternative_time"
             else:
                 action = "ask_which_slot"
 
@@ -541,6 +556,7 @@ class CallSession:
                 location or "downtown", subqueue, preference=preference
             )
             self.offered = offered
+            no_slots = not offered
             action = "offer_slots" if offered else "offer_transfer"
 
         # ---- next action: deterministic policy ----------------------------------
@@ -568,7 +584,7 @@ class CallSession:
             self.asked.add("time_preference")
 
         # ---- switchboard responds ------------------------------------------------
-        text = self._response_text(action)
+        text = self._response_text(action, utterance=utterance, no_slots=no_slots)
         self.exchanges.append({"role": "agent", "text": text})
         agent_id = f"t{turn}.agent"
         yield self._node(agent_id, turn, "agent", "utterance")
@@ -593,8 +609,12 @@ class CallSession:
         )
 
         # ---- terminal ------------------------------------------------------------
-        if action in ("booked", "offer_transfer"):
-            yield from self._finish(turn, agent_id, missing)
+        if action in ("booked", "offer_transfer", "answer_hours", "close_wrong_number"):
+            yield from self._finish(
+                turn, agent_id, missing,
+                answered=action == "answer_hours",
+                closed=action == "close_wrong_number",
+            )
 
     # ------------------------------------------------------------------ settled facts
     def _pin(self, key: str, answer: Dict[str, Any], turn: int, summary: Dict[str, Any]) -> None:
@@ -610,6 +630,10 @@ class CallSession:
         if kind == "choice":
             concrete = answer.get("choice") not in D.UNRESOLVED_SENTINELS
         pinned = concrete and top is not None and float(top) >= self.pin_threshold
+        if key == "time_preference" and not any(
+            D.caller_stated_time(e["text"]) for e in self.exchanges if e["role"] == "caller"
+        ):
+            pinned = False
         self.facts[key] = {
             "type": kind,
             "value": answer.get("choice") if kind == "choice" else answer.get("noul"),
@@ -722,24 +746,36 @@ class CallSession:
         fact = self.facts.get(slot)
         if not fact:
             return True
+        if slot == "time_preference" and not any(
+            D.caller_stated_time(e["text"]) for e in self.exchanges if e["role"] == "caller"
+        ):
+            return True
         return not fact.get("pinned")
 
-    def _response_text(self, action: str) -> str:
-        template = D.RESPONSES.get(action, D.RESPONSES["ask_detail"])
-        destination = D.display_name(self.answers.get("destination", {}).get("choice") or "unknown")
-        location = D.display_name(self.answers.get("location", {}).get("choice") or "not_stated")
-        time_pref = D.display_name(
-            self.answers.get("time_preference", {}).get("choice") or "not_stated"
+    def _response_text(self, action: str, *, utterance: str = "", no_slots: bool = False) -> str:
+        destination = self.answers.get("destination", {}).get("choice") or ""
+        unsafe = float(self.answers.get("is_safe_to_drive", {}).get("noul", 0.0))
+        outcome = D.decide(self.answers, []) if action == "offer_transfer" else {}
+        return render_response(
+            action,
+            destination=destination,
+            vehicle=self.answers.get("vehicle", {}).get("choice") or "",
+            location=self.answers.get("location", {}).get("choice") or "",
+            queue=outcome.get("queue", ""),
+            offered=self.offered,
+            booking=self.booking,
+            contact=self.contact,
+            reply=utterance,
+            unsafe=unsafe >= D.unsafe_threshold(),
+            no_slots=no_slots,
+            hours=self.scheduler.opening_hours(date.today()) if action == "answer_hours" else None,
+            store_hours=self.scheduler.profile.facts.get("hours", ""),
         )
-        if action == "offer_slots":
-            times = ", ".join(s.spoken() for s in self.offered)
-            return template.format(destination=destination, location=location, slots=times)
-        if action == "booked" and self.booking is not None:
-            return template.format(booking=self.booking.summary(), **self.contact)
-        return template.format(destination=destination, location=location, time=time_pref)
 
     def _finish(
-        self, turn: int, prev_id: str, missing: List[str], pending: bool = False
+        self, turn: int, prev_id: str, missing: List[str], pending: bool = False,
+        answered: bool = False,
+        closed: bool = False,
     ) -> Iterator[Dict[str, Any]]:
         # "Missing" for routing means the caller never provided it. A shaky but present answer is
         # already visible as a low-confidence node, and should not read as an unasked question.
@@ -749,11 +785,17 @@ class CallSession:
             if D.slot_applies(destination, s) and self._slot_missing(s) and s not in self.asked
         ]
         outcome = D.decide(self.answers, unaddressed)
+        if answered or closed:
+            outcome["handler"] = "auto"
         self.routing = outcome
         if pending:
             self.completion = "awaiting_caller"
         elif self.booking:
             self.completion = "booked"
+        elif answered:
+            self.completion = "answered"
+        elif closed:
+            self.completion = "closed"
         elif "dispatch" in outcome["flags"]:
             self.completion = "dispatched"
         else:
@@ -769,6 +811,10 @@ class CallSession:
                 if pending
                 else f"appointment filed: {self.booking.summary()}"
                 if self.booking
+                else "store schedule answered the caller's question"
+                if answered
+                else "wrong-number call closed without a transfer"
+                if closed
                 else "routed, no appointment (transferred or dispatched)"
             ),
             extra={

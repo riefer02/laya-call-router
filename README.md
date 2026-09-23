@@ -17,9 +17,9 @@ that is the point of the technology, and the reason the economics work.
 > **Presenting this?** `DEMO.md` is the one-page version: how a call flows, what to show,
 > the numbers with their caveats, and what not to claim.
 
-**Current demo check (v7):** `uv run python scripts/check_demo.py` runs all 12 scripted calls
-against `models/active` with a temporary booking store. Eleven reach their stated dispatch,
-transfer or booking outcome. The twelfth, `ambiguous_off_topic`, is deliberately included as a
+**Current demo check (v7):** `uv run python scripts/check_demo.py` runs all 13 scripted calls
+against `models/active` with a temporary booking store. Twelve reach their stated outcome.
+The thirteenth, `ambiguous_off_topic`, is deliberately included as a
 visible failure: the safety model dispatches a non-car call before it hears clarification. The
 current v7 routing report is 71/81 joint, versus 72/81 for `gpt-5.4-nano` and 73/81 for
 `deepseek-flash` in that run. Later sections describe historical experiments and checkpoints;
@@ -207,14 +207,13 @@ A wrong answer made to look decisive is worse than no escalation at all, because
 downstream now trusts it. `scripts/probe_slots.py` keeps the evidence. Confidence is only useful
 if it tracks correctness.
 
-## Speaking before thinking
+## Speaking after a decision
 
-Every turn emits a fixed acknowledgement — _"Let me take a look at that for you."_ — **before any
-forward pass runs**. It appears in the graph as its own node and in the conversation rail as an
-extra switchboard bubble, so you can see the agent speak immediately rather than after the
-cascade. It is a template, not generation; the point is that a voice channel needs _something_
-within a few hundred milliseconds, and 30–60 ms of classification is not the only latency that
-matters.
+The graph records when a caller turn arrives, then shows one switchboard reply after the policy
+chooses its next step. The conversation rail no longer inserts a generic acknowledgement before
+every answer. Replies are short templates filled with confirmed details from the caller, store
+schedule and booking. Laya still classifies typed choices and generates no prose. This is a
+repeatable call-routing demo, not a general voice conversation system.
 
 ## What the four-arm evaluation found
 
@@ -770,10 +769,9 @@ safe rather than correct.
 - **A second human labeller.** One case (`det-04`) is missed by every model; `gen-08` is answered
   against our label by all three. Where every model disagrees with the key, the key is the likeliest
   thing to be wrong. This is the ceiling on the destination number and no model work moves it.
-- **The store facts are unused.** `facts` (hours, address, directions, loaner policy) is loaded and
-  rendered, but the switchboard does not yet *answer* from it — it still transfers a factual
-  question. Measured motivation: hours and directions is one of the top repeatable Fixed Ops call
-  types, so this is real call volume.
+- **The factual-answer surface is narrow.** Opening-hours questions use the store schedule;
+  directions, address and loaner policy still transfer to a person. The store profile holds these
+  facts, so this is a bounded next step rather than a model-quality claim.
 - **Real speech-to-text and voice, and dropped-call recovery.** Both deliberately left out. The
   record/replay event log is already a serialisable run, so a real caller drops in without touching
   the cascade or the UI.

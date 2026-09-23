@@ -83,6 +83,17 @@ def test_unknown_fact_is_not_pinned():
     assert session()._is_pinned("location") is False
 
 
+def test_guessed_time_is_not_pinned_without_caller_evidence():
+    s = session()
+    s.exchanges.append({"role": "caller", "text": "I am looking for a new car."})
+    answer = choice("next_week", 0.99, 0.99)
+    s._pin("time_preference", answer, 1, answer)
+    assert s._slot_missing("time_preference")
+    s.exchanges.append({"role": "caller", "text": "Next week works."})
+    s._pin("time_preference", answer, 2, answer)
+    assert not s._slot_missing("time_preference")
+
+
 def test_exhausted_transcript_marks_route_as_provisional():
     s = session()
     s.answers["destination"] = {"type": "choice", "choice": "service"}

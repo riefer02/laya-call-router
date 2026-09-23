@@ -27,8 +27,8 @@ SCENARIOS: List[Dict] = [
             "Someone rear-ended me in a parking lot yesterday. I need body work.",
             "It's a Ford F-150 truck.",
             "Northside works for me.",
-            "Next week is fine — how about Sunday at 3am?",
-            "Sorry, this is Morgan, 555-0136. The first time you offered works.",
+            "Next week works for me.",
+            "The first time works. I'm Morgan, 555-0136.",
         ],
     },
     {
@@ -44,18 +44,25 @@ SCENARIOS: List[Dict] = [
         "id": "buy_car",
         "label": "Buying a car",
         "blurb": "Sales floor → appointment",
-        "expect": {"queue": "Sales Floor", "completion": "booked"},
+        "expect": {"queue": "Sales Floor", "completion": "booked", "subqueue": "new_vehicle"},
         "turns": [
-            "I'm thinking about buying a new car, maybe an electric one.",
-            "I'd like to visit the westside showroom.",
-            "This week sometime would work, but I haven't chosen a time yet.",
-            "Sure — this is Dana, and my number is 555-0140.",
-            "Sunday at 3am works for me.",
-            # "the first one" rather than "the 8am one": the offer depends on what is still free, and
-            # a scenario that names a fixed time only books on the first run. Measured - after one
-            # booking took 8am, the next run offered 9am and this turn was correctly vetoed as
-            # naming a time that was not on offer, so nothing was booked.
-            "Sorry — yes, the first one please.",
+            "Hi, I'm looking for an electric car.",
+            "Westside is easiest for me.",
+            "Next week would be great.",
+            "The first one works. I'm Dana, and my number is 555-0140.",
+        ],
+    },
+    {
+        "id": "unavailable_time",
+        "label": "Unavailable appointment time",
+        "blurb": "Sales floor → reject unoffered time → book",
+        "expect": {"queue": "Sales Floor", "completion": "booked", "subqueue": "new_vehicle"},
+        "turns": [
+            "I'd like to look at an electric car.",
+            "Westside showroom, please.",
+            "Next week works.",
+            "Could I do Sunday at 3am instead?",
+            "Okay, the first time you offered works. I'm Dana, 555-0140.",
         ],
     },
     {
@@ -83,8 +90,8 @@ SCENARIOS: List[Dict] = [
     {
         "id": "out_of_scope",
         "label": "Wrong number",
-        "blurb": "Not a customer → Front Desk",
-        "expect": {"queue": "Front Desk", "completion": "transferred"},
+        "blurb": "Wrong number → polite close",
+        "expect": {"queue": "Front Desk", "completion": "closed"},
         "turns": [
             "Sorry, I have the wrong number. I meant to call the dentist.",
         ],
@@ -99,8 +106,8 @@ SCENARIOS: List[Dict] = [
     {
         "id": "hours",
         "label": "Opening hours",
-        "blurb": "Front Desk → handoff",
-        "expect": {"queue": "Front Desk", "completion": "transferred"},
+        "blurb": "Front Desk → answer from store schedule",
+        "expect": {"queue": "Front Desk", "completion": "answered"},
         "turns": ["What time do you close today?"],
     },
     {

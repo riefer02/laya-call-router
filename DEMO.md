@@ -15,7 +15,7 @@ That is the point of the technology and the reason the economics work.
 
 ```mermaid
 flowchart LR
-    A["caller speaks"] --> B["acknowledgement<br/>a template, no model"]
+    A["caller speaks"] --> B["input received<br/>no spoken filler"]
     B --> C{"destination · vehicle<br/>location · when<br/>unsafe-to-drive?<br/>needs-a-human?"}
     C -->|"one batched forward pass"| D{"sub-queue<br/>branched on the destination"}
     D --> E["policy: what next?"]
@@ -24,7 +24,7 @@ flowchart LR
     E -->|"ready to book"| G["offer future times<br/>matching caller preference"]
     G --> H{"which one did<br/>they accept?"}
     H -->|"confident, and it matches<br/>a time that was offered"| I["file the appointment"]
-    H -->|"weak, or names a time<br/>that was not offered"| G
+    H -->|"weak, or names a time<br/>that was not offered"| F
     C -->|"unsafe to drive"| J["dispatch roadside assistance"]
 ```
 
@@ -37,6 +37,11 @@ Two things to notice, because they are the design:
 - **The un-gettable-by-classifier facts are rules**: the exact appointment time, the caller's name,
   the callback number, and whether the reply names a time that was offered. A model should not be
   asked to parse what a regex cannot get wrong.
+
+The caller turns in the dropdown are scripts, and the switchboard speaks through short templates
+filled with confirmed facts. That makes the path repeatable and inspectable, but it is not a live
+voice assistant or a general conversation model. The HUD's `compute` is the sum of classifier
+calls across every turn; the ~21 ms comparison below is for one held-out routing case.
 
 ---
 
@@ -231,8 +236,8 @@ plausible. They were the wrong model's.
 - **A second human labeller.** `det-04` is missed by every model including both frontier arms; `gen-08`
   is answered against our label by all three. Where every model disagrees with the key, the key is the
   likeliest thing to be wrong. This is the ceiling on the destination number.
-- **The store facts are loaded but unused** — the switchboard transfers "what time do you open?"
-  instead of answering it.
+- **The factual-answer surface is narrow.** Opening-hours questions now use the store's schedule;
+  directions, loaner policy and other profile facts still transfer to a person.
 - **The `other` fallback is dead.** The fine-tuned model never abstains, so there is no "I'm not sure"
   left anywhere in the system.
 
@@ -265,16 +270,19 @@ ln -sfn "$(pwd)/models/kaggle-out-v7/laya-dealership-routing" models/active
 
 ## The demo script
 
-The UI dropdown has **twelve** scenarios. Run `uv run python scripts/check_demo.py` before presenting;
-it checks the actual checkpoint, queue and completion state using a temporary booking store. Eleven
-scenarios pass; the twelfth is a visible model failure.
+The UI dropdown has **thirteen** scenarios. Run `uv run python scripts/check_demo.py` before presenting;
+it checks the actual checkpoint, queue, appointment type and completion state using a temporary booking store. Twelve
+scenarios pass; the thirteenth is a visible model failure.
 
 | scenario | blurb | routes to | |
 | --- | --- | --- | --- |
 | `collision`, `buy_car`, `vague`, `tire_quote` | Body Shop, Sales, Service, Tires | the right queue | ✓ book |
 | `no_start`, `flat_tire` | stranded callers | **Roadside / Towing**, HIGH | ✓ dispatch |
-| `part_order`, `finance_question`, `hours` | questions for a team | Parts, Finance, Front Desk | ✓ handoff |
-| `out_of_scope`, `job_applicant` | non-customer calls | Front Desk | ✓ handoff |
+| `unavailable_time` | requested time is unavailable | Sales Floor | ✓ clarify, then book |
+| `part_order`, `finance_question` | questions for a team | Parts, Finance | ✓ handoff |
+| `hours` | closing time today | Front Desk | ✓ answer from schedule |
+| `out_of_scope` | wrong number | Front Desk | ✓ polite close, no transfer |
+| `job_applicant` | job applicant | Front Desk | ✓ handoff |
 | `ambiguous_off_topic` | neighbour's dog | *Roadside / Towing* | ✗ known model failure |
 
 **1. Route and book — `collision`.** *"Someone rear-ended me in a parking lot yesterday. I need body
@@ -286,24 +294,21 @@ their probabilities, the `choice` badge. Five turns.
 side by side are the point: one decision sending bookers to a department and stranded callers to a
 tow.
 
-**3. Book an appointment — `buy_car`.** Watch it refuse three times, then book:
+**3. Book an appointment — `buy_car`.** Four natural turns: an EV request, showroom choice,
+time preference, and acceptance with contact details. The switchboard offers actual availability
+and files the selected appointment.
 
-```
-turn 3  "I haven't chosen a time yet" -> asks again   (no time accepted)
-turn 4  "this is Dana, 555-0140"     -> asks again   (no time mentioned at all)
-turn 5  "Sunday at 3am works"        -> asks again   (the store is closed)
-turn 6  "the first one please"       -> books
-```
+**4. Try an unavailable time — `unavailable_time`.** After the offer, the caller asks for Sunday
+at 3am. The switchboard says that time is unavailable, keeps the original appointment type, and
+books only after the caller accepts an offered time.
 
-Turns 4 and 5 are the two failure modes this used to have — inventing an agreement from no time, and
-from a closed day. **This is the best moment in the demo**: a system declining three times to act on
-something it cannot verify, then filing a real appointment with a name on it.
-
-**4. Show the evidence.** The `Evidence` tab reads the measurements live from `results/*.json`.
+**5. Show the evidence.** The `Evidence` tab reads the measurements live from `results/*.json`.
 
 ### If something goes wrong
 
 - **Calls route badly** → the app is on the base checkpoint. Check the startup line.
+- **The dropdown still shows seven scenarios or the sales call has six turns** → an older backend
+  process is still serving port 8765. Restart the backend, then reload the page.
 - **`ambiguous_off_topic` goes to Roadside / Towing** → known safety false positive. Its second
   clarifying turn is never heard because the first turn triggers an immediate dispatch. The UI
   labels the mismatch and `check_demo.py --strict` fails on it.

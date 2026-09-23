@@ -52,6 +52,23 @@ TIME_PREFERENCES: Dict[str, str] = {
     "not_stated": "the caller has not said when",
 }
 
+# The model can be certain about a timing answer the caller never gave. The sales demo used to
+# infer `next_week` from "I'm thinking about buying a new car" and offer slots before the caller
+# named any day. This guard checks only that some time was stated; Laya still decides which enum.
+TIME_EVIDENCE = re.compile(
+    r"\b(?:today|tomorrow|tonight|asap|soon|immediately|"
+    r"this\s+week|next\s+week|weekend|"
+    r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
+    r"morning|afternoon|evening|"
+    r"\d{1,2}(?::\d{2})?\s*(?:am|pm))\b",
+    re.IGNORECASE,
+)
+
+
+def caller_stated_time(text: str) -> bool:
+    """Whether the caller actually gave any timing evidence."""
+    return bool(TIME_EVIDENCE.search(text))
+
 # Phrasing measured in scripts/probe_slots.py: the "explicitly mention ... otherwise choose
 # not_stated" form scored 23/24 where the plain form scored 19/24 and invented a vehicle
 # ("sedan") and a time ("today") from sentences that mentioned neither.
@@ -155,28 +172,15 @@ NEXT_ACTION_LABELS: Dict[str, str] = {
     "ask_vehicle": "we do not yet know what kind of vehicle this is",
     "ask_location": "we do not yet know which location the caller wants",
     "ask_time": "we do not yet know when the caller wants to come in",
+    "ask_alternative_time": "the offered times did not work; ask for a new preference",
     "ask_detail": "the problem is too vague to book; ask for more detail",
     "confirm_booking": "we have everything needed to look for a real appointment time",
     "offer_slots": "real times have been read out; waiting for the caller to pick one",
     "ask_which_slot": "the caller's answer did not clearly name one of the offered times",
     "booked": "the caller accepted a time and the appointment is filed",
+    "answer_hours": "the store schedule or profile can answer this opening-hours question",
+    "close_wrong_number": "the caller reached the wrong number; no handoff is needed",
     "offer_transfer": "this is outside the routine booking flow; hand to a person",
-}
-
-# The agent must NOT read out the classifier's option list — measured, the spoken question leaks
-# into the transcript the model then classifies and biases the slot answer.
-RESPONSES: Dict[str, str] = {
-    "ask_vehicle": "Thanks. What kind of vehicle is it?",
-    "ask_location": "Got it — which of our locations works best for you?",
-    "ask_time": "When would you like to come in?",
-    "ask_detail": "I want to make sure we book the right thing — could you tell me a little more about what the vehicle is doing?",
-    # Booking is a two-step: offer times that actually exist, then confirm the one they took.
-    # "I'm booking you into service for next week" was never an appointment.
-    "offer_slots": "I can get you in at {slots}. Which of those works best for you?",
-    "ask_which_slot": "Sorry — which of those times did you want?",
-    "booked": "You're all set: {booking}. We'll see you then.",
-    "confirm_booking": "Perfect, I have everything I need — let me find you a time.",
-    "offer_transfer": "Let me get you straight to the right team so nobody has to wait.",
 }
 
 REQUIRED_SLOTS = ("vehicle", "location", "time_preference")
