@@ -45,6 +45,19 @@ same decision working in both directions — that is the point worth making.
 **A booking call** ends in a filed appointment: the switchboard offers real times from the store's
 hours, classifies which one was accepted, and files it with the caller's name.
 
+`buy_car` is the one to run for this, and it now behaves coherently at every turn:
+
+```
+turn 3  "maybe Thursday"             -> asks again   (Thursday is not offered)
+turn 4  "this is Dana, 555-0140"     -> asks again   (no time mentioned at all)
+turn 5  "Tuesday at 8 works for me"  -> asks again   (Tuesday is not offered)
+turn 6  "the 8am one please"         -> books        (8am was offered)
+```
+
+That sequence is worth showing deliberately: it is the system refusing three times to act on
+something it cannot verify, and then booking. Turns 4 and 5 are the two failure modes it used to
+have — inventing an agreement from no time, and from the wrong day.
+
 ## Numbers to quote
 
 | metric | value | note |
@@ -76,8 +89,11 @@ hours, classifies which one was accepted, and files it with the caller's name.
 - **Calls route badly** → the app is on the base checkpoint. Check the startup line.
 - **A call misroutes to Roadside / Towing** → known: `call-vague` and `call-out-of-scope` both do.
   It is the safety flag overwriting the queue, and it is the next thing to fix.
-- **The booking asks again instead of booking** → the confidence floor doing its job; add the turn
-  where the caller names a time.
+- **The booking asks again instead of booking** → the confidence floor or the offered-time veto doing
+  its job. If the caller names a day that was not offered, it will always ask again — that is the
+  fix from this session, not a fault.
+- **A call misroutes to Roadside / Towing** → known: `call-vague` and `call-out-of-scope` both do.
+  It is the safety flag overwriting the queue, and it is the next thing to fix.
 
 ## The three findings worth saying out loud
 
@@ -87,3 +103,6 @@ hours, classifies which one was accepted, and files it with the caller's name.
    ~0.15 at the rate a switchboard sees. Nobody had computed that.
 3. **The training data was in the wrong register** — 27-word chatbot prose against 5-word callers —
    which taught the safety classifier to treat any short fault report as a hazard.
+
+And one found by running the demo rather than reading it: **the app was serving the base model**,
+because `get_router()` never named a checkpoint. It would have looked completely normal.
