@@ -122,8 +122,10 @@ export const useRun = create<RunState>((set, get) => ({
   ...initial,
 
   load: (events, opts) =>
-    set({
+    set((current) => ({
       ...initial,
+      speed: current.speed,
+      follow: current.follow,
       events,
       runId: opts?.runId ?? null,
       scenarioLabel:
@@ -132,7 +134,7 @@ export const useRun = create<RunState>((set, get) => ({
           ?.scenario?.label ??
         "",
       playing: true,
-    }),
+    })),
 
   step: () => {
     const s = get();
@@ -171,7 +173,7 @@ export const useRun = create<RunState>((set, get) => ({
   setSpeed: (n) => set({ speed: n }),
   setFollow: (v) => set({ follow: v }),
   select: (id) => set({ selected: id }),
-  reset: () => set({ ...initial }),
+  reset: () => set((current) => ({ ...initial, speed: current.speed, follow: current.follow })),
 }));
 
 /** Counts for the HUD, derived from what has been revealed so far. */
