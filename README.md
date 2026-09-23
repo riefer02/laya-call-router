@@ -17,6 +17,14 @@ that is the point of the technology, and the reason the economics work.
 > **Presenting this?** `DEMO.md` is the one-page version: how a call flows, what to show,
 > the numbers with their caveats, and what not to claim.
 
+**Current demo check (v7):** `uv run python scripts/check_demo.py` runs all 12 scripted calls
+against `models/active` with a temporary booking store. Eleven reach their stated dispatch,
+transfer or booking outcome. The twelfth, `ambiguous_off_topic`, is deliberately included as a
+visible failure: the safety model dispatches a non-car call before it hears clarification. The
+current v7 routing report is 71/81 joint, versus 72/81 for `gpt-5.4-nano` and 73/81 for
+`deepseek-flash` in that run. Later sections describe historical experiments and checkpoints;
+see `DEMO.md` and `results/eval_v7.json` for the checkpoint served today.
+
 ## Run it
 
 Backend (Apple Silicon, Python 3.12 — `uv` fetches it):

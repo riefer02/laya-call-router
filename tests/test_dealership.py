@@ -70,6 +70,13 @@ def test_non_customer_always_transfers():
     assert D.next_action_for([], "non_customer", 0.0) == "offer_transfer"
 
 
+@pytest.mark.parametrize("destination", ["parts", "finance", "front_desk", "non_customer"])
+def test_non_booking_destinations_handoff_without_collecting_appointment_slots(destination):
+    assert D.next_action_for(["vehicle", "location", "time_preference"], destination, 0.0) == "offer_transfer"
+    assert all(not D.slot_applies(destination, slot) for slot in D.REQUIRED_SLOTS)
+    assert D.decide(_choice("destination", destination), [])["handler"] == "human"
+
+
 def test_slots_do_not_apply_to_transfer_destinations():
     assert D.slot_applies("service", "vehicle") is True
     assert D.slot_applies("non_customer", "vehicle") is False

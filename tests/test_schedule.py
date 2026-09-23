@@ -7,7 +7,7 @@ would be testing nothing.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
@@ -180,6 +180,35 @@ def test_offer_searches_forward_across_days(sched):
 def test_offer_skips_a_closed_day(sched):
     offered = sched.offer("downtown", "express_maintenance", count=1, start=SUNDAY)
     assert offered and offered[0].day == "2026-09-28"  # Monday
+
+
+def test_live_offer_skips_elapsed_times_on_the_current_day(sched):
+    current = datetime(2026, 9, 22, 14, 15)
+    offered = sched.offer("downtown", "tires", count=3, now=current)
+    assert len(offered) == 3
+    assert offered[0] == Slot("2026-09-22", "14:30")
+    assert all(slot.minutes() > 14 * 60 + 15 for slot in offered)
+
+
+def test_live_offer_moves_to_tomorrow_after_closing(sched):
+    offered = sched.offer("downtown", "tires", count=1, now=datetime(2026, 9, 22, 18, 15))
+    assert offered == [Slot("2026-09-23", "08:00")]
+
+
+def test_offer_respects_tomorrow_preference(sched):
+    offered = sched.offer(
+        "downtown", "tires", count=1, now=datetime(2026, 9, 22, 14, 15),
+        preference="tomorrow",
+    )
+    assert offered == [Slot("2026-09-23", "08:00")]
+
+
+def test_offer_respects_next_week_preference(sched):
+    offered = sched.offer(
+        "downtown", "tires", count=1, now=datetime(2026, 9, 22, 14, 15),
+        preference="next_week",
+    )
+    assert offered == [Slot("2026-09-28", "08:00")]
 
 
 def test_acceptance_options_name_each_slot(sched):

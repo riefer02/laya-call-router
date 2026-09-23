@@ -81,3 +81,14 @@ def test_noul_pins_on_top_probability():
 
 def test_unknown_fact_is_not_pinned():
     assert session()._is_pinned("location") is False
+
+
+def test_exhausted_transcript_marks_route_as_provisional():
+    s = session()
+    s.answers["destination"] = {"type": "choice", "choice": "service"}
+    s.answers["subqueue"] = {"type": "choice", "choice": "mechanical_diagnostic"}
+    events = list(s._finish(1, "t1.agent", [], pending=True))
+    terminal = next(e for e in events if e["type"] == "node_result")
+    assert s.completion == "awaiting_caller"
+    assert s.routing["queue"] == "Service Department"
+    assert terminal["value"] == "Awaiting caller"

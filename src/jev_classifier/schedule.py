@@ -172,14 +172,36 @@ class Scheduler:
 
     def offer(
         self, location: str, subqueue: Optional[str], *, days_ahead: int = 14, count: int = 3,
-        start: Optional[date] = None,
+        start: Optional[date] = None, now: Optional[datetime] = None,
+        preference: str = "not_stated",
     ) -> List[Slot]:
-        """The next few real slots, searching forward. Empty means genuinely nothing available."""
-        today = start or date.today()
+        """The next few future slots, searching forward. Empty means none are available.
+
+        An explicit start is a calendar probe (used by tests) and may be in the past. Live
+        requests use the local clock so the switchboard never offers 8am after 8am has passed.
+        """
+        current = now or (datetime.now() if start is None else None)
+        today = start or (current.date() if current else date.today())
+        if preference == "today":
+            days_ahead = 1
+        elif preference == "tomorrow":
+            today += timedelta(days=1)
+            days_ahead = 1
+        elif preference == "this_week":
+            days_ahead = min(days_ahead, 7 - today.weekday())
+        elif preference == "next_week":
+            today += timedelta(days=7 - today.weekday())
+            days_ahead = min(days_ahead, 7)
         found: List[Slot] = []
         for offset in range(days_ahead):
             day = today + timedelta(days=offset)
-            for slot in self.availability(location, subqueue, day, limit=count - len(found)):
+            limit = 0 if current and day == current.date() else count - len(found)
+            for slot in self.availability(location, subqueue, day, limit=limit):
+                if (
+                    current and day == current.date()
+                    and slot.minutes() <= current.hour * 60 + current.minute
+                ):
+                    continue
                 found.append(slot)
                 if len(found) >= count:
                     return found

@@ -21,7 +21,7 @@ flowchart LR
     D --> E["policy: what next?"]
     E -->|"a slot is missing"| F["ask the caller"]
     F --> A
-    E -->|"ready to book"| G["offer real times<br/>from the store's hours"]
+    E -->|"ready to book"| G["offer future times<br/>matching caller preference"]
     G --> H{"which one did<br/>they accept?"}
     H -->|"confident, and it matches<br/>a time that was offered"| I["file the appointment"]
     H -->|"weak, or names a time<br/>that was not offered"| G
@@ -98,8 +98,8 @@ flowchart TB
 Every gate in that pipeline is a command that **exits non-zero when it fails**, rather than a
 judgement call. The teacher is `deepseek-flash`, and a candidate only becomes training data when two
 independently-worded passes agree — a high-precision filter that yielded zero invalid labels in
-1,394 rows, and which is also why the teacher's agreement with our hand labels (0.975 destination /
-0.901 sub-queue) is the ceiling anything distilled from it can reach.
+1,394 rows. The teacher's own agreement with our hand labels was 0.975 destination / 0.901
+sub-queue. That is a reference point, not a mathematical ceiling on a student model.
 
 ---
 
@@ -107,25 +107,25 @@ Measured on 81 hand-labelled routing cases and 27 scripted calls, against two fr
 
 | | base model | **the fine-tune we demo** | gpt-5.4-nano | deepseek-flash |
 | --- | --- | --- | --- | --- |
-| destination | 0.654 | 0.914 | 0.951 | **0.975** |
-| joint (dest + sub-queue) | 0.518 | 0.876 | 0.864 | **0.889** |
+| destination | 0.654 | 0.914 | 0.963 | **0.975** |
+| joint (dest + sub-queue) | 0.518 | 0.876 | 0.889 | **0.901** |
 | **call outcome** (27 calls) | 0.778 | **0.926** | 0.963 | 0.963 |
-| latency, per call | 22 ms | **23 ms** | 750 ms | 1,430 ms |
+| routing latency, per case | 20 ms | **21 ms** | 651 ms | 1,451 ms |
 | cost per call (4 turns) | **$0** | **$0** | $0.000119 | $0.000476 |
 | determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
 
-**The honest claim is parity, not victory.** `deepseek-flash` has scored joint 0.889–0.926 across four
-runs on *identical inputs*; ours has never moved. On 81 cases one case is 1.2 points, so the intervals
-overlap and the point estimate is not a finding. What is defensible: **we match a frontier model's
-routing at 1/60th the latency, for nothing, with a number that stays put.**
+On this v7 run the fine-tune is **two cases behind DeepSeek on joint routing** (71/81 versus 73/81).
+That difference is too small for this set to establish a quality ranking. Earlier DeepSeek runs
+scored 0.889–0.926 on the same inputs. The local model is roughly 70× faster per routing case and
+has no API cost; the current sample supports "close," not a proven tie or win.
 
-Three checkpoints exist and the differences matter for what you show:
+Three relevant checkpoints illustrate the tradeoffs:
 
 | | routing joint | call outcome | booking | provenance |
 | --- | --- | --- | --- | --- |
-| v6 (two questions trained) | **0.926** | 0.852 | not measured | 7 contaminated rows |
+| v6 (five questions trained) | **0.926** | 0.852 | not measured | 7 contaminated rows |
 | **v7 — what `models/active` points at** | 0.876 | **0.926** | **1.000** | clean |
-| v14 (the clean experiment) | 0.889 | 0.889 | 1.000 | clean |
+| v8 (the later clean experiment) | 0.889 | 0.889 | 1.000 | clean |
 
 v7 is loaded because **the call outcome is the product metric**, and v7 is the only one that gets the
 body-shop bookings right — v6 sends *"rear-ended me, I need body work"* and *"a stone cracked my
@@ -138,22 +138,30 @@ windscreen"* both to Roadside / Towing, which a viewer would spot immediately.
 `is_safe_to_drive` dispatches roadside assistance. `needs_human` decides whether a person takes the
 call. Neither had ever been measured before this session.
 
-At the shipped threshold, on 45 labelled cases — **17 of 17 stranded callers caught, none missed**:
+The active v7 report (`results/severity_v7.json`) has 45 labelled cases, including 18 hazards.
+Both rows below are measured at the configured policy threshold: 0.7 for safety.
 
-| | recall | false alarms | precision on the set | @5% base rate | @2% base rate |
+| | recall | false alarms (27 safe) | precision on the set | @5% base rate | @2% base rate |
 | --- | --- | --- | --- | --- | --- |
-| untrained | 1.000 | 3 | 0.857 | 0.321 | 0.155 |
-| trained on the long data | 1.000 | 8 | 0.692 | 0.151 | 0.064 |
-| **trained on the register-corrected data** | 1.000 | **2** | **0.900** | **0.415** | **0.216** |
+| base | 0.444 | 0 | 1.000 | 1.000* | 1.000* |
+| **active v7 fine-tune** | **1.000** | 3 | 0.857 | 0.321 | 0.155 |
 
-**Training made this worse, and then fixing the training data made it better than not training at
-all.** That is the clearest single result of the session: the same 45 cases, the same model, the same
-question — 8 false alarms down to 2, with recall untouched.
+*The base row's projected precision of 1.000 follows from zero false alarms in 27 negatives;
+that tiny sample does not establish perfect specificity in deployment.*
+
+The fine-tune catches all 18 hazards in this set but sends three safe calls to roadside. The
+long-data v6 experiment had eight false alarms; the register-corrected v7 cut that to three. The
+base model had fewer false alarms but missed ten hazards at the same policy threshold. These are
+different checkpoints and should be described as a tradeoff, not a solved safety classifier.
+
+The `needs_human` gate is also weak: v7 finds 5/7 cases that need a person and falsely flags 20/38
+routine cases. The fine-tuned destination classifier is confident on all seven of its errors, so
+the current confidence threshold cannot reliably catch bad routes for escalation.
 
 **But read the last column, because it flatters us.** The set is **40% positive** — deliberately,
 because unsafe calls are rare and you need them concentrated to measure recall at all. Precision
 depends on the base rate, and 40% is eight to twenty times what a switchboard sees. At an assumed 2%
-hazard rate, precision is 0.216 — so most dispatch flags would still be wrong, just far fewer of them.
+hazard rate, projected precision is 0.155 — so most dispatch flags would still be wrong.
 The base rate itself is assumed, not measured, and the code sets a *flag and a queue* rather than
 sending a truck. `eval_severity.py` prints this table for every arm and a test pins the round trip.
 
@@ -213,8 +221,9 @@ plausible. They were the wrong model's.
 
 ## What isn't done
 
-- **The dispatch still fires too often for a real switchboard.** Precision at an assumed 2% hazard
-  rate is 0.216 — far better than the 0.064 it was, and still meaning most flags would be wrong. The
+- **The dispatch still fires too often for a real switchboard.** The active v7 report records three
+  false alarms among 27 safe calls. At an assumed 2% hazard rate, projected precision is low and
+  most flags would be wrong. The
   queue override itself is *correct*: it is how someone stuck on the highway reaches a tow instead of
   a booking. So the fix is more precision, not structure.
 - **`needs_human` recall** fell to 0.714 when the terse hazard rows were added: they are all escalation
@@ -256,21 +265,21 @@ ln -sfn "$(pwd)/models/kaggle-out-v7/laya-dealership-routing" models/active
 
 ## The demo script
 
-The UI dropdown has **seven** scenarios. Verified through the API, end to end:
+The UI dropdown has **twelve** scenarios. Run `uv run python scripts/check_demo.py` before presenting;
+it checks the actual checkpoint, queue and completion state using a temporary booking store. Eleven
+scenarios pass; the twelfth is a visible model failure.
 
 | scenario | blurb | routes to | |
 | --- | --- | --- | --- |
-| `collision` | Body shop, collision repair | **Body Shop** | ✓ |
-| `no_start` | Roadside → Service, unsafe to drive | **Roadside / Towing**, HIGH | ✓ |
-| `flat_tire` | Roadside dispatch, urgent | **Roadside / Towing**, HIGH | ✓ |
-| `buy_car` | Sales floor | **Sales Floor** | ✓ books |
-| `part_order` | Parts counter | **Parts Counter** | ✓ |
-| `vague` | Ambiguous department | *Roadside / Towing* | ✗ known |
-| `out_of_scope` | Out of scope → transfer to a person | *Roadside / Towing* | ✗ known |
+| `collision`, `buy_car`, `vague`, `tire_quote` | Body Shop, Sales, Service, Tires | the right queue | ✓ book |
+| `no_start`, `flat_tire` | stranded callers | **Roadside / Towing**, HIGH | ✓ dispatch |
+| `part_order`, `finance_question`, `hours` | questions for a team | Parts, Finance, Front Desk | ✓ handoff |
+| `out_of_scope`, `job_applicant` | non-customer calls | Front Desk | ✓ handoff |
+| `ambiguous_off_topic` | neighbour's dog | *Roadside / Towing* | ✗ known model failure |
 
-**1. Route a call — `collision`.** *"Someone rear-ended me in a parking lot yesterday. I need body
-work."* → **Body Shop**. Click the destination node: the options, their probabilities, the `choice`
-badge. Four turns.
+**1. Route and book — `collision`.** *"Someone rear-ended me in a parking lot yesterday. I need body
+work."* → **Body Shop**, then a confirmed appointment. Click the destination node: the options,
+their probabilities, the `choice` badge. Five turns.
 
 **2. Show the same decision working the other way — `no_start`.** *"my car won't start at all"* →
 **Roadside / Towing**, priority HIGH, dispatched. Same question, opposite answer, and the two calls
@@ -280,14 +289,14 @@ tow.
 **3. Book an appointment — `buy_car`.** Watch it refuse three times, then book:
 
 ```
-turn 3  "maybe Thursday"             -> asks again   (Thursday is not offered)
+turn 3  "I haven't chosen a time yet" -> asks again   (no time accepted)
 turn 4  "this is Dana, 555-0140"     -> asks again   (no time mentioned at all)
-turn 5  "Tuesday at 8 works for me"  -> asks again   (Tuesday is not offered)
+turn 5  "Sunday at 3am works"        -> asks again   (the store is closed)
 turn 6  "the first one please"       -> books
 ```
 
 Turns 4 and 5 are the two failure modes this used to have — inventing an agreement from no time, and
-from the wrong day. **This is the best moment in the demo**: a system declining three times to act on
+from a closed day. **This is the best moment in the demo**: a system declining three times to act on
 something it cannot verify, then filing a real appointment with a name on it.
 
 **4. Show the evidence.** The `Evidence` tab reads the measurements live from `results/*.json`.
@@ -295,9 +304,11 @@ something it cannot verify, then filing a real appointment with a name on it.
 ### If something goes wrong
 
 - **Calls route badly** → the app is on the base checkpoint. Check the startup line.
-- **`vague` and `out_of_scope` both go to Roadside / Towing** → known, and worth naming rather than
-  hiding. It is the safety flag overwriting the queue on a call where nobody is stranded, and it is
-  the next thing to fix. Both are one-turn calls because the dispatch fires immediately.
+- **`ambiguous_off_topic` goes to Roadside / Towing** → known safety false positive. Its second
+  clarifying turn is never heard because the first turn triggers an immediate dispatch. The UI
+  labels the mismatch and `check_demo.py --strict` fails on it.
+- **"Awaiting caller" appears** → the scripted turns ended after a question or time offer. The
+  queue below it is only provisional; no transfer or appointment was completed.
 - **The booking asks again instead of booking** → the offered-time veto doing its job. If the caller
   names a day that was not offered it will always ask again; that is the fix, not a fault.
 
@@ -305,10 +316,11 @@ something it cannot verify, then filing a real appointment with a name on it.
 
 ## What not to claim
 
-- **Not "we beat deepseek."** Joint is a tie inside the noise, and the point estimate swings ±3.8
-  points across runs of *their* model. Say: parity, 60× faster, for nothing, with a stable number.
-- **Not "the safety classifier is fixed."** It catches every stranded caller and its false alarms fell
-  from 8 to 2, but at an assumed 2% hazard rate most dispatch flags would still be wrong.
+- **Not "we beat deepseek."** v7 is 71/81 joint versus DeepSeek's 73/81 on this run. The sample
+  cannot resolve that gap. Say: close on this set, about 70× faster per routing case, with no API fee.
+- **Not "the safety classifier is fixed."** It caught every stranded caller in the held-out safety
+  set, with three false alarms among 27 safe calls. The off-topic demo failure is an additional
+  reason to keep it away from unattended dispatch.
 - **Not "1.000 booking accuracy"** without saying it is measured on held-out *reply phrasings*, not
   held-out conversations.
 - **Not "the threshold is tuned."** The sweep is flat from 0.3 to 0.8 — the probabilities are

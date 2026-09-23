@@ -4,28 +4,40 @@
     "is_safe_to_drive": 18,
     "needs_human": 7
   },
+  "finetuned": "models/active",
+  "policy_thresholds": {
+    "is_safe_to_drive": 0.7,
+    "needs_human": 0.5
+  },
   "arms": {
     "base": {
       "at_default": {
         "is_safe_to_drive": {
-          "threshold": 0.5,
-          "accuracy": 0.9111,
-          "recall": 0.8333,
-          "precision": 0.9375,
-          "specificity": 0.963,
+          "threshold": 0.7,
+          "accuracy": 0.7778,
+          "recall": 0.4444,
+          "precision": 1.0,
+          "specificity": 1.0,
           "precision_by_base_rate": {
-            "1%": 0.1852,
-            "2%": 0.3147,
-            "5%": 0.5422,
-            "10%": 0.7143,
-            "40%": 0.9375
+            "1%": 1.0,
+            "2%": 1.0,
+            "5%": 1.0,
+            "10%": 1.0,
+            "40%": 1.0
           },
-          "false_alarms": 1,
-          "missed": 3,
+          "false_alarms": 0,
+          "missed": 10,
           "missed_ids": [
+            "sev-01",
             "sev-03",
+            "sev-05",
+            "sev-06",
             "sev-07",
-            "sev-09"
+            "sev-08",
+            "sev-09",
+            "sev-14",
+            "sev-16",
+            "sev-45"
           ],
           "positives": 18,
           "negatives": 27
@@ -364,7 +376,7 @@
         ]
       },
       "latency_ms": {
-        "p50": 11.3
+        "p50": 10.5
       },
       "rows": [
         {
@@ -777,7 +789,7 @@
     "fine-tuned": {
       "at_default": {
         "is_safe_to_drive": {
-          "threshold": 0.5,
+          "threshold": 0.7,
           "accuracy": 0.9333,
           "recall": 1.0,
           "precision": 0.8571,
@@ -1072,7 +1084,7 @@
         ]
       },
       "latency_ms": {
-        "p50": 11.0
+        "p50": 10.2
       },
       "rows": [
         {

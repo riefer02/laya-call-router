@@ -52,10 +52,10 @@ tool never pretends a model decided something a rule decided.
 Fine-tuning took the model from **42 of 81** routing cases to **71 of 81.** A small local model that
 started out useless at this task learned it.
 
-And it now sits **level with frontier models** on the same 81 cases — 71, 72, 73 out of 81, one case
-apart, on a set where the error bars are six cases wide.
+On the same 81 cases it finished close to the two API models: 71 correct, versus 72 for Nano and
+73 for DeepSeek Flash. That small sample cannot establish equal quality.
 
-So: **the same quality, at 70 times the speed, for nothing, with a number that never moves.**
+So: **close on this set, about 70 times faster per routing case, with no per-call API fee.**
 
 ---
 
@@ -78,22 +78,21 @@ points between identical runs. Ours has never moved once.
 its probability, which checkpoint answered, and the milliseconds it took. When someone disputes a
 routing decision, you show them instead of guessing.
 
-**It cannot make things up.** It doesn't write text, so it can't invent an appointment time, invent a
-callback number, or paraphrase a caller into an agreement. The dangerous failure mode of generative
-systems isn't available to it.
+**It does not generate facts.** Appointment times and callback numbers come from the scheduler and
+caller text, not model prose. It can still choose a wrong label with high confidence; the off-topic
+roadside failure is a clear example.
 
 **It declines rather than guesses.** Asked to book, it checks that the caller named a time it actually
 offered. Say "Tuesday" when the only times on offer are Wednesday, and it asks again rather than
 filing an appointment nobody agreed to. Our booking scenario has it refuse three times, then book.
 
-**It catches every stranded caller.** 17 of 17 in our labelled set, with priority raised and roadside
-dispatched. It deliberately errs toward sending help, because a truck sent to someone who was fine is
-a smaller harm than someone left at the roadside — and the honest number for how often it over-calls
-is printed on the Evidence tab, not buried.
+**It caught all 18 hazards in the current labelled set**, with priority raised and roadside selected.
+It also falsely selected roadside on three of 27 safe cases, and an ambiguous off-topic demo call
+still misfires. This is a routing prototype; the Evidence tab shows the full tradeoff.
 
-**A new queue is a config change.** The categories are passed in with each question rather than baked
-into the weights. A store with a Fleet department adds one line to one file. No retraining, no
-redeploy, no vendor ticket.
+**A new queue starts as a config change.** Categories are supplied with each question rather than
+hard-coded in the output layer. A store can add a Fleet department in the profile, then must test
+that queue on its own calls before relying on it; the current scores cover this store's taxonomy.
 
 **The call never leaves the building.** No API call, no data leaving, no third party. For phone
 numbers and call recordings, that is usually a requirement rather than a nicety.

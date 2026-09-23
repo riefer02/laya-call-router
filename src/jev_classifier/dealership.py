@@ -181,8 +181,9 @@ RESPONSES: Dict[str, str] = {
 
 REQUIRED_SLOTS = ("vehicle", "location", "time_preference")
 
-# Destinations where booking an appointment is not the outcome: hand to a person instead.
-TRANSFER_DESTINATIONS = {"non_customer"}
+# These queues answer or hand off an enquiry. Asking for a vehicle, location and appointment
+# time before routing a parts order, finance question or front-desk call is the wrong workflow.
+TRANSFER_DESTINATIONS = {"parts", "finance", "front_desk", "non_customer"}
 
 
 def slot_applies(destination: Optional[str], slot: str) -> bool:
@@ -194,7 +195,7 @@ def slot_applies(destination: Optional[str], slot: str) -> bool:
 
 def next_action_for(missing: List[str], destination: str, unsafe: float) -> str:
     """The switchboard's next step, as policy over the classifier's understanding."""
-    if destination == "non_customer" or unsafe >= unsafe_threshold():
+    if destination in TRANSFER_DESTINATIONS or unsafe >= unsafe_threshold():
         return "offer_transfer"
     if not missing:
         return "confirm_booking"
@@ -266,7 +267,7 @@ def decide(answers: Dict, missing: List[str]) -> Dict:
 
     sub = PROFILE.subqueue(destination, subqueue)
     dest = PROFILE.destination(destination)
-    handler = "auto"
+    handler = "human" if destination in TRANSFER_DESTINATIONS else "auto"
     if needs_human >= PROFILE.policy.get("needs_human_threshold", NEEDS_HUMAN_FLAG):
         handler = "human"
     for obj in (sub, dest):

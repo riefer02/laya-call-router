@@ -14,7 +14,7 @@ it used.
 
 | file | what it measured |
 | --- | --- |
-| `teacher_validation.json` | **deepseek-flash teacher gate**: 0.975 destination / 0.901 sub-queue / 0.901 joint agreement with the 81 hand labels. This is the ceiling anything distilled from flash can reach. |
+| `teacher_validation.json` | **deepseek-flash teacher gate**: 0.975 destination / 0.901 sub-queue / 0.901 joint agreement with the 81 hand labels. A reference point for distillation, not a mathematical ceiling. |
 | `teacher_validation_v4pro.json` | **deepseek-v4-pro teacher gate**: 0.951 / 0.864. *Worse* than flash at 3x the cost — the "buy a bigger teacher" idea, measured and rejected. |
 | `eval_v3.json` | four-arm eval, 4-epoch fine-tune. destination 0.938, joint 0.864, queue 0.951. |
 | `eval_v4.json` | four-arm eval, 8-epoch fine-tune. destination 0.951, joint 0.914, queue 0.963. |
@@ -29,7 +29,7 @@ it used.
 | `eval_v4_currentpolicy.json` | the same v4 checkpoint re-measured under the **current** safety policy. Call level **0.852**, identical to v6 — which is what proves the call-level drop was the safety rewording, not the new training tasks. `eval_v4.json` predates that policy change and its 0.963 is not comparable. |
 | `severity_v6.json` | the safety questions on the 8-epoch checkpoint. Recall unchanged from v5 (`is_safe_to_drive` 1.000, `needs_human` 0.857) and precision still below untrained (0.692 vs 0.857). The fitted noul temperature is **1.0** here against v5's 3.683 — the 4-epoch head was the pathological one. |
 | `eval_v7.json` | four-arm eval, **the first checkpoint with clean provenance** (v13: register-corrected data, the calibration fix, the held-out acceptance split). destination 0.914, **joint 0.876** — worse than v6. But the **call level is 0.926 against v6's 0.852**, because the dispatch hijacks halved (4 → 2). `results/severity_v7.json` and `acceptance_v7.json` come from the same run. |
-| `severity_v7.json` | the register experiment's test. `is_safe_to_drive` **passed its gate**: recall held at 1.000 while false alarms fell **8 → 3** and precision 0.692 → **0.857**, recovering the untrained model's precision with the trained model's recall. `needs_human` **failed**: recall 0.857 → 0.714 (missed `sev-40`, `sev-42`). |
+| `severity_v7.json` | Re-run with explicit stock base and active v7 routers, at the live policy thresholds (unsafe 0.7, human 0.5). v7 caught 18/18 hazards, with 3/27 false alarms; `needs_human` caught 5/7 and falsely flagged 20/38 negatives. The older v6 run had eight safety false alarms. |
 | `acceptance_v7.json` | the **first honest acceptance measurement** — scored on `acceptance_dev.jsonl`, held out by reply phrasing. Base 0.615 with `unclear` 0 of 33; fine-tuned **1.000**, `unclear` 33 of 33. The booking bug (never abstaining) is fixed. Caveat: the split holds out *reply phrasings*, not transcripts. |
 | `eval_v6_fixedcalib.json` | ablation: v6's weights with v7's calibration behaviour (inherited map removed). Isolates the trainer fix from the data change in v7's routing regression — **it is inert** (identical misses, +0.000 joint), as theory says a temperature scale cannot change an argmax. |
 | `eval_v8.json`, `severity_v8.json`, `acceptance_v8.json` | **v14, the clean additive experiment.** v6's exact data (minus the 6 contaminated rows) plus the 222 terse rows, and nothing else — built by construction so the delta is provable. It settles the confound v7 left open:

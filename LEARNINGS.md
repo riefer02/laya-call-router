@@ -7,39 +7,37 @@ Written for a person, not a changelog. The numbers are all in `results/`.
 
 ---
 
-## The short version
+## The short version — active v7 checkpoint
 
-We set out to match `deepseek-flash` on call routing, using Laya (a small non-autoregressive model
-that returns typed decisions instead of generating text) running locally on a laptop.
+We set out to make a small local typed-decision model competitive with `deepseek-flash` on dealership
+call routing. The active v7 fine-tune scores **71/81 joint routing cases**. `gpt-5.4-nano` scored
+72/81 and `deepseek-flash` 73/81 in that run. That is close on this small set, but it does not
+establish a tie or a win. The local routing pass took about **21 ms**, versus 651 ms and 1,451 ms
+for the API arms, with no per-call API fee. See `results/eval_v7.json`.
 
-We got there, with one qualification that matters. On 81 hand-labelled cases the fine-tuned cascade
-scores **0.926 joint**. `deepseek-flash` scored 0.914, 0.889, 0.901 and 0.926 across four runs on
-*identical inputs* — it leads us in some runs and trails in others. On the routing outcome we beat
-it: **0.975 queue accuracy against 0.963**. Ours has not moved once.
+The demo now checks its own endings: **11 of 12 scenarios** complete as stated, including four real
+bookings, two roadside dispatches and five handoffs. The twelfth is a deliberately visible failure:
+an off-topic caller is sent to Roadside / Towing after the first sentence, before the caller can
+clarify. On the separate 27-call evaluation v7 routes 25 correctly, missing that call and one vague
+service call. The former demo had quietly presented both as normal endings.
 
-So: **parity on the decision, a small lead on the outcome, at 23 ms instead of 1.4 seconds, for $0 a
-call, with a number that stays put.** It also books real appointments now, not just routes.
+Safety is the main reason this is a research prototype rather than an unattended switchboard. On 45
+labelled safety utterances v7 caught **18/18 hazards**, but flagged **3/27 safe** callers as unsafe.
+At an assumed 2% hazard rate that projects to 15.5% precision, an estimate with substantial
+uncertainty. Its `needs_human` question caught only **5/7** positive cases and falsely flagged
+**20/38** negatives. The fine-tune is also overconfident: its routing confidence gate flags none of
+its seven destination errors for escalation. See `results/severity_v7.json`.
 
-That distinction — a stable number versus a noisy one — turned out to be the more defensible thing
-to say, and I only found it by running the same evaluation four times.
+The measured booking acceptance score is 1.000 on held-out *reply phrasings*, not held-out full
+conversations. The earlier perfect score was measured on training data and was invalid. Other audits
+found routing and safety examples copied into packaged training snapshots; the clean v7 checkpoint
+and the snapshot manifest are the ones to cite. We also found that evaluation scripts could silently
+load the active fine-tune into an arm labelled `base`; they now construct the stock router explicitly.
 
-**Then the retrain that looked like a regression wasn't one.** Teaching the model the two safety
-questions and the booking question appeared to cost **3.7 points of joint accuracy** (0.914 → 0.877)
-— but that run also did 4 epochs where the previous one did 8, and at 8 epochs the multi-task model
-is the best we have built (joint **0.926**, tying `deepseek-flash` and beating it on the routing
-outcome). Two confounds in a row, both of them mine, and the second one took a second-order check to
-find: the apparent call-level drop was not the training either, but the safety rewording, which I
-proved by re-running the *same* checkpoint under the old policy.
-
-The more useful lesson came from the opposite direction: three of the numbers we were proudest of
-turned out to be **reading their own training data**. A perfect acceptance score was memorisation,
-and the safety case the whole rewording exercise was built around was sitting in the training set.
-The improvements that survived that audit are the ones worth anything.
-
-But the interesting part isn't the final number. It's that almost every improvement came from
-fixing something in *how we had framed the problem* — not from the model, the data volume, or the
-prompt. Several of those fixes were to my own mistakes, and a few of them were only visible because
-we measured something we'd previously assumed.
+The work is shareable as a study of typed decisions, evaluation leaks, model calibration and call
+flow design. The remaining false dispatch and handoff rates are part of the result, not details to
+hide. The sections below follow the experiments in the order we learned from them; older checkpoint
+numbers are historical unless they name v7.
 
 ---
 

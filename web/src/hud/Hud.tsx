@@ -82,9 +82,13 @@ export default function Hud({ view, onView }: { view: View; onView: (v: View) =>
           />
           {routing && (
             <div className="flex flex-col leading-tight">
-              <span className="text-[13px] font-semibold text-amber-300">{routing.queue}</span>
+              <span className="text-[13px] font-semibold text-amber-300">
+                {summary?.completion === "awaiting_caller" ? "Awaiting caller" : routing.queue}
+              </span>
               <span className="text-[9px] uppercase tracking-wider text-slate-500">
-                {routing.priority} · {routing.handler}
+                {summary?.completion === "awaiting_caller"
+                  ? `provisional: ${routing.queue}`
+                  : `${summary?.completion ?? "routed"} · ${routing.priority} · ${routing.handler}`}
               </span>
             </div>
           )}

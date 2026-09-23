@@ -78,6 +78,21 @@ def test_the_router_is_pointed_at_the_checkpoint_when_one_resolves(monkeypatch):
     assert seen["models"] == {"english": ("/tmp/pretend-checkpoint", None)}
 
 
+def test_base_evaluation_router_ignores_the_active_finetune(monkeypatch):
+    import laya_mlx as laya
+
+    seen = []
+
+    class FakeRouter:
+        def __init__(self, **kwargs):
+            seen.append(kwargs)
+
+    monkeypatch.setattr(laya, "Router", FakeRouter)
+    monkeypatch.setenv("JEV_MODEL", "models/active")
+    agent.new_base_router()
+    assert seen == [{"max_loaded": 2}]
+
+
 def test_the_evidence_tab_reads_the_served_checkpoints_reports():
     """It read hardcoded `eval_v4.json` and `severity.json`.
 

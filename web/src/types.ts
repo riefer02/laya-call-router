@@ -42,6 +42,7 @@ export interface NodeResult {
   template_id?: string;
   driven_by?: string[];
   routing?: RouteOutcome;
+  completion?: "booked" | "dispatched" | "transferred" | "awaiting_caller";
   booking?: Booking | null;
   contact?: Contact | null;
 }
@@ -110,6 +111,7 @@ export interface CallEnd {
   tokens_generated: number;
   cost_usd: number;
   routing: RouteOutcome | null;
+  completion?: "booked" | "dispatched" | "transferred" | "awaiting_caller";
   booking?: Booking | null;
   contact?: Contact | null;
   offered?: string[];
@@ -125,6 +127,8 @@ export interface Scenario {
   label: string;
   blurb: string;
   turns: string[];
+  expect?: { queue: string; completion: string };
+  known_issue?: string;
 }
 
 export interface RunListItem {

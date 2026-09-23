@@ -152,6 +152,7 @@ class CallSession:
         self.llm_escalations = 0
         self._turn_q = 0
         self.finished = False
+        self.completion: Optional[str] = None
         self.routing: Optional[Dict[str, Any]] = None
         self._t0 = time.perf_counter()
 
@@ -385,8 +386,7 @@ class CallSession:
             yield self._edge(prev_id, contact_id, label="contact", kind="extract")
 
         # ---- policy: what is still missing --------------------------------------
-        # Slots only matter for destinations that end in an appointment; a non-customer call is
-        # transferred, not booked, so nothing is "missing" for it.
+        # Slots only matter for destinations that end in an appointment.
         destination = self.answers.get("destination", {}).get("choice")
         unsafe = float(self.answers.get("is_safe_to_drive", {}).get("noul", 0.0))
         if destination in D.TRANSFER_DESTINATIONS or destination is None:
@@ -536,7 +536,10 @@ class CallSession:
                 action = "ask_which_slot"
 
         elif action == "confirm_booking":
-            offered = self.scheduler.offer(location or "downtown", subqueue)
+            preference = self.answers.get("time_preference", {}).get("choice") or "not_stated"
+            offered = self.scheduler.offer(
+                location or "downtown", subqueue, preference=preference
+            )
             self.offered = offered
             action = "offer_slots" if offered else "offer_transfer"
 
@@ -735,30 +738,50 @@ class CallSession:
             return template.format(booking=self.booking.summary(), **self.contact)
         return template.format(destination=destination, location=location, time=time_pref)
 
-    def _finish(self, turn: int, prev_id: str, missing: List[str]) -> Iterator[Dict[str, Any]]:
+    def _finish(
+        self, turn: int, prev_id: str, missing: List[str], pending: bool = False
+    ) -> Iterator[Dict[str, Any]]:
         # "Missing" for routing means the caller never provided it. A shaky but present answer is
         # already visible as a low-confidence node, and should not read as an unasked question.
-        unaddressed = [s for s in D.REQUIRED_SLOTS if self._slot_missing(s) and s not in self.asked]
+        destination = self.answers.get("destination", {}).get("choice")
+        unaddressed = [
+            s for s in D.REQUIRED_SLOTS
+            if D.slot_applies(destination, s) and self._slot_missing(s) and s not in self.asked
+        ]
         outcome = D.decide(self.answers, unaddressed)
         self.routing = outcome
+        if pending:
+            self.completion = "awaiting_caller"
+        elif self.booking:
+            self.completion = "booked"
+        elif "dispatch" in outcome["flags"]:
+            self.completion = "dispatched"
+        else:
+            self.completion = "transferred"
         node_id = f"t{turn}.terminal"
         yield self._node(node_id, turn, "terminal", "terminal")
         yield self._result(
             node_id,
             turn,
-            value=outcome["queue"],
+            value="Awaiting caller" if pending else outcome["queue"],
             note=(
-                f"appointment filed: {self.booking.summary()}"
+                "script ended before the caller answered; queue shown is provisional"
+                if pending
+                else f"appointment filed: {self.booking.summary()}"
                 if self.booking
                 else "routed, no appointment (transferred or dispatched)"
             ),
             extra={
                 "routing": outcome,
+                "completion": self.completion,
                 "booking": asdict(self.booking) if self.booking else None,
                 "contact": self.contact or None,
             },
         )
-        yield self._edge(prev_id, node_id, label=outcome["queue"], kind="terminal")
+        yield self._edge(
+            prev_id, node_id, label="awaiting caller" if pending else outcome["queue"],
+            kind="terminal",
+        )
         self.finished = True
 
     # ------------------------------------------------------------------ driver
@@ -774,8 +797,10 @@ class CallSession:
                 break
             yield from self._run_turn(i, utterance)
         if not self.finished:
-            # ran out of scripted turns: route on what we have
-            yield from self._finish(len(self.scenario["turns"]), f"t{len(self.scenario['turns'])}.agent", [])
+            # A finite transcript may end while the switchboard is waiting for a reply. Keep a
+            # provisional queue for evaluation, but do not present it as a completed handoff.
+            turn = len(self.scenario["turns"])
+            yield from self._finish(turn, f"t{turn}.agent", [], pending=True)
         yield {
             "type": "call_end",
             "call_id": self.session_id,
@@ -788,6 +813,7 @@ class CallSession:
             "tokens_generated": 0,
             "cost_usd": 0.0,
             "routing": self.routing,
+            "completion": self.completion,
             "booking": asdict(self.booking) if self.booking else None,
             "contact": self.contact or None,
             "offered": [s.key for s in self.offered],

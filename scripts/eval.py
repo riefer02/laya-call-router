@@ -16,7 +16,7 @@ from pathlib import Path
 
 from jev_classifier import evalharness as H
 from jev_classifier import llm
-from jev_classifier.agent import get_router
+from jev_classifier.agent import new_base_router
 
 import laya_mlx as laya
 
@@ -84,7 +84,7 @@ def main() -> None:
     print(f"ground truth: {len(routing)} routing cases, {len(calls)} calls")
     print(f"llm arms: {', '.join(refs) if refs else 'none'}")
 
-    router = get_router()
+    router = new_base_router()
     print("preloading checkpoints ...", flush=True)
     router.preload(["english", "multilingual"])
 

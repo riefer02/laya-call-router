@@ -117,6 +117,7 @@ def _summary(session: CallSession, events: List[Dict[str, Any]]) -> Dict[str, An
         "tokens_generated": 0,
         "cost_usd": 0.0,
         "routing": session.routing,
+        "completion": end.get("completion"),
         "booking": end.get("booking"),
         "contact": end.get("contact"),
     }
@@ -357,7 +358,9 @@ def classify(req: ClassifyRequest) -> Dict[str, Any]:
 
 # ----------------------------------------------------------------------------- static app
 if WEB_DIST.is_dir():
-    app.mount("/assets", StaticFiles(directory=str(WEB_DIST / "assets")), name="assets")
+    # Vite replaces dist/assets during a rebuild. The API must remain importable in that brief
+    # window; StaticFiles will serve the directory once the build finishes.
+    app.mount("/assets", StaticFiles(directory=str(WEB_DIST / "assets"), check_dir=False), name="assets")
 
 
 @app.get("/")

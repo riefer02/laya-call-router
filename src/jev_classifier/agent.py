@@ -48,6 +48,15 @@ def resolve_checkpoint() -> Optional[Path]:
     return None
 
 
+def new_base_router(max_loaded: int = 2) -> "laya.Router":
+    """An explicit, separate stock router for evaluation baseline arms.
+
+    The app's get_router() follows models/active. Reusing it for an eval arm named `base`
+    silently scores the fine-tune twice whenever a demo checkpoint is selected.
+    """
+    return laya.Router(max_loaded=max_loaded)
+
+
 def get_router(
     preload: bool = False,
     dtype: str = "float16",
@@ -88,4 +97,3 @@ def reset_router() -> None:
     global _router
     with _lock:
         _router = None
-

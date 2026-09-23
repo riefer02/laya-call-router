@@ -43,6 +43,7 @@ export default function Controls() {
   const [scenarioId, setScenarioId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [outcomeNotice, setOutcomeNotice] = useState<string | null>(null);
 
   const playing = useRun((s) => s.playing);
   const applied = useRun((s) => s.applied);
@@ -72,9 +73,17 @@ export default function Controls() {
     if (!scenarioId) return;
     setBusy(true);
     setError(null);
+    setOutcomeNotice(null);
     try {
       const payload = await runScenario(scenarioId);
       load(payload.events, { label: scenarioId });
+      const expected = scenarios.find((s) => s.id === scenarioId)?.expect;
+      const actual = payload.summary as { routing?: { queue?: string }; completion?: string };
+      if (expected && (actual.routing?.queue !== expected.queue || actual.completion !== expected.completion)) {
+        setOutcomeNotice(
+          `Scenario miss: expected ${expected.queue} (${expected.completion}); got ${actual.routing?.queue ?? "no queue"} (${actual.completion ?? "unknown"}).`
+        );
+      }
       fetchRuns().then(setRuns).catch(() => {});
     } catch (e) {
       setError(String(e));
@@ -114,6 +123,9 @@ export default function Controls() {
       <Btn onClick={run} disabled={busy || !scenarioId} active>
         {busy ? "running…" : "▶ Run call"}
       </Btn>
+      {scenarios.find((s) => s.id === scenarioId)?.known_issue && (
+        <span className="text-[11px] text-amber-400">Known failure: {scenarios.find((s) => s.id === scenarioId)?.known_issue}</span>
+      )}
 
       <div className="mx-1 h-5 w-px bg-slate-800" />
 
@@ -194,6 +206,7 @@ export default function Controls() {
       </div>
 
       {error && <span className="text-[11px] text-rose-400">{error}</span>}
+      {outcomeNotice && <span className="text-[11px] text-amber-400">{outcomeNotice}</span>}
     </div>
   );
 }

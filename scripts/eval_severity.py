@@ -31,7 +31,7 @@ import laya_mlx as laya  # noqa: E402
 
 from jev_classifier import dealership as D  # noqa: E402
 from jev_classifier import evalharness as EH  # noqa: E402
-from jev_classifier.agent import get_router  # noqa: E402
+from jev_classifier.agent import new_base_router  # noqa: E402
 
 DATA = ROOT / "data" / "calls" / "severity.jsonl"
 QUESTIONS = ("is_safe_to_drive", "needs_human")
@@ -98,9 +98,18 @@ def at_threshold(rows: List[dict], question: str, threshold: float) -> Dict[str,
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--finetuned", default="", help="path to a fine-tuned Laya checkpoint")
-    ap.add_argument("--threshold", type=float, default=0.5)
+    ap.add_argument(
+        "--threshold", type=float, default=None,
+        help="override both policy thresholds for an experiment",
+    )
     ap.add_argument("--out", default="results/severity.json")
     args = ap.parse_args()
+    thresholds = {
+        "is_safe_to_drive": D.unsafe_threshold(),
+        "needs_human": float(D.PROFILE.policy.get("needs_human_threshold", D.NEEDS_HUMAN_FLAG)),
+    }
+    if args.threshold is not None:
+        thresholds = {q: args.threshold for q in QUESTIONS}
 
     rows = load()
     pos_counts = {q: sum(1 for r in rows if r[q]) for q in QUESTIONS}
@@ -108,7 +117,7 @@ def main() -> int:
     print(f"  positives: " + ", ".join(f"{q}={n}" for q, n in pos_counts.items()))
     print("  (a missed unsafe caller is the error worth designing against, so recall leads)\n")
 
-    router = get_router()
+    router = new_base_router()
     arms = {"base": router}
     if args.finetuned:
         path = Path(args.finetuned)
@@ -120,13 +129,17 @@ def main() -> int:
         ft = laya.Router(models={"english": (str(path), None)}, max_loaded=2)
         arms["fine-tuned"] = ft
 
-    report: Dict[str, object] = {"n": len(rows), "positives": pos_counts, "arms": {}}
+    report: Dict[str, object] = {
+        "n": len(rows), "positives": pos_counts,
+        "finetuned": args.finetuned or None,
+        "policy_thresholds": thresholds, "arms": {}
+    }
     for name, r in arms.items():
         r.preload(["english", "multilingual"])
         scored = run(rows, r)
         lat = [s["latency_ms"] for s in scored]
         report["arms"][name] = {
-            "at_default": {q: at_threshold(scored, q, args.threshold) for q in QUESTIONS},
+            "at_default": {q: at_threshold(scored, q, thresholds[q]) for q in QUESTIONS},
             "sweep": {
                 q: [at_threshold(scored, q, t) for t in (0.3, 0.4, 0.5, 0.6, 0.7, 0.8)]
                 for q in QUESTIONS
@@ -142,7 +155,7 @@ def main() -> int:
         for q in QUESTIONS:
             res = report["arms"][name]["at_default"][q]
             print(
-                f"  {q:18s} at {args.threshold:.1f}: accuracy {res['accuracy']:.3f}  "
+                f"  {q:18s} at {thresholds[q]:.1f}: accuracy {res['accuracy']:.3f}  "
                 f"recall {res['recall']}  precision {res['precision']}  "
                 f"missed {res['missed']}/{res['positives']}"
             )

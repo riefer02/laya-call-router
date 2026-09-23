@@ -1,0 +1,67 @@
+"""Run every demo scenario against the active checkpoint and check its stated ending.
+
+Uses a temporary booking store so the check never changes the presentation's availability.
+Known model failures are printed and excluded from the default pass gate; --strict includes them.
+"""
+
+from __future__ import annotations
+
+import argparse
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+from jev_classifier.agent import get_router, resolve_checkpoint
+from jev_classifier.call import CallSession
+from jev_classifier.scenarios import SCENARIOS
+from jev_classifier.schedule import Scheduler
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--strict", action="store_true", help="fail on documented model failures too"
+    )
+    args = parser.parse_args()
+    checkpoint = resolve_checkpoint()
+    if checkpoint is None:
+        print("FAIL: no fine-tuned checkpoint selected; set JEV_MODEL or models/active")
+        return 1
+    print(f"checkpoint: {checkpoint.resolve()}")
+    router = get_router()
+    router.preload(["english", "multilingual"])
+    failures = 0
+    known = 0
+    passed = 0
+    with tempfile.TemporaryDirectory(prefix="jev-demo-") as tmp:
+        for scenario in SCENARIOS:
+            expect = scenario["expect"]
+            scheduler = Scheduler(store_path=Path(tmp) / f"{scenario['id']}.jsonl")
+            events = list(CallSession(scenario, router=router, scheduler=scheduler).advance())
+            end = events[-1]
+            actual = {
+                "queue": (end.get("routing") or {}).get("queue"),
+                "completion": end.get("completion"),
+            }
+            booking = end.get("booking")
+            future_booking = not booking or datetime.fromisoformat(
+                f"{booking['slot_day']}T{booking['slot_time']}"
+            ) > datetime.now()
+            match = actual == expect and future_booking
+            is_known = bool(scenario.get("known_issue"))
+            label = "PASS" if match else "KNOWN FAIL" if is_known else "FAIL"
+            print(f"{label:10} {scenario['id']:24} {actual['queue']} / {actual['completion']}")
+            if not match:
+                print(f"           expected {expect['queue']} / {expect['completion']}")
+                if not future_booking:
+                    print("           booked slot is already in the past")
+                known += int(is_known)
+                failures += int(not is_known or args.strict)
+            else:
+                passed += 1
+    print(f"{passed} passed, {known} documented failure(s), {failures} gate failure(s)")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
