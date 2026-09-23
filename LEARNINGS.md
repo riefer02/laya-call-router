@@ -88,7 +88,7 @@ general model is often just a different model.
 
 ---
 
-## The same bug, nine times, in nine disguises
+## The same bug, ten times, in ten disguises
 
 This is the pattern I'd warn someone about first.
 
@@ -135,10 +135,18 @@ This is the pattern I'd warn someone about first.
    the unsafe question *overwrites* it with `Roadside / Towing`. So a safety false-positive silently
    destroyed a correct routing decision — three of 27 calls. Two different questions, one string.
 
-Items 1–8 are all **one fact in two places**. Item 9 is the mirror image, **two facts in one place**,
-and it is the same disease: the structure cannot represent the truth, so something is chosen
-silently. Every one of the nine was invisible until measured — none threw an error you'd notice.
-Three cost real accuracy, two cost a GPU run, and one cost eleven points of the metric we quote.
+10. **The training data existed in two places, and the leak check looked at the wrong one.** The
+    guard compared `data/calls/` against the eval sets. The checkpoints trained on the snapshot Kaggle
+    packaged, and *that* is the copy beside the weights. v3, v3-e8, v4 and v6 all carried `gen-01`
+    verbatim inside a training row; v6 also carried `sev-04` six times. Every one of them answered
+    the leaked case correctly, and 0.963 destination and "18 of 18 stranded callers caught" were
+    partly memorisation. Found by a second reader, by hand, after the numbers had been quoted.
+
+Items 1–8 are all **one fact in two places**. Item 9 is the mirror image, **two facts in one place**.
+Item 10 is the original again, with the two places being a working directory and a model artefact —
+the same disease: the structure cannot represent the truth, so something is chosen silently. None of
+the ten threw an error you'd notice. Three cost real accuracy, two cost a GPU run, one cost eleven
+points of the metric we quote, and one cost the headline.
 
 **The lesson:** when a fact is stored, ask how many questions it is answering and how many places it
 lives. If either number is over one, the code will eventually resolve the conflict quietly and
@@ -358,13 +366,28 @@ All three had the same root cause: **the eval sets and the training sets come ou
 pipeline.** That is convenient and it is exactly why the leak is invisible. A held-out set is not
 held out because you intended it to be; it is held out when something checks.
 
+**And a fourth leaked because the check looked in the wrong place.** I wrote the guard, ran it, saw
+it pass on `data/calls/`, and believed the problem was solved. It compared the *working directory*.
+The checkpoints had trained on the snapshot Kaggle packaged weeks earlier, and that copy sat beside
+the weights, unexamined. A second reader found it by hand: `gen-01` verbatim inside a training row in
+v3, v3-e8, v4 *and* v6; `sev-04` six times in v6. All four answered the leaked case correctly.
+
+The honest accounting: destination 0.963 → **0.951**, joint 0.926 → **0.914**, and stranded-caller
+recall 18 of 18 → **17 of 18**. The comparison *between our checkpoints* survived, because they all
+carried the same leak. The comparison against `deepseek-flash` did not — it became a 1.2-point
+deficit rather than parity, and that was the headline of the day.
+
+> **The lesson:** when you fix a class of bug, the fix has to cover every *copy* of the thing you
+> were measuring — including the frozen ones inside model artefacts. "I added a check and it passes"
+> is only as good as the question of what the check is pointed at.
+
 > **The lesson:** a flattering number deserves more suspicion than a disappointing one. 0.554 → 1.000
 > should have been the moment I audited the measurement, and instead it was the moment I started
 > writing it up.
 
 ---
 
-## The base rate, and a precision that means nothing
+## The base rate, and a precision that does not travel
 
 The severity set is 18 unsafe calls out of 45. **40% positive.** That enrichment is deliberate and
 correct: unsafe calls are rare, and you need them concentrated to measure whether you catch them.
@@ -373,20 +396,25 @@ But precision read off an enriched set is not precision. Precision depends on th
 set we measure on has a base rate eight to twenty times the deployment one. Recompute the same
 classifier at rates a switchboard actually sees:
 
-| | sensitivity | specificity | precision @40% (the set) | @5% | @2% | @1% |
-| --- | --- | --- | --- | --- | --- | --- |
-| old wording, untrained | 1.000 | 0.889 | 0.857 | 0.321 | 0.155 | 0.083 |
-| **trained (v6)** | 1.000 | 0.704 | **0.692** | 0.151 | **0.064** | 0.033 |
+| | sensitivity | specificity | precision @40% (the set) | @5% | @2% |
+| --- | --- | --- | --- | --- | --- |
+| old wording, untrained | 1.000 | 0.889 | 0.857 | 0.321 | 0.155 |
+| **trained (v6)** | 1.000 | 0.704 | **0.692** | 0.151 | **~0.04–0.11** |
 
-Read the last two columns. **At a 2% base rate, 94% of our dispatches are wrong** — and *training
-made it worse in deployment while making it look better on the set*. The trained model's measured
-precision fell only 0.857 → 0.692; its deployment precision fell **0.155 → 0.064**, because training
-traded specificity (0.889 → 0.704) for sensitivity, and at low base rates specificity dominates
-precision completely.
+**Read the last two columns — but read them as a model, not a measurement, and not as a point.** The
+false-alarm rate is 8 of 27, Wilson 95% **[0.159, 0.485]**, so precision at an assumed 2% prevalence
+spans **0.040 to 0.114**. The prevalence itself has not been measured, and the code sets a *flag and a
+queue* — it does not send a truck. The claim I first wrote, "94% of our dispatches are wrong", stated
+a modelled quantity as an observed outcome; an audit caught it.
 
-This also explains the call-level damage quantitatively. A ~30% false-positive rate on the negatives
-means roughly three of every ten non-urgent calls trip the dispatch — and we measured exactly that:
-**3 of 27 calls hijacked to Roadside / Towing.**
+What the model does establish is the direction, and it is not sensitive to the interval: **training
+traded specificity for sensitivity** (0.889 → 0.704), and at low base rates specificity is what
+precision is made of. The measured precision fell 0.857 → 0.692; precision at deployment rates
+roughly halved. A classifier that got *better at its eval set* became less usable where it runs.
+
+It also fits the call-level damage: a false-positive rate near 0.30 on the negatives means about three
+in ten non-urgent calls trip the dispatch, and we measured exactly that — **3 of 27 calls reached
+Roadside / Towing**.
 
 **Nothing about this was wrong with the model, the training, or the intent.** It is a measurement
 that cannot answer the question being asked of it: a recall-first set can tell you *"do we catch the
@@ -543,13 +571,22 @@ the eval's negatives are precisely the terse fault statements it has never seen 
 
 None of those affects steering, braking or visibility. A person would not dispatch a truck.
 
+**But it is a hypothesis, and an audit cut it down to size.** Stratified by length, the false alarms
+are **3 of 7 at ≤9 words, 3 of 11 at 10-12, and 2 of 9 at ≥13** — length alone does not separate them.
+The model correctly rejects some short faults and falsely flags a *longer* complaint. I had written
+"it is the only finding that explains the false positives" and that was not supported; what is
+supported is that the negative class lacks the shape the false positives have. The test is cheap, so
+it is worth running with the gate fixed in advance: recall must hold on the clean hazards and the
+false-alarm count must fall, or the register was not the cause.
+
 > **The lesson:** before tuning a model, measure whether your data is in the register your users
 > actually speak. A generator asked for "realistic" text produced something no caller has ever said,
 > and nothing in the pipeline objected — it is fluent, on-topic and correctly labelled. It is just
-> three times too long, and that was enough to teach a shortcut instead of the distinction.
-
-This is the first finding that is not about *whether* we measured but about **what we fed it** — and
-it is the one with the largest blast radius, because every trained question inherits it.
+> three times too long.
+>
+> **And the second lesson, from the audit:** a measured mismatch plus a plausible mechanism is not a
+> cause. I had two true measurements and one story, and I wrote the story as though it were the third
+> measurement. Stratify before you attribute.
 
 ---
 
@@ -602,24 +639,25 @@ Everything above compresses into a short list. Every one of these cost something
    classifier at 1.000 was a leak. The retrain that "regressed" was two confounds. Both looked like
    findings and neither was.
 
-3. **When a class is rare, an enriched eval set measures recall and inflates precision.** Our
-   dispatch looked like 0.69 precision on a 40%-positive set and is **0.064** at the 2% rate a
-   switchboard actually sees. Report the base rate or the number describes a world that isn't there.
+3. **A check is only as good as what it is pointed at.** I added a leak guard, watched it pass, and
+   believed the problem solved — it compared the working directory, while the checkpoints had trained
+   on a frozen snapshot sitting beside their weights. Four of them had `gen-01` in their training
+   data. Audit every *copy* of the thing you are measuring, including the ones inside artefacts.
 
-4. **Check your data is in the register your users speak.** We trained on 27-word chatbot prose and
-   evaluated on 11-word caller speech, and nothing objected because it was fluent, on-topic and
-   correctly labelled. It taught a shortcut instead of the distinction.
+4. **When a class is rare, an enriched eval set measures recall and inflates precision.** Our
+   dispatch looked like 0.69 precision on a 40%-positive set; at an assumed 2% rate it is somewhere
+   in 0.04-0.11. Report the rate *and* the interval, and do not state a model as an observation.
 
-5. **Before changing how sensitive a decision is, find what consumes it.** The severity report said
-   "three false alarms", which sounds like a wasted truck. It was three discarded routing decisions —
-   and the fix I first proposed for it would have broken two correct calls.
+5. **A measured mismatch plus a plausible mechanism is not a cause.** The register finding was two
+   true measurements and a story, and I wrote the story as the third measurement. Stratify before you
+   attribute: length alone did not separate the false alarms (3/7, 3/11, 2/9 across the buckets).
 
 6. **Check a proposed fix against the ground truth before shipping it.** Uncoupling dispatch from
-   routing would have lifted the headline metric while removing the mechanism that sends a truck, and
-   breaking two genuinely stranded callers. I only saw it by reading the three cases that expect
-   `Roadside / Towing`.
+   routing would have lifted the headline metric while removing the mechanism that sends a truck. I
+   only saw it by reading the three cases that expect `Roadside / Towing` — and the audit then showed
+   the retraction rested on labels that conflate two outputs, so neither position was entailed.
 
-7. **One fact in two places, or two facts in one place, gets resolved silently and wrongly.** Nine
+7. **One fact in two places, or two facts in one place, gets resolved silently and wrongly.** Ten
    instances. None threw an error. The fix is structure and a test, never vigilance.
 
 8. **A threshold is only a control if the distribution isn't saturated.** Where the model is
@@ -627,7 +665,8 @@ Everything above compresses into a short list. Every one of these cost something
    that isn't being made.
 
 9. **Check what else changed before you credit the model.** The call-level drop was a policy change,
-   the routing "regression" was an epoch count. Both times the tidy story was wrong.
+   the routing "regression" was an epoch count. Both times the tidy story was wrong — and equal
+   aggregate scores can hide a *different set* of failures.
 
 10. **Balance the axis you're classifying, not the axis that looks tidy.** Equal examples per
     sub-queue starved a destination, and "balanced" hid it.
@@ -636,12 +675,14 @@ Everything above compresses into a short list. Every one of these cost something
     departments. We spent a long time teaching a distinction that did not exist in the world.
 
 12. **When a fix makes your numbers go up, check whether it fixes the thing or hides it.** Merging two
-    confusable classes would have erased four errors and made the taxonomy worse — as would the
-    dispatch change above, which is why it was dropped.
+    confusable classes would have erased four errors and made the taxonomy worse.
 
-13. **Report the noisy comparison honestly.** We are at parity with a frontier model on the decision,
-    60× faster, and at zero marginal cost per call — and on 81 cases the honest claim stops there.
-    The intervals overlap, and saying so costs nothing.
+13. **Record what a run was trained on, with the run.** A number and its provenance have to travel
+    together, or someone reconstructs the provenance later and finds a leak they cannot repair.
+
+14. **Report the noisy comparison honestly.** After the leak correction we are 1.2 points behind a
+    frontier model on joint, 60× faster, and at zero marginal cost per call — and on 81 cases the
+    honest claim stops there. The intervals overlap, and saying so costs nothing.
 
 ---
 

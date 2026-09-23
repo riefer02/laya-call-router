@@ -14,20 +14,26 @@ half**, and it was being flattered by a measurement — the dispatch fires on th
 
 ## The one-line version
 
-**We now have our best checkpoint, and it ties `deepseek-flash` — and the reason the previous retrain
-looked like a regression was two separate confounds, both of them mine.**
+**An audit found that every fine-tune from v3 onward was scored partly on data it had trained on, and
+my own guard could not have caught it because it checked the wrong files.**
 
-v6 (8 epochs, all five questions) is the best thing we have built: joint **0.926** against
-`deepseek-flash`'s 0.926, with a better queue outcome (0.975 vs 0.963). The v5 "regression" was
-**the epoch count, not the new training tasks**. And the call-level regression that followed it was
-**not the training at all** — it was the safety rewording, which I measured by re-running the *same*
-v4 checkpoint under the current policy.
+v6 is still the best model we have built — clean, that is destination **0.951** and joint **0.914** —
+and the v5 "regression" was still the epoch count rather than the four new training tasks. But the
+leak correction costs the headline: against `deepseek-flash`'s 0.988 / 0.926, clean v6 is **1.2 points
+behind on joint** rather than level with it. On 81 cases that is inside the noise, but the point
+estimate no longer favours us, and "we tie deepseek" is no longer a claim I can make.
 
-Along the way three of our measurements turned out to be reading their own training data, including
-a 1.000 accuracy on the booking question that was pure memorisation.
+The audit also cut down two of my own explanations:
 
-The one headline that survived every audit: **`needs_human` recall went from 0.571 to 0.857 on
-genuinely held-out data.**
+- The **training register** is a *hypothesis* about the safety false positives, not a demonstrated
+  cause — stratification by length does not support it (3/7 false alarms at ≤9 words, 3/11 at 10-12,
+  2/9 at ≥13).
+- The **precision of 0.064** was a modelled quantity quoted as an observation, at an assumed base
+  rate, from 8 false positives out of 27. The honest form is a range with the assumption stated.
+
+The headline that survived every audit untouched: **`needs_human` recall went from 0.571 to 0.857 on
+genuinely held-out data.** `sev-04` is the only leaked severity case and it is not a `needs_human`
+positive, so that number is clean.
 
 ---
 
@@ -42,6 +48,26 @@ genuinely held-out data.**
 | call-level queue (27) | 0.593 | 0.852\* | 0.889 | 0.852 | 0.963 | 0.963 |
 | p50 latency | 21.4 ms | 21.8 ms | 21.8 ms | 22.9 ms | 747 ms | 1432 ms |
 | cost per call | $0 | $0 | $0 | **$0** | $0.0025 | $0.0114 |
+
+**Every fine-tune in that table is scored partly on data it trained on**, and the corrected figures
+are lower. `gen-01` appears verbatim inside a training row in the packaged snapshot of v3, v3-e8, v4
+*and* v6, and all four answer it correctly — the shape of memorisation. Removing it (the conservative
+bound, since we cannot know what the model would have done without it):
+
+| | reported dest / joint | leak-corrected |
+| --- | --- | --- |
+| v3 | 0.938 / 0.864 | 0.926 / 0.852 |
+| v4 | 0.951 / 0.914 | 0.938 / 0.901 |
+| v5 | 0.938 / 0.876 | 0.926 / 0.864 |
+| **v6** | 0.963 / 0.926 | **0.951 / 0.914** |
+
+**The comparison between them survives** — they all carried the same leaked case, so v6 is still
+ahead of v4. **The comparison against `deepseek-flash` does not.** 0.951 / 0.914 against its 0.988 /
+0.926 is 1.2 points behind on joint rather than level. `deepseek-flash` was never trained on our data,
+so there is nothing to correct on its side.
+
+`sev-04` is likewise inside v6's severity snapshot six times, so its hazard recall is **17 of 18
+(0.944)**, not 18 of 18. It is not a `needs_human` positive, so that question's numbers are clean.
 
 \* `eval_v4.json` reports 0.963, but it was measured **before** the safety rewording. Re-measured
 under the current policy, v4 scores **0.852** — identical to v6. That is the evidence that the
@@ -176,78 +202,90 @@ essentially done. **The safety surface is the weak half** — and one measuremen
 
 Ordered by (impact × confidence) ÷ cost.
 
-### Move 1 — Fix the register of the training data
+### Move 1 — Separate the two questions the labels currently conflate
 
-**This replaces a move I had to withdraw, and the withdrawal is worth reading.**
+**This move has been through three positions and the audit settled it. The history is the point.**
 
-I recommended uncoupling dispatch from routing, and you approved it. Checking it against the ground
-truth first killed it: **three call cases legitimately expect `Roadside / Towing`**, and for two of
-them that queue comes *only* from the unsafe override —
+I first proposed uncoupling dispatch from routing, and you approved it. Then I checked it against the
+ground truth and withdrew it, because `call-no-start` and `call-flat-tire` reach `Roadside / Towing`
+*only* through that override, so the change looked like it would break two stranded callers.
 
-```
-queue_for('service','mechanical_diagnostic') = 'Service Department'   but call-no-start expects Roadside
-queue_for('service','tires')                 = 'Tire Bay'             but call-flat-tire expects Roadside
-```
+**The audit showed both positions were arguing about a label that cannot settle the question.**
+`Roadside / Towing` in those cases is not evidence that the *owning* queue must be Roadside — it is
+how the current labels encode a *combined* outcome. The ground truth stores "who owns this call" and
+"does this caller need help now" in one field, so neither my fix nor my retraction was entailed by it.
+Meanwhile the taxonomy's own stated principle says roadside is a flag, not a place the call goes —
+which contradicts the labels.
 
-— and the callers are "my car won't start at all" and "I'm stuck on the highway". Uncoupling would
-have routed them away from the tow they need, broken two correct calls to fix four wrong ones, and
-removed the mechanism that sends a truck. **It was the `front_desk` / `non_customer` mistake again: a
-metric that improves because we stopped counting the fault.** Retracted.
+Also worth reviewing: `call-vague` says *"the steering feels off"*, so calling its dispatch a false
+positive is a judgement, not a fact.
 
-**What the check actually found is bigger.** The training data is **27 words** a line; the eval sets
-are **11**; hand-written caller turns are **5**. We trained on a register nobody uses — 77% of the
-routing eval is ≤12 words, against 9% of what we trained on. And the negative class contains
-essentially no *short, bare statement of a fault that isn't a hazard*, which is exactly what the
-false positives are:
+**What:** define the two outputs separately — the **owning queue** (which department handles it) and
+the **dispatch decision** (does a truck roll) — then relabel the call set against that, with
+`call-vague` reviewed on its merits. *Then* decide whether the policy should change.
+**Cost:** the relabelling is 27 cases by hand; no GPU, no API. **Confidence:** high that this is the
+prerequisite, and I should not have formed a view on the policy before it.
+
+### Move 2 — Test the register hypothesis, bounded
+
+**What the check found.** The training data is **27 words** a line, the eval sets are **11**, and
+hand-written caller turns are **5** — 77% of the routing eval is ≤12 words against 9% of what we
+trained on. The negative class contains essentially no *short, bare statement of a fault that isn't a
+hazard*, which is what the false positives look like:
 
 ```
 "The air conditioning isn't blowing cold air any more."    unsafe, p=0.999
 "The driver's seat won't slide forward any more."          unsafe, p=1.000
 ```
 
-**What:** generate training data in the caller's register — short, terse, first-person — and in
-particular **non-hazard fault reports with no reassurance clause** ("the radio stopped working",
-"the seat won't slide", against "the brakes failed", "smoke from under the hood"). The distinction
-the model must learn is *which system, and whether it affects control, braking or visibility.*
+**But it is a hypothesis, not a cause, and the audit is right to say so.** Stratified by length, the
+false alarms are **3/7 at ≤9 words, 3/11 at 10-12, 2/9 at ≥13** — length alone does not separate them,
+and the model correctly rejects some short faults while falsely flagging a longer complaint. The
+training data may still be why it learned the wrong thing, but I have not demonstrated it.
 
-**Why it is first:** every trained question inherits the mismatch, not just severity. It is the only
-finding that explains the false positives, the saturation (a register shortcut is cleanly separable)
-and why thresholds and priors did nothing.
+**What:** the 1,199 terse non-hazard faults are generated (~$0.33 so far) — a sensible experiment.
+**The gate, fixed in advance:** `is_safe_to_drive` recall must stay at 17 of 18 on the *clean* hazard
+set, and the false-alarm count must fall. If recall drops, the negatives were too aggressive and I
+subsample them; if false alarms do not fall, the register was not the cause and this move is
+abandoned rather than reworked.
+**Confidence:** unknown, which is the honest word for it. It is worth one run *because* the test is
+cheap and the alternative is guessing.
 
-**Cost:** ~$0.30-1.00 of teacher calls, then one free GPU run. **Confidence:** medium-high — the
-mismatch is measured, the causal link is a testable hypothesis, and the test is cheap.
+### Move 3 — Report precision honestly, and give the dispatch a control
 
-### Move 2 — Give the dispatch a control it can actually use
+**3a. Report precision as a range at a stated rate.** Our severity set is 40% positive because it was
+built to measure recall, so its precision describes a world that does not exist. The corrected
+version, done properly: the false-alarm rate is **8/27, Wilson 95% [0.159, 0.485]**, which at an
+*assumed* 2% prevalence gives precision **0.040 – 0.114**. The prevalence itself has not been
+measured. And note the code sets a flag and a queue — it does not send a truck; "most trucks roll for
+nothing" was a model, stated as an observation.
 
-**2a. Report precision at a deployment base rate**, next to every safety number, forever. Our
-severity set is 40% positive because it was built to measure recall; its precision describes a world
-that does not exist. This is free and immediate.
+**3b. Re-check the dispatch bar.** It is not a control today — the sweep is flat from 0.3 to 0.6. If
+it stays flat once the probabilities de-saturate, accept that confidence cannot gate this decision
+and design accordingly rather than reporting an operating point as though it were a choice.
 
-**2b. Re-check the dispatch bar.** It is not a control today — the sweep is flat from 0.3 to 0.6. The
-hope is that better data de-saturates the probabilities and makes the bar mean something again. If it
-does not, accept that confidence cannot gate this decision and design accordingly rather than
-reporting an operating point as though it were a choice.
-
-### Move 3 — v13: one GPU run that consolidates everything
+### Move 4 — v13: one GPU run, with provenance
 
 The first run that can measure what we actually ship:
-- the **register-corrected** training data,
-- the **fixed calibration** (`train_ddp.py` no longer ships the inherited map that overrode its own fit),
+- the **register experiment** from Move 2,
+- the **fixed calibration** (`train_ddp.py` no longer ships the inherited map — v6 still carries it),
 - the **acceptance split**, so the booking number is held out for the first time.
 
-**Gates:** routing must hold at ≥ 0.926 joint; `is_safe_to_drive` recall must stay at 1.000 on the 18
-hazards; the false positives should fall. If recall drops, the terse negatives were too aggressive.
-**Cost:** one free 2×T4 run, ~50 min. **Confidence:** high that it measures; the numbers are unknown,
-which is the point.
+**Provenance is now automatic.** `kaggle_run.py watch` audits the packaged snapshot against the eval
+sets at download and writes a manifest with a sha256 per file; a test fails if a leaky checkpoint has
+no manifest. v13's numbers should therefore be quotable without an asterisk — which no checkpoint so
+far has been.
 
-### Move 4 — The ceiling: a second labeller, and a bigger test set
+**Gate:** leak audit clean, routing ≥ clean-v6 (0.951 destination), hazard recall ≥ 17 of 18.
+
+### Move 5 — The ceiling: a second labeller, and a bigger test set
 
 `det-04` is missed by every model; `gen-08` is answered against our label by all three. Where every
 model disagrees with the key, the key is the likeliest thing to be wrong. **+1.2 to +3.7
 destination** as a *measurement correction*, not a model improvement — and growing 81 cases to ~150
 is the only way a 2-point delta stops being noise.
 
-### Move 5 — Product completeness
+### Move 6 — Product completeness
 
 Answer "what time do you open?" from `facts` instead of transferring (loaded, unused, top repeatable
 Fixed Ops volume). And decide what to do about the dead `other` fallback: the fine-tuned model never
@@ -267,34 +305,34 @@ abstains (0.0%), so there is no "I'm not sure" left anywhere in the system.
   the cost.
 - **Trust any single run.** One case on 81 is 1.23 points; the LLM arms moved 2.5 points between
   identical runs.
-- **Uncouple dispatch from routing.** Withdrawn after checking it against the ground truth: two
-  genuinely stranded callers reach `Roadside / Towing` only through that override, so the change
-  would have broken correct behaviour while improving the metric. The `front_desk` / `non_customer`
-  mistake again — and the reason I now check a structural fix against the three cases it affects
-  before recommending it.
+- **Change the dispatch policy before the labels can answer the question.** Both my original fix and
+  my retraction argued from a field that stores the owning queue and the dispatch outcome together.
+  Relabel them as two outputs first (Move 1); until then there is no evidence either way.
 
 ---
 
 ## Open questions for you
 
-1. **Confirm the register fix is the priority.** The evidence is that our training data is 27 words
-   a line where callers speak 5-11, and that the negative class contains no short non-hazard fault
-   statements — which is precisely what the false positives are. It is a hypothesis with a clean
-   test, and it is a bigger project than the one I proposed before it. If you would rather I take a
-   smaller, surer step first (the base-rate reporting, or the held-out booking measurement), say so.
+1. **Confirm Move 1 is the prerequisite.** The audit's point lands: the call labels store the owning
+   queue and the dispatch outcome in one field, so neither my fix nor my retraction was entailed by
+   them. Relabelling 27 cases as two separate outputs is hand work with no API cost, and it settles
+   a question I have now got wrong in both directions. I would do it before anything else.
 
-2. **The trade from the rewording still stands unanswered.** It catches **4 more stranded callers**
-   and misroutes **3 calls**, because a false "unsafe" replaces the queue. I would keep the
-   sensitivity and improve the precision — leaving someone at the roadside is a worse failure than
-   sending a truck to someone who was fine. But it is the one place where "more accurate" and
-   "safer" genuinely pull apart.
+2. **The register fix is an experiment, not the plan.** Stratifying by length does not support my
+   causal claim (3/7 false alarms at ≤9 words, 3/11 at 10-12, 2/9 at ≥13). The data is generated and
+   cheap to try, with a gate fixed in advance, but if you would rather not spend the GPU run on a
+   hypothesis, the relabelling and the base-rate reporting are both free and certain.
 
-3. **Is the booking flow worth one more GPU run?** Move 3 is ~50 minutes and free, and it is the
-   first honest measurement of whether the switchboard can book. If the demo matters, it does.
+3. **The trade from the rewording is still unanswered.** It catches **4 more stranded callers** and
+   misroutes **3 calls**, because a false "unsafe" replaces the queue. I would keep the sensitivity
+   and improve the precision. It is the one place where "more accurate" and "safer" pull apart.
 
-4. **Do we grow the test set?** 81 cases means one case is 1.23 points and a 2-point "win" is noise.
-   Growing to ~150 would halve the interval — but it is more single-labeller labels, which is the
-   constraint we are already fighting.
+4. **Is the booking flow worth one more GPU run?** Move 4 is ~50 minutes and free, and it is the
+   first honest measurement of whether the switchboard can book.
+
+5. **Do we grow the test set?** 81 cases means one case is 1.23 points, and the audit has just shown
+   how much one case is worth. Growing to ~150 would halve the interval — but it is more
+   single-labeller labels, which is the constraint we are already fighting.
 
 ---
 

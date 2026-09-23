@@ -227,11 +227,17 @@ cascade (base and fine-tuned), a cheap structured-output model (`gpt-5.4-nano`),
 **The fine-tuned cascade matches both LLM arms on the decision, at ~60× the speed and for nothing
 per call — and unlike them, its number does not move.**
 
-> **This is the 8-epoch, five-question checkpoint (`models/kaggle-out-v6`).** An earlier 4-epoch run
-> of the same recipe scored joint 0.877 and looked like a regression; it was the epoch count, not the
-> four extra training tasks. At 8 epochs the multi-task model is strictly better than the
-> two-question one it replaced (0.914 → 0.926 joint). `results/eval_v5.json` and `eval_v6.json` hold
-> both.
+> **This is the 8-epoch, five-question checkpoint (`models/kaggle-out-v6`) — and every number in the
+> table is inflated by one leaked case.** `gen-01` appears verbatim inside a training row in v6's
+> packaged snapshot (and in v3's, v3-e8's and v4's), and all of them answer it correctly, which is
+> what memorisation looks like. Removing it, the conservative bound: **destination 0.951, joint 0.914,
+> queue 0.963** — against `deepseek-flash`'s 0.988 / 0.926 / 0.963. That is 1.2 points *behind* on
+> joint, inside the noise on 81 cases but no longer a claim of parity.
+>
+> The comparison *between our own checkpoints* survives, because they all carried the same leak: v6 is
+> still ahead of v4 (clean 0.914 vs 0.901 joint), which is how we know the four extra training tasks
+> helped rather than hurt. `scripts/audit_snapshots.py` names every affected checkpoint, and
+> `kaggle_run.py watch` now writes a provenance manifest at download.
 
 Read that carefully, because the tempting version of that sentence is wrong. Across four runs on
 identical inputs, `deepseek-flash` scored joint **0.914, 0.889, 0.901 and 0.926** — it leads us in
@@ -318,7 +324,7 @@ right while the fine-tune got 4 of 8 wrong, so the boundary is learnable and we 
 little of it. `--min-per-destination` (default 150) now raises the per-sub-queue target for any
 destination that would otherwise fall short. It moved destination accuracy 0.938 → 0.951.
 
-### The training data is three times too long, and it taught a shortcut
+### The training data is three times too long — a hypothesis, not yet a cause
 
 Measured across every corpus:
 
@@ -347,8 +353,17 @@ Every *positive*, by contrast, is a terse fault statement. So the only rule avai
 "The driver's seat won't slide forward any more."          unsafe, p=1.000
 ```
 
-None of those affects steering, braking or visibility. The fix is training data in the caller's
-register — terse, first-person, and including non-hazard fault reports with no reassurance clause.
+None of those affects steering, braking or visibility. The plausible reading is that the model learned
+**"short + something's wrong ⇒ unsafe"**, because in training the only short fault statements it ever
+saw were hazards.
+
+**But that reading is a hypothesis, and an audit was right to say so.** Stratified by length, the
+false alarms are **3 of 7 at ≤9 words, 3 of 11 at 10-12, and 2 of 9 at ≥13** — length alone does not
+separate them, and the model correctly rejects some short faults while falsely flagging a *longer*
+complaint. The register may still be why the wrong thing was learned, but it is not demonstrated. The
+experiment is worth one GPU run (1,199 terse non-hazard faults are generated, with recall on the
+clean hazards and the false-alarm count as gates fixed in advance); it should not be treated as *the*
+fix until it passes them.
 
 ### A residual class cannot be generated into existence
 
@@ -383,13 +398,18 @@ synthetic set (RLCD, official trainer, 2×T4, ~15 min for 8 epochs) is the *afte
 
 | metric | base cascade | **fine-tuned (v6)** | gpt-5.4-nano | deepseek-flash |
 | --- | --- | --- | --- | --- |
-| destination accuracy | 0.654 | **0.963** | 0.951 | 0.988 |
+| destination accuracy | 0.654 | **0.963** (clean 0.951) | 0.951 | 0.988 |
 | sub-queue accuracy | 0.518 | **0.926** | 0.876 | 0.926 |
-| joint accuracy | 0.518 | **0.926** | 0.876 | 0.926 |
+| joint accuracy | 0.518 | **0.926** (clean 0.914) | 0.876 | 0.926 |
 | call-level queue accuracy | 0.778 | 0.852\* | 0.963 | 0.963 |
 | p50 latency | 22.3 ms | **22.9 ms** | 747 ms | 1432 ms |
 | cost per case | **$0** | **$0** | $0.0025 | $0.0113 |
 | determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
+
+The "clean" figures exclude one case (`gen-01`) that sits verbatim inside v6's packaged training data
+— see the note under the four-arm table. **On the clean reading we are 1.2 points behind
+`deepseek-flash` on joint rather than level with it**, which is inside the noise on 81 cases and short
+of the parity claim this document made earlier.
 
 \* This is the safety policy's doing, not the model's — see above. The same checkpoint scores 0.963
 under the policy that was live before the safety rewording. **The unsafe flag overwrites the queue**,
@@ -493,8 +513,13 @@ wording, **0.99** under the new. The model was never unsure; the question was wr
 | `needs_human` | reworded, untrained (v4) | 0.571 | **1.000** | 3 of 7 |
 | `needs_human` | reworded, trained (v5) | **0.857** | 0.207 | 1 of 7 |
 
-The 45 cases are genuinely held out — a test now asserts no eval case is a substring of a training
-row, which is how `sev-04` was caught hiding in two of them.
+The 45 cases are held out **against today's data** — a test asserts no eval case is a substring of a
+training row, which is how `sev-04` was caught hiding in two of them. **But the v6 row above is not
+clean:** it trained before that trim, on a snapshot where `sev-04` appeared six times, so its hazard
+recall is **17 of 18 (0.944)** rather than 18 of 18. `sev-04` is not a `needs_human` positive, so the
+`needs_human` rows are unaffected. Every checkpoint from v3 onward has the same kind of flaw —
+`scripts/audit_snapshots.py` names them, and `kaggle_run.py watch` now records a manifest with a
+sha256 per packaged file so a checkpoint's provenance travels with it.
 
 Training the yes/no questions did what it was meant to on **recall**: `needs_human` went from missing
 3 of 7 escalations to missing 1. It then over-fired on both questions, and the likely cause is the
@@ -507,6 +532,30 @@ errors are confident ones. Dispatch and escalation now share a single threshold 
 `unsafe_to_drive` flag, the priority, the handler and the transfer decision — those used to read
 three different numbers, so a caller could be dispatched as unsafe while the audit trail said they
 were not.
+
+### Precision here is not precision in deployment
+
+The 45-case set is **40% positive** — deliberately, because unsafe calls are rare and you need them
+concentrated to measure recall at all. Precision depends on the base rate, and 40% is eight to twenty
+times what a switchboard sees, so the precision printed above describes a world that does not exist.
+Sensitivity and specificity are properties of the classifier; precision is not. Recomputing the same
+classifier:
+
+| | sensitivity | specificity | precision @40% (our set) | @5% | @2% |
+| --- | --- | --- | --- | --- | --- |
+| untrained (v4) | 1.000 | 0.889 | 0.857 | 0.321 | 0.155 |
+| trained (v6) | 1.000 | 0.704 | 0.692 | 0.151 | **~0.04-0.11** |
+
+**Both numbers in the last column carry real uncertainty, and neither is an observation.** The
+false-alarm rate is 8 of 27, Wilson 95% **[0.159, 0.485]**, so precision at 2% is somewhere between
+**0.040 and 0.114**; the 2% prevalence itself is assumed, not measured. And the code sets a flag and
+a queue — it does not actually send a truck. The defensible claim is: *given a 2% hazard rate, most
+dispatch flags would be wrong*, not "most trucks roll for nothing".
+
+What is unambiguous is the direction: training **traded specificity for sensitivity** (0.889 → 0.704),
+and at low base rates specificity is what precision is made of. `scripts/eval_severity.py` now prints
+this table for every arm, and a test pins the round trip (at the set's own 40% rate, Bayes must
+reproduce exactly the precision the set measured).
 
 ### The hidden cost: an unsafe flag overwrites the routing
 
@@ -540,18 +589,25 @@ That is **11 points of the metric we quote, paid for three false alarms**, and i
 at the time. The trade is defensible — a truck sent to someone who was fine is a smaller harm than
 someone left at the roadside.
 
-**But the override itself is not the bug — I checked, and had to withdraw the fix I first proposed.**
-Two of our call cases reach `Roadside / Towing` *only* through that line:
+**Neither my fix nor my retraction was entailed by the labels, and that is the real finding.** I
+proposed separating dispatch from routing. Then I withdrew that, because two call cases reach
+`Roadside / Towing` *only* through this line:
 
 ```
-call-no-start    "my car won't start at all"        queue_for('service','mechanical_diagnostic') = 'Service Department'
-call-flat-tire   "I'm stuck on the highway"         queue_for('service','tires')                 = 'Tire Bay'
+call-no-start    "my car won't start at all"   queue_for('service','mechanical_diagnostic') = 'Service Department'
+call-flat-tire   "I'm stuck on the highway"    queue_for('service','tires')                 = 'Tire Bay'
 ```
 
-Those callers need a tow, not a booking. Separating dispatch from routing would have broken them to
-fix the four false ones, and removed the mechanism that sends a truck at all. **The fault is that a
-classifier with 0.704 specificity gates a high-consequence action** — and the reason it is that
-imprecise is a training-data problem, not a structural one.
+Those callers need a tow, not a booking, so breaking the mechanism looked wrong. **An independent
+audit pointed out what both positions missed**: the ground truth stores the *owning queue* and the
+*dispatch outcome* in one field, so `Roadside / Towing` there is evidence about the combined label,
+not about which queue owns the call. The taxonomy's own stated principle says roadside is "a flag,
+not a place the call goes" — which contradicts the labels. (`call-vague` also says the steering feels
+off, so calling its dispatch a false positive is a judgement rather than a fact.)
+
+So the prerequisite is to define and label the two outputs separately — owning queue, and dispatch —
+and only then decide about the policy. Until that exists, the data cannot settle the argument either
+way. What *is* established: a classifier with 0.704 specificity is gating a high-consequence action.
 
 Note also the direction of travel: the threshold went **up** (0.3 → 0.7) and the false alarms went
 **up** too (0 → 3), because the rewording lifted the whole distribution. The threshold is not a
