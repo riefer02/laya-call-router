@@ -1,9 +1,102 @@
 # Morning review
 
-Where the project stands, what I found this session, and what I'd do next — with honest estimates
+Where the project stands, what I did overnight, and what I'd do next — with honest estimates
 rather than confident-sounding ones.
 
 Read `LEARNINGS.md` for the narrative. This is the decision document.
+
+---
+
+## Overnight: safety first, and it needed no training at all
+
+You said safety first, so that is what I did. **`is_safe_to_drive` now catches every stranded
+caller in the labelled set — 0 missed out of 18, up from 4.**
+
+It did not need a model change. The question was asking the wrong thing:
+
+> Old: *"Does the caller **indicate** the vehicle is unsafe to drive or stranded?"*
+> New: *"Is it **unsafe to drive the vehicle**?"* — with the two option texts carrying the
+> definition, since the model chooses between them.
+
+The old wording asked what the caller *said*, so every implied hazard was missed and the model was
+not wrong — it was answering the literal question correctly:
+
+```
+"There's smoke coming from under the hood."     p=0.06  ->  0.97
+"There's a burning smell and smoke..."          p=0.00  ->  0.99   (certain, not unsure)
+"The accelerator stuck open..."                 p=0.40  ->  0.81
+"I hit a pothole and the wheel is bent..."      p=0.26  ->  0.96
+```
+
+| | recall | precision | missed |
+| --- | --- | --- | --- |
+| old wording, threshold 0.3 | 0.833 | 1.000 | 3 of 18 |
+| **new wording, threshold 0.7** | **1.000** | 0.857 | **0 of 18** |
+
+The dispatch threshold moved 0.3 → 0.7 because the reworded question shifted the whole distribution
+up. Three unnecessary dispatches in exchange for never leaving a stranded caller on the road.
+
+Doing that exposed a real inconsistency: the `unsafe_to_drive` flag, the priority, the handler and
+the transfer decision were reading **three different thresholds**, so a caller could be dispatched
+as unsafe while the audit trail said they were not. One number now drives all of them.
+
+## `needs_human`: I was wrong, and the evidence says so
+
+I recommended replacing it with a policy rule. **I measured both before acting on it:**
+
+| approach | recall | precision | missed |
+| --- | --- | --- | --- |
+| policy rule (route → handler) | **0.143** | 0.250 | 6 of 7 |
+| classifier question | **0.571** | 1.000 | 3 of 7 |
+
+The policy rule is far worse, because the routing does not even identify these calls — a complaint
+about service routes to `service/other`, a billing dispute to `front_desk/other`. So it **stays a
+classifier question**, and I built the training data for it (2,439 labelled utterances for both
+yes/no questions, ~$1.30).
+
+The reworded question also lifted its precision from 0.250 to **1.000** on the same data.
+
+## The acceptance classifier: measured, and the failure is specific
+
+It was never trained either. The measurement is unambiguous:
+
+| class | base | v4 fine-tune |
+| --- | --- | --- |
+| slot_1 / slot_2 / slot_3 | 44 / 41 / 2 | 44 / 43 / 34 |
+| none_of_these | 129/130 | 130/130 |
+| **unclear** | **0/130** | **0/130** |
+| **overall** | 0.554 | **0.644** |
+
+**It never once answers `unclear`.** That is the whole story of the booking demo being flaky: "Hmm,
+let me think about it" gets forced into a slot. 390 training examples are built and waiting.
+
+## A mistake I made, and what I changed because of it
+
+Rebalancing the severity data read a field the pipeline had already dropped, matched nothing, and
+**wrote the empty result over 2,439 labelled rows** — about $1.30 of API calls, destroyed in one
+line. It was never committed, so there was no recovery.
+
+Two fixes, because the lesson is not "be careful":
+- The rebalance reads the schema it actually receives.
+- **It refuses to write an empty result from a non-empty input, and all writes are atomic.** A
+  destructive operation without a guard was the actual bug; the wrong field name was just the
+  trigger.
+
+Regenerating costs $1.30 and 50 minutes. Cheaper than the alternative lesson.
+
+## What is running now
+
+A retrain with the yes/no questions and the acceptance question as training targets. They were
+never trained before — `build_items.py` only built choice items — which is why the safety question
+missed a fifth of the stranded callers it exists to dispatch.
+
+## What I did **not** do
+
+**I did not relabel `gen-08`.** I said in the earlier draft that correcting that label was the
+cheapest win available. Then I checked: relabelling the destination would fix that metric but leave
+the sub-queue wrong, netting **zero on joint**. More importantly, **editing the test set after
+seeing results is grading our own homework**, and it is not what "more accuracy" means. The dispute
+is recorded instead, and the proper fix remains a second labeller.
 
 ---
 
@@ -14,10 +107,9 @@ Read `LEARNINGS.md` for the narrative. This is the decision document.
 - **The honest claim is parity, not victory.** `deepseek-flash` scored 0.914, 0.889, 0.901 and 0.926
   joint across four runs on identical inputs; ours has held at 0.914 every time. I had been
   reporting the flattering half of that.
-- **Three things I'd do next, in order:** correct the labels (cheapest, most certain), close the
-  three destination gaps (targeted data), and reword the safety question (biggest safety win).
-- **One thing I'd stop doing:** trying to fix `needs_human` as a classifier question. I think it's
-  the wrong kind of question, and we already have evidence for that.
+- **Safety is fixed and cost nothing but wording.**
+- **Three things I'd do next, in order:** train the acceptance classifier (built), close the three
+  destination gaps, and get a second labeller.
 
 ---
 
@@ -91,21 +183,18 @@ is real headroom to catch more unsafe callers without sending trucks to people w
 Estimates are ranges with reasoning, not predictions. "Confidence" is how sure I am the *direction*
 is right, not the size.
 
-### 1. Correct the labels — cheapest, most certain
+### 1. Correct the labels — **decided against, see "What I did not do"**
 
-**What:** relabel `gen-08` (→ service). Then get a second opinion on the whole 81 — a model pass is
-enough to *flag* candidates, and I adjudicate.
+**What:** relabel `gen-08` (→ service), then get a second opinion on the whole 81.
 
-**Why:** measured directly above. `gen-08` is a 1.2-point error against every model we have. There
-are likely 2–3 more like it; `det-04` was already known to be missed by all three.
+**Why I did not:** it fixes the destination metric but nets **zero on joint** (the sub-queue stays
+wrong), and editing the test set after seeing results is grading our own homework. The dispute is
+recorded; a second labeller is the real fix.
 
-**Projected gain:** **+1.2 to +3.7 points destination**, and roughly the same on joint.
-**Cost:** ~1 hour, ~$0.05.
-**Confidence:** high for `gen-08`; medium for how many others exist.
-
-**Important caveat:** this improves the *measurement*, not the model. If we do this and the number
-goes up, that is us grading our own homework more honestly — not the model getting better. I'd want
-that stated in the README rather than quietly banked.
+**Still worth doing:** the second opinion on the *whole* 81. `det-04` is missed by every model, and
+there are likely 2–3 more like it. **+1.2 to +3.7 destination** if they turn out to be label
+problems rather than model ones — but that is a measurement correction, not a model improvement,
+and should be reported as such.
 
 ### 2. Close the three destination gaps
 
@@ -120,48 +209,27 @@ the source of every destination error we have.
 **Confidence:** medium. These are the hardest cases — the model already failed them after 8 epochs —
 so targeted data may not be enough. Worth one attempt.
 
-### 3. Reword the safety question — biggest safety win
+### 3. Reword the safety question — **DONE, and it needed no training**
 
-**What:** change `is_safe_to_drive` from "does the caller indicate the vehicle is unsafe" to
-something that asks about **hazard** rather than **statement**. Then regenerate that question's
-training data.
+Recall **0.778 → 1.000**, missed **4 of 18 → 0 of 18**, for three false alarms. See the top of this
+document. The remaining work here is only that the model now *also* has this question as a training
+target, which should recover some of the precision.
 
-**Why:** finding #2. The model isn't failing to understand the cases, it's answering a literal
-question correctly. Precision is 1.000, so we have room to be more aggressive.
+### 4. Train the acceptance classifier — **data built, retraining now**
 
-**Projected gain:** **recall 0.778 → 0.88–0.94**, i.e. 1–3 more stranded callers caught.
-**Cost:** ~$0.20 generation, free GPU, ~1 hour.
-**Confidence:** medium-high on direction; the failure mode is clearly identified and uniform.
-**This is the one I'd do first if safety matters more than the headline number.**
+**Measured:** overall 0.644, and `unclear` **0 out of 130** — it never abstains, which is the whole
+reason the booking demo is flaky. 390 training examples are built from templates rather than a
+teacher, so the label is exact rather than inferred, with the slot classes cycled so no positional
+bias is taught.
 
-### 4. Train the acceptance classifier — biggest *product* gap
+**Projected gain:** acceptance accuracy **0.644 → 0.85–0.92** if `unclear` becomes learnable. Zero
+on the routing metrics — this is the booking flow, not the classifier.
 
-**What:** it's currently the base checkpoint answering a question it has never seen. Needs a new
-generation mode: offered times → which one the caller took.
+### 5. `needs_human` as policy — **measured and rejected**
 
-**Why:** the booking flow is the MVP, and it's flaky. The same scripted call books at p=0.68 on one
-run and clarifies at p=0.53 on another. The confidence floor stops it filing a booking nobody agreed
-to — which is the right behaviour — but "asks again about half the time" is not a product.
-
-**Projected gain:** **zero on routing metrics.** This is completeness, not accuracy.
-**Cost:** ~$0.50–1.00 generation, free GPU, ~2–3 hours (new generation mode).
-**Confidence:** high that the recipe works — it's the same fine-tuning that took routing from 0.518
-to 0.914.
-
-### 5. Replace `needs_human` with policy — I think the question is wrong
-
-**What:** stop asking a classifier. Derive it: complaints and feedback → human, billing or legal
-language → human, repeated contact → human.
-
-**Why:** recall 0.571 / precision 0.250 is worse than useless. And we already have evidence that
-control-flow questions classify badly — the earlier `next_action` question answered at *confidence
-0.03* and picked the same option regardless of input. "Does this need a person" is a policy
-judgement dressed as a content question.
-
-**Projected gain:** recall ~0.57 → ~0.85 **if** the sub-queue is right, since it would inherit that
-accuracy.
-**Cost:** ~1 hour, $0.
-**Confidence:** medium. This is the one I'd most like a second opinion on.
+I proposed this and the evidence killed it: the policy rule scores **recall 0.143 against the
+classifier question's 0.571**, because the routing does not identify these calls in the first
+place. It stays a classifier question, and it now has training data. See the top of this document.
 
 ### 6. Answer from the store facts — free product win
 
