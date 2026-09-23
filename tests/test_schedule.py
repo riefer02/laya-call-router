@@ -17,6 +17,7 @@ from jev_classifier.schedule import (
     Scheduler,
     Slot,
     acceptance_options,
+    ordinal_slot_index,
     reply_names_unoffered_time,
     resolve_acceptance,
 )
@@ -291,3 +292,48 @@ def test_a_clock_time_that_is_not_offered_also_vetoes():
     wednesday = [Slot("2026-09-23", "08:00")]
     assert reply_names_unoffered_time("can we do 3pm instead?", wednesday)
     assert not reply_names_unoffered_time("8am is fine", wednesday)
+
+
+def test_an_ordinal_reference_resolves_by_rule():
+    """The acceptance classifier is a choice over the *spoken times*, so "the first one please" has
+    nothing to match and comes back `unclear` - measured, and nothing was booked. An ordinal is
+    unambiguous, so a rule reads it. Same split as the exact time, the name and the number: the
+    model reads which time was named, the rule reads which position was named.
+    """
+    offered = [Slot("2026-09-23", "09:00"), Slot("2026-09-23", "09:30"), Slot("2026-09-23", "10:00")]
+    for reply, want in (
+        ("Sorry — yes, the first one please.", 0),
+        ("the 2nd one works", 1),
+        ("let's do the third", 2),
+        ("the last one then", 2),
+    ):
+        assert ordinal_slot_index(reply, offered) == want, reply
+        assert resolve_acceptance("unclear", 0.2, offered, reply=reply) == ("accept", want), reply
+
+
+def test_an_ordinal_beyond_the_offer_is_not_resolved():
+    offered = [Slot("2026-09-23", "09:00")]
+    assert ordinal_slot_index("the third one", offered) is None
+    assert resolve_acceptance("unclear", 0.2, offered, reply="the third one") == ("clarify", None)
+
+
+def test_ordinary_speech_is_not_mistaken_for_an_ordinal():
+    """'one' appears in a lot of sentences; only an ordinal *reference* should fire."""
+    offered = [Slot("2026-09-23", "09:00"), Slot("2026-09-23", "09:30")]
+    for reply in ("I have one question", "none of those work", "someone called me", "that works"):
+        assert ordinal_slot_index(reply, offered) is None, reply
+
+
+def test_the_booking_scenario_books_whatever_the_first_slot_is():
+    """The demo scenario named "the 8am one", which only works while 8am is still free.
+
+    Measured: after one booking took 8am, the next run offered 9am, the reply was correctly vetoed
+    as naming a time that was not on offer, and nothing was booked. A scenario that hardcodes a time
+    is a scenario that works once.
+    """
+    from jev_classifier import scenarios
+
+    buy = next(s for s in scenarios.SCENARIOS if s["id"] == "buy_car")
+    last = buy["turns"][-1]
+    assert "am" not in last and "pm" not in last, f"the closing turn names a fixed time: {last!r}"
+    assert ordinal_slot_index(last, [Slot("2026-09-23", "09:00")]) == 0

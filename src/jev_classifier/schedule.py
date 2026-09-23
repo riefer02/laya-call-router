@@ -325,6 +325,41 @@ def reply_names_unoffered_time(reply: str, offered: Sequence[Slot]) -> bool:
     return False
 
 
+_ORDINALS = {
+    "first": 0, "1st": 0, "one": 0,
+    "second": 1, "2nd": 1, "two": 1,
+    "third": 2, "3rd": 2, "three": 2,
+    "fourth": 3, "4th": 3, "last": -1,
+}
+_ORDINAL_RE = re.compile(
+    r"\b(first|second|third|fourth|1st|2nd|3rd|4th|last)\b"
+    r"|\b(the\s+)?(one|two|three)\s+(please|works|is fine|for me)\b",
+    re.IGNORECASE,
+)
+
+
+def ordinal_slot_index(reply: str, offered: Sequence[Slot]) -> Optional[int]:
+    """Resolve "the first one please" to a slot by rule, not by model.
+
+    The acceptance classifier is a `choice` over the *spoken times*, so an ordinal reference has
+    nothing to match and comes back `unclear` — measured: "Sorry — yes, the first one please" was
+    not accepted, and nothing was booked. But an ordinal is unambiguous, and this system already
+    gives the un-gettable-by-classifier facts (the exact time, the caller's name, the number) to
+    deterministic code. Same split here: the model reads which time was named, a rule reads which
+    position was named.
+    """
+    match = _ORDINAL_RE.search(reply)
+    if not match:
+        return None
+    word = (match.group(1) or match.group(3) or "").lower()
+    idx = _ORDINALS.get(word)
+    if idx is None:
+        return None
+    if idx == -1:  # "the last one"
+        return len(offered) - 1 if offered else None
+    return idx if 0 <= idx < len(offered) else None
+
+
 def resolve_acceptance(
     choice: Optional[str],
     top_probability: Optional[float],
@@ -353,6 +388,9 @@ def resolve_acceptance(
     """
     if reply and reply_names_unoffered_time(reply, offered):
         return "clarify", None
+    idx = ordinal_slot_index(reply, offered)
+    if idx is not None:
+        return "accept", idx
     idx = slot_choice_index(choice, offered)
     decisive = float(top_probability or 0.0) >= threshold
     if idx is not None and decisive:

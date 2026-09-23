@@ -52,7 +52,11 @@ SCENARIOS: List[Dict] = [
             "This week sometime would work, maybe Thursday.",
             "Sure — this is Dana, and my number is 555-0140.",
             "Tuesday at 8 works for me.",
-            "Sorry — yes, the 8am one please.",
+            # "the first one" rather than "the 8am one": the offer depends on what is still free, and
+            # a scenario that names a fixed time only books on the first run. Measured - after one
+            # booking took 8am, the next run offered 9am and this turn was correctly vetoed as
+            # naming a time that was not on offer, so nothing was booked.
+            "Sorry — yes, the first one please.",
         ],
     },
     {
