@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchEvidence } from "../api";
 import type { Evidence as EvidenceData } from "../types";
 
@@ -53,6 +53,38 @@ export default function Evidence() {
     fetchEvidence().then(setData).catch((e) => setError(String(e)));
   }, []);
 
+  // The headline verdict is derived from the numbers on screen, not written by hand. It used to be a
+  // fixed sentence claiming the fine-tune "matches both LLM arms", which was true of the v4 run it
+  // was written for and false of the v7 numbers the tab now shows — a caption contradicting its own
+  // table. Now it cannot drift: change the report and the sentence changes with it.
+  const headline = useMemo(() => {
+    const arms = data?.arms ?? [];
+    const ours = arms.find((a) => a.key === "cascade-ft");
+    const theirs = arms.filter((a) => a.key !== "cascade-ft" && a.key !== "laya");
+    const best = theirs.length ? Math.max(...theirs.map((a) => a.joint)) : null;
+    const fastest = ours?.latency_p50 ?? null;
+    const theirSlowest = theirs.length ? Math.max(...theirs.map((a) => a.latency_p50)) : null;
+    const speed = fastest && theirSlowest ? Math.round(theirSlowest / fastest) : null;
+
+    const speedPhrase = speed ? ` at roughly ${speed}x the speed` : "";
+    if (ours == null || best == null) {
+      return `Read against two frontier arms${speedPhrase}, for nothing per call.`;
+    }
+    const gap = (ours.joint - best) * 100;
+    const verdict =
+      Math.abs(gap) < 1.5
+        ? "is level with the best LLM arm"
+        : gap > 0
+          ? `leads the best LLM arm by ${gap.toFixed(1)} points`
+          : `trails the best LLM arm by ${Math.abs(gap).toFixed(1)} points`;
+    return (
+      `On the decision the fine-tuned cascade ${verdict}${speedPhrase} and for nothing per call — ` +
+      "and unlike the LLM arms its number does not move. Across four runs on identical inputs " +
+      "deepseek-flash scored joint 0.914, 0.889, 0.901 and 0.926; ours has not moved once. On this " +
+      "sample one case is 1.23 points and the intervals overlap, so a small gap either way is noise."
+    );
+  }, [data]);
+
   if (error) {
     return <div className="p-6 text-[12px] text-rose-400">could not load evidence: {error}</div>;
   }
@@ -85,7 +117,7 @@ export default function Evidence() {
         {/* ------------------------------------------------------------ headline */}
         <Section
           title={`Decision level — ${data.n_cases} hand-labelled routing cases`}
-          hint="The fine-tuned cascade matches both LLM arms on the decision, at roughly 65x the speed and for nothing per call — and unlike them its number does not move. Across four runs on identical inputs deepseek-flash scored joint 0.914, 0.889, 0.901 and 0.926; ours has not moved once. Intervals overlap, so read this as parity on quality with a stable number, not as a win."
+          hint={headline}
         >
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-[12px]">

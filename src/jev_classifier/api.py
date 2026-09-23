@@ -18,6 +18,7 @@ Endpoints
 from __future__ import annotations
 
 import json
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -131,6 +132,23 @@ ARM_LABELS = {
 }
 
 
+def _results_tag() -> str:
+    """The results files belonging to the checkpoint actually being served.
+
+    The Evidence tab used to read hardcoded `eval_v4.json` and `severity.json`, so it showed v4's
+    routing numbers and the *pre-training* safety numbers while the app served v7 - a demo whose
+    evidence contradicts its own behaviour. The tag is derived from the served checkpoint instead,
+    so the two cannot drift.
+    """
+    from .agent import resolve_checkpoint
+
+    ckpt = resolve_checkpoint()
+    if ckpt is None:
+        return ""
+    match = re.search(r"kaggle-out-(v\d+)", str(ckpt.resolve()))
+    return match.group(1) if match else ""
+
+
 def _read_json(name: str) -> Optional[Dict[str, Any]]:
     path = RESULTS_DIR / name
     if not path.is_file():
@@ -171,7 +189,11 @@ def results() -> Dict[str, Any]:
         for d in profile.destinations
     ]
 
-    evaluation = _read_json("eval_v4.json") or {}
+    tag = _results_tag()
+    # Prefer the served checkpoint's own report; fall back to the oldest kept one only so the tab is
+    # never empty, and record which file was used so the number stays traceable.
+    eval_name = (f"eval_{tag}.json" if tag else "") or ""
+    evaluation = (_read_json(eval_name) if eval_name else None) or _read_json("eval_v4.json") or {}
     routing = evaluation.get("routing") or {}
     arms = []
     for key, score in routing.items():
@@ -211,7 +233,8 @@ def results() -> Dict[str, Any]:
             }
         )
 
-    severity = _read_json("severity.json") or {}
+    sev_name = (f"severity_{tag}.json" if tag else "") or ""
+    severity = (_read_json(sev_name) if sev_name else None) or _read_json("severity.json") or {}
     sev_rows = []
     for arm, blob in (severity.get("arms") or {}).items():
         at = blob.get("at_default") or {}
@@ -235,6 +258,13 @@ def results() -> Dict[str, Any]:
     )
 
     return {
+        # Which reports these numbers came from, so the UI can say - a measurement in the UI that
+        # cannot be traced to a file is one nobody can check.
+        "sources": {
+            "routing": eval_name or "eval_v4.json",
+            "severity": sev_name or "severity.json",
+            "checkpoint": tag or "base",
+        },
         "taxonomy": taxonomy,
         "n_cases": n_cases,
         "arms": arms,

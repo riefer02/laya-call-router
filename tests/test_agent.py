@@ -76,3 +76,36 @@ def test_the_router_is_pointed_at_the_checkpoint_when_one_resolves(monkeypatch):
     agent.get_router()
     agent.reset_router()
     assert seen["models"] == {"english": ("/tmp/pretend-checkpoint", None)}
+
+
+def test_the_evidence_tab_reads_the_served_checkpoints_reports():
+    """It read hardcoded `eval_v4.json` and `severity.json`.
+
+    So it showed v4's routing numbers and the *pre-training* safety numbers while the app served v7 -
+    a demo whose evidence contradicts its own behaviour, and nothing flagged it because both files
+    exist and both parse. The tag now comes from the served checkpoint.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    from jev_classifier import agent, api
+
+    ckpt = agent.resolve_checkpoint()
+    if ckpt is None:
+        pytest.skip("no checkpoint selected")
+    tag = api._results_tag()
+    if not tag:
+        pytest.skip(f"served checkpoint {ckpt} is not a kaggle-out-vN run")
+
+    # Whatever the tab resolves to, it must be that checkpoint's report if one exists.
+    results = _Path(__file__).resolve().parents[1] / "results"
+    expected = results / f"eval_{tag}.json"
+    if expected.is_file():
+        payload = api.results()
+        assert payload["sources"]["routing"] == f"eval_{tag}.json"
+        assert payload["sources"]["checkpoint"] == tag
+        reported = next(a for a in payload["arms"] if a["key"] == "cascade-ft")
+        on_disk = _json.loads(expected.read_text())["routing"]["cascade-ft"]
+        assert abs(reported["joint"] - on_disk["joint_accuracy"]) < 1e-9, (
+            "the Evidence tab and the served checkpoint's report disagree"
+        )
