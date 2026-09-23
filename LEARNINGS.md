@@ -454,8 +454,9 @@ if roadside in flags or unsafe >= unsafe_threshold():
     queue = PROFILE.policy.get("roadside_queue", "Roadside / Towing")
 ```
 
-The unsafe question **replaces the call's final queue**. So a false positive is not a line in a
-report — it is a *correct routing decision thrown away*. The ledger, all measured:
+The unsafe question **replaces the call's final queue**. For a genuinely stranded caller that is
+exactly right — it is how a caller stuck on the highway reaches a tow instead of a booking. For a
+false positive it throws a correct routing decision away. The ledger, all measured:
 
 | | stranded callers caught | false dispatches | call-level queue |
 | --- | --- | --- | --- |
@@ -477,10 +478,78 @@ regression. Training cost nothing at the product level.
 > acceptable — because a false alarm sounds like a wasted truck. It was actually a discarded
 > routing decision, and the report had no way to say so.
 
-There is a structural version of this too, and it is the same shape as the eight above: **"where
-does this call belong" and "does a truck roll" are two different questions, and they share one
-field.** The dispatch *should* be an action alongside the routing, not a replacement for it. A
-correct answer to one question is silently overwriting a correct answer to the other.
+There is a structural version of this, and I nearly shipped the wrong fix for it.
+
+I read the override as a conflation — *"where does this call belong" and "does a truck roll" sharing
+one field* — and recommended separating them. Then I checked the three call cases that expect
+`Roadside / Towing`, and two of them get that queue **only** from the override:
+
+```
+queue_for('service','mechanical_diagnostic') = 'Service Department'   but call-no-start expects Roadside
+queue_for('service','tires')                 = 'Tire Bay'             but call-flat-tire expects Roadside
+```
+
+Those callers say *"my car won't start at all"* and *"I'm stuck on the highway"*. They need a tow,
+not a booking. **The override is correct behaviour** — it is the thing that sends a truck — and
+separating it would have broken two genuinely stranded callers to fix four false ones, while removing
+the mechanism entirely.
+
+So the fault is not the structure. It is that a classifier with 0.704 specificity is gating a
+high-consequence action, and the reason it is that imprecise is measured in the next section.
+
+> **The lesson, and it is the one I keep re-learning:** a tidy structural story is not evidence. I
+> had the line, the failing calls and a clean explanation, and the explanation was wrong. Reading the
+> three counter-examples took two minutes and saved the product.
+
+---
+
+## The data doesn't sound like callers
+
+Chasing why the safety classifier fires on "the air conditioning isn't blowing cold air any more",
+I measured the length of every corpus. It was not subtle:
+
+| corpus | n | median words | share ≤ 12 words |
+| --- | --- | --- | --- |
+| routing **training** | 1,255 | **27** | 9% |
+| routing **eval** (hand-labelled) | 81 | **11** | **77%** |
+| severity **training** | 1,645 | **24** | 9% |
+| severity **eval** | 45 | **12** | 58% |
+| scripted caller turns (hand-written) | 104 | **5** | 84% |
+
+**We trained on a register nobody uses.** The synthetic corpus came from asking a language model for
+realistic utterances, and language models write long, hedged, multi-clause prose. Callers say:
+
+```
+training:  "Hi, sorry, I don't know if this is the right number, but I'm calling about a job.
+            I saw something online about you maybe…"                       (27 words)
+a caller:  "Hi, my car won't start at all. I think I need service."          (10 words)
+```
+
+That the routing number is 0.963 *despite* this is the surprising part — it is generalising across a
+distribution shift, not because the data fits.
+
+**And it explains the false positives exactly.** The negative class has 991 examples, and essentially
+none of them is a *short, bare statement of a fault that isn't a hazard*. Its terse negatives are all
+administrative ("I need an oil change", "what time do you open"), and its fault-reporting negatives
+are long, chatty or cosmetic. Meanwhile every positive is a terse fault statement. So the only rule
+the model could learn from terse fault statements is **"short + something's wrong ⇒ unsafe"** — and
+the eval's negatives are precisely the terse fault statements it has never seen labelled safe:
+
+```
+"The air conditioning isn't blowing cold air any more."     called unsafe, p=0.999
+"The driver's seat won't slide forward any more."           called unsafe, p=1.000
+"There's a rattle coming from the back seat over bumps."    called unsafe, p=1.000
+```
+
+None of those affects steering, braking or visibility. A person would not dispatch a truck.
+
+> **The lesson:** before tuning a model, measure whether your data is in the register your users
+> actually speak. A generator asked for "realistic" text produced something no caller has ever said,
+> and nothing in the pipeline objected — it is fluent, on-topic and correctly labelled. It is just
+> three times too long, and that was enough to teach a shortcut instead of the distinction.
+
+This is the first finding that is not about *whether* we measured but about **what we fed it** — and
+it is the one with the largest blast radius, because every trained question inherits it.
 
 ---
 
@@ -496,10 +565,14 @@ correct answer to one question is silently overwriting a correct answer to the o
   questions the sweep is flat from 0.3 to 0.8. Where the model is confidently wrong there is nothing
   to tune, and every reported operating point should be read as "the model's opinion", not "the
   point we chose".
-- **The safety flag overwrites the routing, and that is the biggest win on the table.**
-  `dealership.py` replaces the call's queue with `Roadside / Towing` whenever the unsafe question
-  fires, so a false alarm discards a correct routing decision. It costs 3 of 27 calls. Dispatch
-  should run alongside the routing, not instead of it.
+- **The dispatch is gated by a classifier with 0.704 specificity, and that is the real fault.** For a
+  genuinely stranded caller the queue override in `dealership.py` is *correct* — it is how someone
+  stuck on the highway reaches a tow. Separating dispatch from routing, which I recommended and then
+  withdrew, would have broken `call-no-start` and `call-flat-tire` to fix four false positives. The
+  fix is precision, not structure.
+- **The training data is in the wrong register.** Median 27 words against an eval set at 11 and real
+  caller turns at 5. Nothing objected because it is fluent and correctly labelled; it taught a
+  shortcut instead.
 - **The dispatch would be wrong about 94% of the time in deployment.** At the 40% base rate of our
   severity set the trained classifier looks like 0.692 precision; at the 2% rate a switchboard
   actually sees it is **0.064**, and training made it *worse* than untrained (0.155 → 0.064) by
@@ -533,30 +606,40 @@ Everything above compresses into a short list. Every one of these cost something
    dispatch looked like 0.69 precision on a 40%-positive set and is **0.064** at the 2% rate a
    switchboard actually sees. Report the base rate or the number describes a world that isn't there.
 
-4. **Before changing how sensitive a decision is, find what consumes it.** The severity report said
-   "three false alarms", which sounds like a wasted truck. It was three discarded routing decisions.
+4. **Check your data is in the register your users speak.** We trained on 27-word chatbot prose and
+   evaluated on 11-word caller speech, and nothing objected because it was fluent, on-topic and
+   correctly labelled. It taught a shortcut instead of the distinction.
 
-5. **One fact in two places, or two facts in one place, gets resolved silently and wrongly.** Nine
+5. **Before changing how sensitive a decision is, find what consumes it.** The severity report said
+   "three false alarms", which sounds like a wasted truck. It was three discarded routing decisions —
+   and the fix I first proposed for it would have broken two correct calls.
+
+6. **Check a proposed fix against the ground truth before shipping it.** Uncoupling dispatch from
+   routing would have lifted the headline metric while removing the mechanism that sends a truck, and
+   breaking two genuinely stranded callers. I only saw it by reading the three cases that expect
+   `Roadside / Towing`.
+
+7. **One fact in two places, or two facts in one place, gets resolved silently and wrongly.** Nine
    instances. None threw an error. The fix is structure and a test, never vigilance.
 
-6. **A threshold is only a control if the distribution isn't saturated.** Where the model is
+8. **A threshold is only a control if the distribution isn't saturated.** Where the model is
    confidently wrong there is nothing to tune, and reporting an operating point implies a choice
    that isn't being made.
 
-7. **Check what else changed before you credit the model.** The call-level drop was a policy change,
+9. **Check what else changed before you credit the model.** The call-level drop was a policy change,
    the routing "regression" was an epoch count. Both times the tidy story was wrong.
 
-8. **Balance the axis you're classifying, not the axis that looks tidy.** Equal examples per
-   sub-queue starved a destination, and "balanced" hid it.
+10. **Balance the axis you're classifying, not the axis that looks tidy.** Equal examples per
+    sub-queue starved a destination, and "balanced" hid it.
 
-9. **Check the boundary is real before blaming the classifier.** Tires and detailing were never
-   departments. We spent a long time teaching a distinction that did not exist.
+11. **Check the boundary is real before blaming the classifier.** Tires and detailing were never
+    departments. We spent a long time teaching a distinction that did not exist in the world.
 
-10. **When a fix makes your numbers go up, check whether it fixes the thing or hides it.** Merging two
-    confusable classes would have erased four errors and made the taxonomy worse — and the dispatch
-    fix below will lift a metric without touching the over-dispatch that caused it.
+12. **When a fix makes your numbers go up, check whether it fixes the thing or hides it.** Merging two
+    confusable classes would have erased four errors and made the taxonomy worse — as would the
+    dispatch change above, which is why it was dropped.
 
-11. **Report the noisy comparison honestly.** We are at parity with a frontier model on the decision,
+13. **Report the noisy comparison honestly.** We are at parity with a frontier model on the decision,
     60× faster, and at zero marginal cost per call — and on 81 cases the honest claim stops there.
     The intervals overlap, and saying so costs nothing.
 

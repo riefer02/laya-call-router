@@ -62,7 +62,7 @@ The safety questions, on 45 genuinely held-out cases:
 
 ---
 
-## The thing that actually cost us, and it was not the model
+## The thing that actually cost us
 
 `is_safe_to_drive` does not just flag a call — **it overwrites the call's final queue**:
 
@@ -72,9 +72,11 @@ if roadside in flags or unsafe >= unsafe_threshold():
     queue = PROFILE.policy.get("roadside_queue", "Roadside / Towing")
 ```
 
-So a false "unsafe" does not add a false alarm to a report. It **throws away a correct routing
-decision and sends the call to Roadside / Towing.** Every one of the call-level failures is that
-same line:
+For a genuinely stranded caller that is exactly right: it is how someone stuck on the highway gets a
+tow instead of a booking. Two of our call cases depend on it — `call-no-start` ("my car won't start
+at all") and `call-flat-tire` ("I'm stuck on the highway") reach Roadside **only** through this line.
+
+For a false positive it throws a correct routing decision away. Every call-level failure is that:
 
 ```
 call-collision     expected Body Shop        got Roadside / Towing   ("rear-ended me yesterday, I need body work")
@@ -83,8 +85,10 @@ call-recall        expected Warranty Desk    got Roadside / Towing   ("I got a r
 call-vague         expected Service          got Roadside / Towing
 ```
 
-None of those callers is stranded. All four are booking non-urgent work. **The dispatch override is
-the bug**, and it converts a safety false-positive into a routing failure.
+None of those callers is stranded. **So the fault is not the override — it is that a classifier with
+0.704 specificity is gating a high-consequence action.** I recommended separating the two and had to
+withdraw it (see Move 1): the separation would have broken the two stranded calls above to fix these
+four, and removed the truck-sending mechanism entirely.
 
 The ledger on the rewording, all measured:
 
@@ -172,48 +176,69 @@ essentially done. **The safety surface is the weak half** — and one measuremen
 
 Ordered by (impact × confidence) ÷ cost.
 
-### Move 1 — Stop the safety flag overwriting the routing
+### Move 1 — Fix the register of the training data
 
-**What:** `dealership.py` sets `queue = "Roadside / Towing"` whenever `unsafe` clears the threshold.
-Make dispatch a **parallel action** — a flag and a truck — instead of a replacement for where the
-call goes. The call still routes to Body Shop; roadside rolls alongside it.
+**This replaces a move I had to withdraw, and the withdrawal is worth reading.**
 
-**Why:** that one line is responsible for **every** call-level failure we have. The destination
-decisions are 0.963 accurate and we are discarding them.
-**Projected gain:** call-level **0.852 → 0.93-0.96**, without giving back a single stranded caller.
-**Cost:** ~1 hour, $0, no GPU. **Confidence:** high — the line is named and the calls are listed.
+I recommended uncoupling dispatch from routing, and you approved it. Checking it against the ground
+truth first killed it: **three call cases legitimately expect `Roadside / Towing`**, and for two of
+them that queue comes *only* from the unsafe override —
 
-> ⚠️ **And this fix hides the real problem.** It lifts the call-level metric while the dispatch
-> over-fires exactly as much as before — at a 2% base rate **94% of trucks still roll for nothing.**
-> This is principle 10: a fix that makes the numbers go up is the moment to check whether it fixes
-> the fault or the metric. Moves 1 and 2 are not alternatives; doing only Move 1 would be the
-> "merge `front_desk` and `non_customer`" mistake again, with a better-looking number.
+```
+queue_for('service','mechanical_diagnostic') = 'Service Department'   but call-no-start expects Roadside
+queue_for('service','tires')                 = 'Tire Bay'             but call-flat-tire expects Roadside
+```
 
-### Move 2 — Make the safety numbers honest, then fix the over-dispatch
+— and the callers are "my car won't start at all" and "I'm stuck on the highway". Uncoupling would
+have routed them away from the tow they need, broken two correct calls to fix four wrong ones, and
+removed the mechanism that sends a truck. **It was the `front_desk` / `non_customer` mistake again: a
+metric that improves because we stopped counting the fault.** Retracted.
 
-**2a. Report precision at a deployment base rate.** Immediate, no GPU, no retraining. Our severity
-set is 40% positive because it was built to measure recall; quoting its precision describes a world
-that does not exist. The base-rate table belongs in `results/README.md` next to every safety number.
+**What the check actually found is bigger.** The training data is **27 words** a line; the eval sets
+are **11**; hand-written caller turns are **5**. We trained on a register nobody uses — 77% of the
+routing eval is ≤12 words, against 9% of what we trained on. And the negative class contains
+essentially no *short, bare statement of a fault that isn't a hazard*, which is exactly what the
+false positives are:
 
-**2b. Rebuild the severity data at a realistic prior.** Re-cap below 40% and re-measure at *both*
-rates. The trained model traded specificity (0.889 → 0.704) for sensitivity, and at low base rates
-specificity is what precision is made of.
-**Cost:** `--rebalance-only`, no API calls; ~$1.30 only if labels need regenerating.
+```
+"The air conditioning isn't blowing cold air any more."    unsafe, p=0.999
+"The driver's seat won't slide forward any more."          unsafe, p=1.000
+```
 
-**2c. Only then revisit the dispatch bar** — which is currently not a control at all, since the
-sweep is flat from 0.3 to 0.6. If it stays flat after the prior is fixed, accept that confidence
-cannot gate this decision and stop reporting an operating point as if it were a choice.
+**What:** generate training data in the caller's register — short, terse, first-person — and in
+particular **non-hazard fault reports with no reassurance clause** ("the radio stopped working",
+"the seat won't slide", against "the brakes failed", "smoke from under the hood"). The distinction
+the model must learn is *which system, and whether it affects control, braking or visibility.*
+
+**Why it is first:** every trained question inherits the mismatch, not just severity. It is the only
+finding that explains the false positives, the saturation (a register shortcut is cleanly separable)
+and why thresholds and priors did nothing.
+
+**Cost:** ~$0.30-1.00 of teacher calls, then one free GPU run. **Confidence:** medium-high — the
+mismatch is measured, the causal link is a testable hypothesis, and the test is cheap.
+
+### Move 2 — Give the dispatch a control it can actually use
+
+**2a. Report precision at a deployment base rate**, next to every safety number, forever. Our
+severity set is 40% positive because it was built to measure recall; its precision describes a world
+that does not exist. This is free and immediate.
+
+**2b. Re-check the dispatch bar.** It is not a control today — the sweep is flat from 0.3 to 0.6. The
+hope is that better data de-saturates the probabilities and makes the bar mean something again. If it
+does not, accept that confidence cannot gate this decision and design accordingly rather than
+reporting an operating point as though it were a choice.
 
 ### Move 3 — v13: one GPU run that consolidates everything
 
 The first run that can measure what we actually ship:
-- severity at the corrected prior,
+- the **register-corrected** training data,
 - the **fixed calibration** (`train_ddp.py` no longer ships the inherited map that overrode its own fit),
 - the **acceptance split**, so the booking number is held out for the first time.
 
-**Gate:** routing must hold at ≥ 0.926 joint. If it drops, the prior change is the suspect.
-**Cost:** one free 2×T4 run, ~50 min. **Confidence:** high that the measurement happens; the numbers
-are genuinely unknown, which is the point.
+**Gates:** routing must hold at ≥ 0.926 joint; `is_safe_to_drive` recall must stay at 1.000 on the 18
+hazards; the false positives should fall. If recall drops, the terse negatives were too aggressive.
+**Cost:** one free 2×T4 run, ~50 min. **Confidence:** high that it measures; the numbers are unknown,
+which is the point.
 
 ### Move 4 — The ceiling: a second labeller, and a bigger test set
 
@@ -242,23 +267,27 @@ abstains (0.0%), so there is no "I'm not sure" left anywhere in the system.
   the cost.
 - **Trust any single run.** One case on 81 is 1.23 points; the LLM arms moved 2.5 points between
   identical runs.
-- **Ship Move 1 on its own.** Uncoupling dispatch from routing lifts the call-level number to ~0.96
-  and leaves the over-dispatch completely untouched. It is a real fix for a real bug, and it is also
-  the most flattering kind of change: a metric that improves because we stopped counting the fault.
+- **Uncouple dispatch from routing.** Withdrawn after checking it against the ground truth: two
+  genuinely stranded callers reach `Roadside / Towing` only through that override, so the change
+  would have broken correct behaviour while improving the metric. The `front_desk` / `non_customer`
+  mistake again — and the reason I now check a structural fix against the three cases it affects
+  before recommending it.
 
 ---
 
 ## Open questions for you
 
-1. **Confirm the trade.** The rewording catches **4 more stranded callers** and misroutes **3 calls**,
-   because a false "unsafe" overwrites the routing. I would keep the sensitivity and fix the
-   override — leaving someone at the roadside is a worse failure than sending a truck to someone who
-   was fine. It is the one place where "more accurate" and "safer" pull apart, so I want your call
-   rather than mine.
+1. **Confirm the register fix is the priority.** The evidence is that our training data is 27 words
+   a line where callers speak 5-11, and that the negative class contains no short non-hazard fault
+   statements — which is precisely what the false positives are. It is a hypothesis with a clean
+   test, and it is a bigger project than the one I proposed before it. If you would rather I take a
+   smaller, surer step first (the base-rate reporting, or the held-out booking measurement), say so.
 
-2. **Do Move 1 and Move 2 together, or Move 1 alone first?** Move 1 is an hour and lifts the
-   headline. Move 2 is what actually stops the wrong trucks. My recommendation is to do them as one
-   change, because shipped alone, Move 1 makes the product look fixed while it isn't.
+2. **The trade from the rewording still stands unanswered.** It catches **4 more stranded callers**
+   and misroutes **3 calls**, because a false "unsafe" replaces the queue. I would keep the
+   sensitivity and improve the precision — leaving someone at the roadside is a worse failure than
+   sending a truck to someone who was fine. But it is the one place where "more accurate" and
+   "safer" genuinely pull apart.
 
 3. **Is the booking flow worth one more GPU run?** Move 3 is ~50 minutes and free, and it is the
    first honest measurement of whether the switchboard can book. If the demo matters, it does.
