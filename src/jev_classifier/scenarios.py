@@ -50,6 +50,8 @@ SCENARIOS: List[Dict] = [
             "I'm thinking about buying a new car, maybe an electric one.",
             "I'd like to visit the westside showroom.",
             "This week sometime would work, maybe Thursday.",
+            "Sure — this is Dana, and my number is 555-0140.",
+            "Tuesday at 8 works for me.",
         ],
     },
     {

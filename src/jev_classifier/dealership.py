@@ -165,7 +165,10 @@ NEXT_ACTION_LABELS: Dict[str, str] = {
     "ask_location": "we do not yet know which location the caller wants",
     "ask_time": "we do not yet know when the caller wants to come in",
     "ask_detail": "the problem is too vague to book; ask for more detail",
-    "confirm_booking": "we have everything needed to book the appointment",
+    "confirm_booking": "we have everything needed to look for a real appointment time",
+    "offer_slots": "real times have been read out; waiting for the caller to pick one",
+    "ask_which_slot": "the caller's answer did not clearly name one of the offered times",
+    "booked": "the caller accepted a time and the appointment is filed",
     "offer_transfer": "this is outside the routine booking flow; hand to a person",
 }
 
@@ -176,7 +179,12 @@ RESPONSES: Dict[str, str] = {
     "ask_location": "Got it — which of our locations works best for you?",
     "ask_time": "When would you like to come in?",
     "ask_detail": "I want to make sure we book the right thing — could you tell me a little more about what the vehicle is doing?",
-    "confirm_booking": "Perfect, I have everything I need. I'm booking you into {destination} at {location} for {time}.",
+    # Booking is a two-step: offer times that actually exist, then confirm the one they took.
+    # "I'm booking you into service for next week" was never an appointment.
+    "offer_slots": "I can get you in at {slots}. Which of those works best for you?",
+    "ask_which_slot": "Sorry — which of those times did you want?",
+    "booked": "You're all set: {booking}. We'll see you then.",
+    "confirm_booking": "Perfect, I have everything I need — let me find you a time.",
     "offer_transfer": "Let me get you straight to the right team so nobody has to wait.",
 }
 

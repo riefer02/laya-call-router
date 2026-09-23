@@ -255,3 +255,57 @@ def acceptance_options(offered: Sequence[Slot]) -> Dict[str, str]:
     options["none_of_these"] = "the caller rejected every time offered"
     options["unclear"] = "the caller has not clearly accepted or rejected a time"
     return options
+
+
+def acceptance_question(offered: Sequence[Slot]) -> Dict[str, Any]:
+    return {
+        "acceptance": {
+            "type": "choice",
+            "instructions": (
+                "Which of the times the agent just offered did the caller agree to? "
+                "If they did not clearly accept one, choose 'unclear'."
+            ),
+            "criteria": acceptance_options(offered),
+        }
+    }
+
+
+def slot_choice_index(choice: Optional[str], offered: Sequence[Slot]) -> Optional[int]:
+    """Map an acceptance answer back to the slot it names, or None if it names none of them."""
+    if not choice or not choice.startswith("slot_"):
+        return None
+    try:
+        idx = int(choice.split("_", 1)[1]) - 1
+    except (IndexError, ValueError):
+        return None
+    return idx if 0 <= idx < len(offered) else None
+
+
+def resolve_acceptance(
+    choice: Optional[str],
+    top_probability: Optional[float],
+    offered: Sequence[Slot],
+    *,
+    threshold: float = 0.6,
+) -> tuple:
+    """Decide what the caller's reply to a slot offer actually means.
+
+    Returns `(verdict, index)` where verdict is one of:
+
+      `accept`   they named one of the offered times, decisively
+      `reject`   they turned down every time offered, decisively
+      `clarify`  anything else - including a confident-sounding answer we cannot trust
+
+    The `clarify` branch is the important one. Measured: the acceptance classifier is untrained, and
+    it answered `slot_1` at p=0.41 for an utterance that mentioned no time at all ("this is Dana,
+    and my number is 555-0140"). Acting on that files an appointment nobody agreed to. An
+    argmax of a near-uniform distribution is not a decision - the same rule that stops a hard stop
+    firing on a weak signal elsewhere in this system.
+    """
+    idx = slot_choice_index(choice, offered)
+    decisive = float(top_probability or 0.0) >= threshold
+    if idx is not None and decisive:
+        return "accept", idx
+    if choice == "none_of_these" and decisive:
+        return "reject", None
+    return "clarify", None

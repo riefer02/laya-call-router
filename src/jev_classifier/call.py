@@ -21,6 +21,7 @@ import laya_mlx as laya
 
 from . import dealership as D
 from .agent import get_router
+from .schedule import Scheduler, Slot, acceptance_question, resolve_acceptance
 
 # Fixed column per node key so the frontend can lay out deterministically.
 COLUMNS: Dict[str, int] = {
@@ -34,11 +35,13 @@ COLUMNS: Dict[str, int] = {
     "is_safe_to_drive": 7,
     "needs_human": 8,
     "extract_time": 9,
-    "missing_slots": 10,
-    "subqueue": 11,
-    "next_action": 12,
-    "agent": 13,
-    "terminal": 14,
+    "extract_contact": 10,
+    "missing_slots": 11,
+    "subqueue": 12,
+    "acceptance": 13,
+    "next_action": 14,
+    "agent": 15,
+    "terminal": 16,
 }
 
 TITLES: Dict[str, str] = {
@@ -52,8 +55,10 @@ TITLES: Dict[str, str] = {
     "is_safe_to_drive": "Unsafe?",
     "needs_human": "Needs human?",
     "extract_time": "Time (regex)",
+    "extract_contact": "Contact (regex)",
     "missing_slots": "What's missing",
     "subqueue": "Sub-queue",
+    "acceptance": "Which time?",
     "next_action": "Next step",
     "agent": "Switchboard",
     "terminal": "Route",
@@ -100,10 +105,14 @@ class CallSession:
         verify_threshold: float = 0.75,
         incremental: bool = True,
         verify: bool = True,
+        scheduler: Optional[Scheduler] = None,
     ) -> None:
         self.scenario = scenario
         self.session_id = session_id
         self.router = router or get_router()
+        # Availability lives behind an injectable scheduler so a test can pin the clock and the
+        # store, and so a real DMS can replace it without touching the cascade.
+        self.scheduler = scheduler or Scheduler()
         # Three different questions, three different numbers:
         #   confidence_threshold — "should a human look at this?" (entropy confidence, 0.75)
         #   pin_threshold        — "can we stop re-deciding this?" (top probability, 0.6)
@@ -120,6 +129,12 @@ class CallSession:
 
         self.exchanges: List[Dict[str, str]] = []  # {"role": caller|agent, "text": ...}
         self.answers: Dict[str, Dict[str, Any]] = {}
+        # The booking. `offered` holds the real times we last read out, so the next turn can ask
+        # which one the caller took; `booking` is the appointment that actually got filed.
+        self.offered: List[Slot] = []
+        self.booking = None
+        # Name and number, captured deterministically rather than classified (see dealership).
+        self.contact: Dict[str, str] = {}
         # Settled facts: what we already know, with the confidence and the turn that settled it.
         # A fact is only pinned when it is a concrete value answered confidently; "not_stated"
         # answers are never pinned, because resolving them is the whole point of a later turn.
@@ -351,6 +366,23 @@ class CallSession:
             )
             yield self._edge(prev_id, extract_id, label=extracted, kind="extract")
 
+        # Contact details are captured, not classified. A callback number is the one field where a
+        # plausible-looking invention does real damage, so it is a regex like the time.
+        found = D.extract_contact(utterance)
+        if any(found.values()):
+            for key, value in found.items():
+                if value:
+                    self.contact[key] = value
+            contact_id = f"t{turn}.extract_contact"
+            yield self._node(contact_id, turn, "extract_contact", "extract")
+            yield self._result(
+                contact_id,
+                turn,
+                value={k: v for k, v in found.items() if v},
+                note="regex, not a model decision",
+            )
+            yield self._edge(prev_id, contact_id, label="contact", kind="extract")
+
         # ---- policy: what is still missing --------------------------------------
         # Slots only matter for destinations that end in an appointment; a non-customer call is
         # transferred, not booked, so nothing is "missing" for it.
@@ -440,8 +472,69 @@ class CallSession:
             )
         prev_id = subqueue_id
 
-        # ---- next action: deterministic policy ----------------------------------
+        # ---- booking: real slots, then the time the caller actually took ----------
+        # "Next week" is not an appointment. Once the slots are known, offer times that exist in
+        # the store's own availability, then let the classifier decide which one was accepted -
+        # deciding whether someone agreed to a time is a classification, and it is exactly what a
+        # generative model answers with invented prose.
+        location = self.answers.get("location", {}).get("choice") or ""
+        subqueue = self.answers.get("subqueue", {}).get("choice")
         action = D.next_action_for(missing, destination, unsafe)
+
+        if action == "confirm_booking" and self.offered:
+            question = acceptance_question(self.offered)
+            accepted = self._run(question)
+            ms_acc = accepted.pop("_ms")
+            acc = accepted["answers"]["acceptance"]
+            self.answers["acceptance"] = acc
+            acc_id = f"t{turn}.acceptance"
+            yield self._node(acc_id, turn, "acceptance", "decision", primitive="choice")
+            yield self._result(
+                acc_id,
+                turn,
+                summary=_summarize(acc),
+                question=question["acceptance"]["instructions"],
+                options=list(question["acceptance"]["criteria"]),
+                latency_ms=ms_acc,
+            )
+            yield self._edge(prev_id, acc_id, kind="branch")
+            prev_id = acc_id
+
+            choice = acc.get("choice")
+            # Do not file an appointment on the argmax of a near-uniform distribution. Measured:
+            # the untrained acceptance classifier answered slot_1 at p=0.41 for an utterance that
+            # mentioned no time at all, and the booking was made. Booking a time nobody agreed to
+            # is worse than asking again, so an indecisive answer clarifies rather than commits.
+            verdict, idx = resolve_acceptance(
+                choice,
+                _summarize(acc).get("top_probability"),
+                self.offered,
+                threshold=self.pin_threshold,
+            )
+            if verdict == "accept" and idx is not None:
+                slot = self.offered[idx]
+                self.booking = self.scheduler.book(
+                    location=location or "downtown",
+                    destination=destination or "",
+                    subqueue=subqueue,
+                    queue=D.decide(self.answers, [])["queue"],
+                    slot=slot,
+                    **{k: v for k, v in (self.contact or {}).items() if v},
+                )
+                action = "booked"
+            elif verdict == "reject":
+                # they rejected every time we had; ask availability again rather than inventing one
+                self.offered = []
+                action = "offer_slots"
+            else:
+                action = "ask_which_slot"
+
+        elif action == "confirm_booking":
+            offered = self.scheduler.offer(location or "downtown", subqueue)
+            self.offered = offered
+            action = "offer_slots" if offered else "offer_transfer"
+
+        # ---- next action: deterministic policy ----------------------------------
         action_id = f"t{turn}.next_action"
         yield self._node(action_id, turn, "next_action", "policy")
         yield self._result(
@@ -491,7 +584,7 @@ class CallSession:
         )
 
         # ---- terminal ------------------------------------------------------------
-        if action in ("confirm_booking", "offer_transfer"):
+        if action in ("booked", "offer_transfer"):
             yield from self._finish(turn, agent_id, missing)
 
     # ------------------------------------------------------------------ settled facts
@@ -629,6 +722,11 @@ class CallSession:
         time_pref = D.display_name(
             self.answers.get("time_preference", {}).get("choice") or "not_stated"
         )
+        if action == "offer_slots":
+            times = ", ".join(s.spoken() for s in self.offered)
+            return template.format(destination=destination, location=location, slots=times)
+        if action == "booked" and self.booking is not None:
+            return template.format(booking=self.booking.summary(), **self.contact)
         return template.format(destination=destination, location=location, time=time_pref)
 
     def _finish(self, turn: int, prev_id: str, missing: List[str]) -> Iterator[Dict[str, Any]]:

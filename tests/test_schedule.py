@@ -12,7 +12,13 @@ from datetime import date
 import pytest
 
 from jev_classifier import store_profile as SP
-from jev_classifier.schedule import Booking, Scheduler, Slot, acceptance_options
+from jev_classifier.schedule import (
+    Booking,
+    Scheduler,
+    Slot,
+    acceptance_options,
+    resolve_acceptance,
+)
 
 # 2026-09-22 is a Tuesday, 09-26 a Saturday, 09-27 a Sunday.
 TUESDAY = date(2026, 9, 22)
@@ -209,3 +215,39 @@ def test_every_configured_service_can_actually_be_offered(sched):
             if not sched.offer("downtown", sub, count=1):
                 unofferable.append(f"{dest.key}/{sub} ({sched.duration_for(sub)} min)")
     assert not unofferable, f"configured but never offerable: {unofferable}"
+
+
+# --------------------------------------------------------------------------- acceptance
+OFFERED = [Slot("2026-09-22", "08:00"), Slot("2026-09-22", "08:30")]
+
+
+def test_acceptance_maps_a_slot_choice_to_the_right_time():
+    assert resolve_acceptance("slot_1", 0.9, OFFERED) == ("accept", 0)
+    assert resolve_acceptance("slot_2", 0.9, OFFERED) == ("accept", 1)
+
+
+def test_a_decisive_rejection_re_offers():
+    assert resolve_acceptance("none_of_these", 0.9, OFFERED) == ("reject", None)
+
+
+def test_an_indecisive_answer_never_books():
+    """The bug this exists for.
+
+    The untrained acceptance classifier answered `slot_1` at p=0.41 for "this is Dana, and my
+    number is 555-0140" - an utterance that mentions no time at all - and the appointment was
+    filed. An argmax of a near-uniform distribution is not a decision.
+    """
+    assert resolve_acceptance("slot_1", 0.41, OFFERED) == ("clarify", None)
+    assert resolve_acceptance("none_of_these", 0.30, OFFERED) == ("clarify", None)
+    assert resolve_acceptance("unclear", 0.99, OFFERED) == ("clarify", None)
+    assert resolve_acceptance(None, None, OFFERED) == ("clarify", None)
+
+
+def test_a_choice_naming_no_offered_slot_is_clarified_not_booked():
+    assert resolve_acceptance("slot_9", 0.99, OFFERED) == ("clarify", None)
+    assert resolve_acceptance("slot_0", 0.99, OFFERED) == ("clarify", None)
+
+
+def test_acceptance_threshold_is_configurable(sched):
+    """Tying the booking bar to the pin threshold keeps one notion of 'decisive' in the system."""
+    assert resolve_acceptance("slot_1", 0.55, OFFERED, threshold=0.5) == ("accept", 0)
