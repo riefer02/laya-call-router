@@ -719,15 +719,18 @@ Everything above compresses into a short list. Every one of these cost something
 13. **Record what a run was trained on, with the run.** A number and its provenance have to travel
     together, or someone reconstructs the provenance later and finds a leak they cannot repair.
 
-14. **For a contaminated case, exclude it from every arm; do not count it as wrong.** Counting the
-    leaked case against ourselves kept n=81 and produced "1.2 points behind". Excluding it from both
-    sides — which is the actual measurement, since the case is unmeasurable for our arms and the LLM
-    arms never trained on it — leaves 74/80 against 74/80. A penalty is a what-if; an exclusion is a
-    result, and I reached for the penalty because it made a better story.
+14. **Exclude a contaminated case; do not count it as wrong — and then ask whether the two numbers can
+    be subtracted at all.** Counting the leaked case against ourselves kept n=81 and produced "1.2
+    points behind"; excluding it properly produced "tied"; re-running the arms produced neither,
+    because the baseline is non-deterministic. Three headlines from one case. A penalty is a what-if,
+    an exclusion is a measurement, and arithmetic on a published score is only valid if the thing that
+    produced it answers the same way twice.
 
-15. **Report the noisy comparison honestly.** After the leak correction we are 1.2 points behind a
-    frontier model on joint, 60× faster, and at zero marginal cost per call — and on 81 cases the
-    honest claim stops there. The intervals overlap, and saying so costs nothing.
+15. **Report the noisy comparison honestly.** After the leak correction the honest verdict against a
+    frontier model is **indistinguishable at 81 cases** — not parity, not a deficit — at 60× the speed
+    and zero marginal cost per call. The point estimate has swung 3.8 points in each direction across
+    runs of the *baseline*, so there is no claim to make beyond "we match it, cheaply, and our number
+    does not move".
 
 ---
 
