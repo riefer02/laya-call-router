@@ -49,25 +49,50 @@ positive, so that number is clean.
 | p50 latency | 21.4 ms | 21.8 ms | 21.8 ms | 22.9 ms | 747 ms | 1432 ms |
 | cost per call | $0 | $0 | $0 | **$0** | $0.0025 | $0.0114 |
 
-**Every fine-tune in that table is scored partly on data it trained on**, and the corrected figures
-are lower. `gen-01` appears verbatim inside a training row in the packaged snapshot of v3, v3-e8, v4
-*and* v6, and all four answer it correctly — the shape of memorisation. Removing it (the conservative
-bound, since we cannot know what the model would have done without it):
+**Every fine-tune in that table is scored partly on data it trained on.** `gen-01` appears verbatim
+inside a training row in the packaged snapshot of v3, v3-e8, v4 *and* v6, and all four answer it
+correctly — the shape of memorisation. So the case is unusable, and the correction is to **exclude
+it**, not to count it as wrong. That distinction changes the answer.
 
-| | reported dest / joint | leak-corrected |
+For our own arms the arithmetic is safe, because they are deterministic: dropping a case they got
+right removes one from both the numerator and the denominator. On the 80 uncontaminated cases:
+
+| | reported joint (81) | **excluding `gen-01` (80)** |
 | --- | --- | --- |
-| v3 | 0.938 / 0.864 | 0.926 / 0.852 |
-| v4 | 0.951 / 0.914 | 0.938 / 0.901 |
-| v5 | 0.938 / 0.876 | 0.926 / 0.864 |
-| **v6** | 0.963 / 0.926 | **0.951 / 0.914** |
+| v3 | 0.864 | 0.863 |
+| v4 | 0.914 | **0.913** |
+| v5 | 0.876 | 0.875 |
+| **v6** | 0.926 | **0.925** (74/80) |
 
-**The comparison between them survives** — they all carried the same leaked case, so v6 is still
-ahead of v4. **The comparison against `deepseek-flash` does not.** 0.951 / 0.914 against its 0.988 /
-0.926 is 1.2 points behind on joint rather than level. `deepseek-flash` was never trained on our data,
-so there is nothing to correct on its side.
+**v6 is still ahead of v4, and that is the comparison that matters for the training change.** The
+gap is ~1.2 points, same as before — because both arms lost the same leaked case.
 
-`sev-04` is likewise inside v6's severity snapshot six times, so its hazard recall is **17 of 18
-(0.944)**, not 18 of 18. It is not a `needs_human` positive, so that question's numbers are clean.
+### Against `deepseek-flash` the honest answer is "indistinguishable", not "behind"
+
+Excluding `gen-01` from every arm and re-running gives:
+
+| 80 cases, one run | dest | sub | joint | queue |
+| --- | --- | --- | --- | --- |
+| **v6** | 0.963 | 0.925 | **0.925** | **0.975** |
+| `deepseek-flash` | **0.975** | 0.887 | 0.887 | 0.938 |
+| `gpt-5.4-nano` | 0.963 | 0.875 | 0.875 | 0.925 |
+
+**That is not a win, because it is not the same measurement.** `deepseek-flash` is non-deterministic
+and answered differently in this run — it missed `gen-08` in the 81-case run and `gen-08` *and*
+`det-04` here. Its joint has scored 0.889 to 0.926 across four runs on identical inputs; ours has not
+moved once. So its 80-case number is a fresh sample, not its 81-case number minus one case, and the
+two rows above cannot be subtracted from each other.
+
+The defensible statement: **the two are indistinguishable at 81 cases, with the point estimate
+swinging ±3.8 points run to run.** My earlier "1.2 points behind" was an artefact of counting the
+leaked case as wrong — a what-if penalty, not a measurement — and the tie I then reached for is not
+evidence either. `eval.py --exclude-cases` now makes the exclusion a reproducible measurement applied
+to every arm, rather than arithmetic done by hand in a comment.
+
+`sev-04` is likewise inside v6's severity snapshot six times. **Excluding it** — rather than assuming
+the model would have missed it — leaves **17 of 17 uncontaminated hazards caught, recall 1.000**: the
+leaked case cannot be measured at all, and "17 of 18" would have been a hypothetical penalty. It is
+not a `needs_human` positive, so that question's numbers are unaffected.
 
 \* `eval_v4.json` reports 0.963, but it was measured **before** the safety rewording. Re-measured
 under the current policy, v4 scores **0.852** — identical to v6. That is the evidence that the

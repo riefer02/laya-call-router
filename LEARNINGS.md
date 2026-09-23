@@ -372,10 +372,34 @@ The checkpoints had trained on the snapshot Kaggle packaged weeks earlier, and t
 the weights, unexamined. A second reader found it by hand: `gen-01` verbatim inside a training row in
 v3, v3-e8, v4 *and* v6; `sev-04` six times in v6. All four answered the leaked case correctly.
 
-The honest accounting: destination 0.963 → **0.951**, joint 0.926 → **0.914**, and stranded-caller
-recall 18 of 18 → **17 of 18**. The comparison *between our checkpoints* survived, because they all
-carried the same leak. The comparison against `deepseek-flash` did not — it became a 1.2-point
-deficit rather than parity, and that was the headline of the day.
+**The accounting, done by excluding rather than penalising.** Excluding is a measurement; counting a
+contaminated case as wrong keeps n unchanged and invents a what-if. On the 17 uncontaminated hazards,
+recall is **17 of 17 (1.000)** — where "17 of 18" had assumed the model would have missed a case it
+was never allowed to fail.
+
+For routing the distinction produced three different headlines in one afternoon, and the third one is
+the interesting one:
+
+| method | result |
+| --- | --- |
+| count the leaked case as wrong (what I wrote first) | v6 0.914 vs deepseek 0.926 — "1.2 behind" |
+| exclude it, arithmetic by hand (what I was corrected to) | both 74/80 = 0.925 — "the tie survives" |
+| exclude it, **re-run the arms** (what is actually true) | v6 0.925 vs deepseek **0.887** |
+
+The last one is not a win, and the reason is the whole point: **`deepseek-flash` is non-deterministic,
+so it answered differently in the exclusion run** — it missed `gen-08` in one run and `gen-08` and
+`det-04` in the other. You cannot subtract one case from a non-deterministic arm's score and expect to
+get its score on the remaining cases, because it does not have "a" score. Ours does, which is why the
+same arithmetic is safe for our own checkpoints and unsafe for theirs.
+
+So the defensible claim is **indistinguishable at 81 cases, with the point estimate swinging ±3.8
+points run to run** — not parity, and not a deficit. `eval.py --exclude-cases` now performs the
+exclusion across every arm in one run, so the measurement is reproducible instead of reconstructed in
+a comment.
+
+> **The lesson:** "held out" and "comparable" are different questions, and a leaked case raises both.
+> Getting the first right (exclude it) does not settle the second (can these two numbers be
+> subtracted at all) — and for a non-deterministic baseline, no arithmetic on a published score can.
 
 > **The lesson:** when you fix a class of bug, the fix has to cover every *copy* of the thing you
 > were measuring — including the frozen ones inside model artefacts. "I added a check and it passes"
@@ -695,7 +719,13 @@ Everything above compresses into a short list. Every one of these cost something
 13. **Record what a run was trained on, with the run.** A number and its provenance have to travel
     together, or someone reconstructs the provenance later and finds a leak they cannot repair.
 
-14. **Report the noisy comparison honestly.** After the leak correction we are 1.2 points behind a
+14. **For a contaminated case, exclude it from every arm; do not count it as wrong.** Counting the
+    leaked case against ourselves kept n=81 and produced "1.2 points behind". Excluding it from both
+    sides — which is the actual measurement, since the case is unmeasurable for our arms and the LLM
+    arms never trained on it — leaves 74/80 against 74/80. A penalty is a what-if; an exclusion is a
+    result, and I reached for the penalty because it made a better story.
+
+15. **Report the noisy comparison honestly.** After the leak correction we are 1.2 points behind a
     frontier model on joint, 60× faster, and at zero marginal cost per call — and on 81 cases the
     honest claim stops there. The intervals overlap, and saying so costs nothing.
 

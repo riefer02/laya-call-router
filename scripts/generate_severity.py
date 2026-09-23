@@ -340,7 +340,16 @@ def rebalance(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for row in rows:
         if not any(labelled(row, k) for k in KEYS):
             continue
-        m = merged.setdefault(row["text"], {"text": row["text"], "src": row.get("src", "")})
+        # Carry every field except the labels and the transient agreement flags. This used to rebuild
+        # each row from a hardcoded {"text", "src"} pair, so any field added upstream was dropped
+        # here without a word - which is how `kind`, added an hour earlier to make a run auditable,
+        # vanished between being written and being saved. The same shape as the `{key}_agreed` field
+        # that emptied this file once: the merge knows a fixed list of names, and loses everything
+        # else. Preserve by default instead of by remembering.
+        m = merged.setdefault(
+            row["text"],
+            {k: v for k, v in row.items() if k not in KEYS and not k.endswith("_agreed")},
+        )
         for key in KEYS:
             if labelled(row, key):
                 m[key] = row[key]

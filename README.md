@@ -227,16 +227,20 @@ cascade (base and fine-tuned), a cheap structured-output model (`gpt-5.4-nano`),
 **The fine-tuned cascade matches both LLM arms on the decision, at ~60× the speed and for nothing
 per call — and unlike them, its number does not move.**
 
-> **This is the 8-epoch, five-question checkpoint (`models/kaggle-out-v6`) — and every number in the
-> table is inflated by one leaked case.** `gen-01` appears verbatim inside a training row in v6's
-> packaged snapshot (and in v3's, v3-e8's and v4's), and all of them answer it correctly, which is
-> what memorisation looks like. Removing it, the conservative bound: **destination 0.951, joint 0.914,
-> queue 0.963** — against `deepseek-flash`'s 0.988 / 0.926 / 0.963. That is 1.2 points *behind* on
-> joint, inside the noise on 81 cases but no longer a claim of parity.
+> **This is the 8-epoch, five-question checkpoint (`models/kaggle-out-v6`) — and one case in the
+> table is unusable.** `gen-01` appears verbatim inside a training row in v6's packaged snapshot (and
+> in v3's, v3-e8's and v4's), and all of them answer it correctly, which is what memorisation looks
+> like. **The correction is to exclude the case, not to count it as wrong** — a penalty keeps n=81 and
+> invents a what-if. On the 80 uncontaminated cases v6 scores **destination 0.963, sub-queue 0.925,
+> joint 0.925, queue 0.975**.
 >
-> The comparison *between our own checkpoints* survives, because they all carried the same leak: v6 is
-> still ahead of v4 (clean 0.914 vs 0.901 joint), which is how we know the four extra training tasks
-> helped rather than hurt. `scripts/audit_snapshots.py` names every affected checkpoint, and
+> Both comparisons then need care. *Against our own checkpoints* the arithmetic is safe (they are
+> deterministic and all carried the same case): v6's 0.925 joint is still ahead of v4's 0.913, which
+> is how we know the four extra training tasks helped. *Against `deepseek-flash`* nothing can be
+> concluded: it is non-deterministic, it answered differently in the exclusion run, and its joint has
+> scored 0.889-0.926 across four runs on identical inputs. **The two are indistinguishable at 81
+> cases** — not parity, and not a deficit. `scripts/eval.py --exclude-cases` makes the exclusion a
+> reproducible measurement; `scripts/audit_snapshots.py` names every affected checkpoint, and
 > `kaggle_run.py watch` now writes a provenance manifest at download.
 
 Read that carefully, because the tempting version of that sentence is wrong. Across four runs on
@@ -398,18 +402,18 @@ synthetic set (RLCD, official trainer, 2×T4, ~15 min for 8 epochs) is the *afte
 
 | metric | base cascade | **fine-tuned (v6)** | gpt-5.4-nano | deepseek-flash |
 | --- | --- | --- | --- | --- |
-| destination accuracy | 0.654 | **0.963** (clean 0.951) | 0.951 | 0.988 |
+| destination accuracy | 0.654 | **0.963** | 0.951 | 0.988 |
 | sub-queue accuracy | 0.518 | **0.926** | 0.876 | 0.926 |
-| joint accuracy | 0.518 | **0.926** (clean 0.914) | 0.876 | 0.926 |
+| joint accuracy | 0.518 | **0.926** | 0.876 | 0.926 |
 | call-level queue accuracy | 0.778 | 0.852\* | 0.963 | 0.963 |
 | p50 latency | 22.3 ms | **22.9 ms** | 747 ms | 1432 ms |
 | cost per case | **$0** | **$0** | $0.0025 | $0.0113 |
 | determinism (3 repeats) | **1.00** | **1.00** | 0.98 | 0.99 |
 
-The "clean" figures exclude one case (`gen-01`) that sits verbatim inside v6's packaged training data
-— see the note under the four-arm table. **On the clean reading we are 1.2 points behind
-`deepseek-flash` on joint rather than level with it**, which is inside the noise on 81 cases and short
-of the parity claim this document made earlier.
+One case in that table (`gen-01`) sits verbatim inside v6's packaged training data. Excluding it from
+every arm — rather than counting it wrong — leaves v6 at 0.963 / 0.925 / 0.925 on 80 cases. See the
+note under the four-arm table; **against `deepseek-flash` the honest verdict is indistinguishable, not
+ahead and not behind.**
 
 \* This is the safety policy's doing, not the model's — see above. The same checkpoint scores 0.963
 under the policy that was live before the safety rewording. **The unsafe flag overwrites the queue**,
@@ -515,9 +519,10 @@ wording, **0.99** under the new. The model was never unsure; the question was wr
 
 The 45 cases are held out **against today's data** — a test asserts no eval case is a substring of a
 training row, which is how `sev-04` was caught hiding in two of them. **But the v6 row above is not
-clean:** it trained before that trim, on a snapshot where `sev-04` appeared six times, so its hazard
-recall is **17 of 18 (0.944)** rather than 18 of 18. `sev-04` is not a `needs_human` positive, so the
-`needs_human` rows are unaffected. Every checkpoint from v3 onward has the same kind of flaw —
+clean:** it trained before that trim, on a snapshot where `sev-04` appeared six times. **Excluding**
+that case rather than penalising it leaves **17 of 17 uncontaminated hazards caught (recall 1.000)**;
+the leaked one cannot be measured. `sev-04` is not a `needs_human` positive, so the `needs_human` rows
+are unaffected. Every checkpoint from v3 onward has a flaw of this kind —
 `scripts/audit_snapshots.py` names them, and `kaggle_run.py watch` now records a manifest with a
 sha256 per packaged file so a checkpoint's provenance travels with it.
 

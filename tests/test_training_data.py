@@ -298,3 +298,29 @@ def test_leaky_checkpoints_record_their_leaks():
         f"{unrecorded} trained on data containing the cases they are scored on and have no "
         "manifest. Run: uv run python scripts/audit_snapshots.py --write"
     )
+
+
+def test_the_severity_merge_preserves_fields_it_does_not_know_about():
+    """`rebalance` rebuilt each row from a hardcoded {"text", "src"} pair.
+
+    So `kind` - added an hour earlier so a generation run could be audited afterwards - was dropped
+    between being written and being saved, and the run's provenance was unrecoverable. The merge
+    knows a fixed list of names and silently loses everything else, which is the same shape as the
+    `{key}_agreed` field that emptied this file once. Preserve by default, not by remembering.
+    """
+    gen = _load_script("generate_severity")
+    rows = [
+        {
+            "text": "the radio stopped working",
+            "src": "generated",
+            "kind": "minor_fault",
+            "is_safe_to_drive": False,
+            "needs_human": False,
+            "is_safe_to_drive_agreed": True,
+        }
+    ]
+    out = gen.rebalance(rows)
+    assert len(out) == 1, out
+    assert out[0]["kind"] == "minor_fault", "a field the merge does not know about was dropped"
+    assert out[0]["src"] == "generated"
+    assert "is_safe_to_drive_agreed" not in out[0], "transient flags should still be dropped"

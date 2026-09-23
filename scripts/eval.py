@@ -52,6 +52,15 @@ def main() -> None:
         default="",
         help="path to a locally fine-tuned Laya checkpoint; adds a 'cascade-ft' arm",
     )
+    ap.add_argument(
+        "--exclude-cases",
+        default="",
+        help=(
+            "comma-separated routing ids to drop from EVERY arm. For cases a checkpoint was "
+            "contaminated by (see scripts/audit_snapshots.py): excluding is a measurement, whereas "
+            "counting the case as wrong is a what-if penalty. Applied symmetrically, or not at all."
+        ),
+    )
     ap.add_argument("--out", default="results/eval.json")
     args = ap.parse_args()
 
@@ -59,6 +68,15 @@ def main() -> None:
     calls = H.load_calls()
     if args.limit:
         routing = routing[: args.limit]
+
+    excluded = [c.strip() for c in args.exclude_cases.split(",") if c.strip()]
+    if excluded:
+        known = {c.id for c in routing}
+        unknown = [c for c in excluded if c not in known]
+        if unknown:
+            raise SystemExit(f"--exclude-cases names ids that are not routing cases: {unknown}")
+        routing = [c for c in routing if c.id not in excluded]
+        print(f"excluding {len(excluded)} case(s) from every arm: {', '.join(excluded)}")
 
     refs = [] if args.skip_llm else usable([r.strip() for r in args.llm_arms.split(",") if r.strip()])
     hybrid_ref = args.hybrid_arm or (refs[0] if refs else "")
