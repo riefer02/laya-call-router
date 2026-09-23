@@ -420,6 +420,35 @@ def cost_of(model_ref: Optional[str], totals: Dict[str, int]) -> Optional[float]
     )
 
 
+# Recall and specificity are properties of a classifier. **Precision is not** - it depends on how
+# common the class is, and every set here that enriches a rare class (the severity set is 18 of 45
+# positives, deliberately, so that recall can be measured at all) prints a precision that describes a
+# world nobody deploys into. Measured consequence: the trained safety question looks like 0.69
+# precision on the set and is 0.064 at the rate a switchboard actually sees.
+#
+# Report these alongside, always. The 40% entry is the eval set's own rate, so it will match the
+# printed precision - that is the round-trip check, and a test asserts it.
+DEPLOYMENT_BASE_RATES = (0.01, 0.02, 0.05, 0.10, 0.40)
+
+
+def precision_at_base_rate(sensitivity: float, specificity: float, base_rate: float) -> float:
+    """Precision for this classifier against a population with this base rate.
+
+    Bayes, with the two things that are actually properties of the model - how much of the real
+    class it catches, and how much of the rest it wrongly flags - as the inputs.
+    """
+    flagged_and_real = base_rate * sensitivity
+    denom = flagged_and_real + (1 - base_rate) * (1 - specificity)
+    return flagged_and_real / denom if denom else 0.0
+
+
+def precision_by_base_rate(sensitivity: float, specificity: float) -> Dict[str, float]:
+    return {
+        f"{r:.0%}": round(precision_at_base_rate(sensitivity, specificity, r), 4)
+        for r in DEPLOYMENT_BASE_RATES
+    }
+
+
 def wilson_ci(successes: int, n: int, z: float = 1.96) -> Dict[str, float]:
     """Wilson score interval for a proportion.
 

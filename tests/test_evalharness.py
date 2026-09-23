@@ -109,3 +109,41 @@ def test_queue_confusion_is_reported():
     score = H.score_routing(cases, results)
     assert score["queue_accuracy"] == 0.5
     assert score["queue_confusion"]["Tire Bay"]["Roadside / Towing"] == 1
+
+
+# ------------------------------------------------------------------- precision at a deployment rate
+def test_precision_at_the_eval_rate_round_trips_to_the_printed_precision():
+    """The 40% entry IS the severity set's own rate, so Bayes must return what the set measured.
+
+    When it does not, either the set changed or the conversion is wrong - and the number everyone
+    reads (precision on an enriched set) has quietly stopped describing anything real.
+    """
+    from jev_classifier.evalharness import precision_at_base_rate
+
+    # Exact counts, not the rounded 0.704/1.000 printed in the report - the round trip is the point.
+    tp, fp, tn, fn = 18, 8, 19, 0
+    sensitivity = tp / (tp + fn)
+    specificity = tn / (tn + fp)
+    base_rate = (tp + fn) / (tp + fp + tn + fn)
+    measured = tp / (tp + fp)
+    assert abs(precision_at_base_rate(sensitivity, specificity, base_rate) - measured) < 1e-12
+
+
+def test_precision_collapses_as_the_base_rate_falls():
+    """The whole point: precision is not a property of the classifier.
+
+    The trained safety question measures 0.692 precision on a 40%-positive set and 0.064 at 2%,
+    because it traded specificity (0.889 -> 0.704) for sensitivity. A reviewer reading only the set's
+    precision would conclude the dispatch was roughly three-quarters right.
+    """
+    from jev_classifier.evalharness import DEPLOYMENT_BASE_RATES, precision_by_base_rate
+
+    by_rate = precision_by_base_rate(sensitivity=1.0, specificity=0.704)
+    values = [by_rate[f"{r:.0%}"] for r in DEPLOYMENT_BASE_RATES]
+    assert values == sorted(values), "precision must fall as the class gets rarer"
+    assert by_rate["2%"] < 0.10
+    assert by_rate["40%"] > 0.60
+
+    # And the untrained model, which is LESS sensitive but more specific, wins at low base rates.
+    untrained = precision_by_base_rate(sensitivity=1.0, specificity=0.889)
+    assert untrained["2%"] > by_rate["2%"]

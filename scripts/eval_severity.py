@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import laya_mlx as laya  # noqa: E402
 
 from jev_classifier import dealership as D  # noqa: E402
+from jev_classifier import evalharness as EH  # noqa: E402
 from jev_classifier.agent import get_router  # noqa: E402
 
 DATA = ROOT / "data" / "calls" / "severity.jsonl"
@@ -55,6 +56,13 @@ def run(rows: List[dict], router) -> List[dict]:
     return out
 
 
+# The severity set is enriched on purpose: 18 of 45 positives, so that recall can be measured at all.
+# A real switchboard is nowhere near that, and precision depends on the base rate - so the precision
+# this script has always printed describes a world that does not exist. `precision_by_base_rate`
+# (in evalharness, with the maths and the test) is what to read instead.
+DEPLOYMENT_BASE_RATES = EH.DEPLOYMENT_BASE_RATES
+
+
 def at_threshold(rows: List[dict], question: str, threshold: float) -> Dict[str, float]:
     tp = fp = tn = fn = 0
     for row in rows:
@@ -67,11 +75,18 @@ def at_threshold(rows: List[dict], question: str, threshold: float) -> Dict[str,
     n = len(rows)
     pos = tp + fn
     neg = tn + fp
+    sens = tp / pos if pos else 0.0
+    spec = tn / neg if neg else 1.0
     return {
         "threshold": threshold,
         "accuracy": round((tp + tn) / n, 4) if n else 0.0,
-        "recall": round(tp / pos, 4) if pos else None,  # of the unsafe callers, how many caught
+        "recall": round(sens, 4) if pos else None,  # of the unsafe callers, how many caught
         "precision": round(tp / (tp + fp), 4) if (tp + fp) else None,
+        # Precision depends on the base rate, and this set is enriched so that recall can be
+        # measured at all. Read these instead when the question is "how often does a truck roll for
+        # nothing" - sensitivity and specificity are the classifier's properties, precision is not.
+        "specificity": round(spec, 4) if neg else None,
+        "precision_by_base_rate": EH.precision_by_base_rate(sens, spec),
         "false_alarms": fp,
         "missed": fn,  # the costly error: a stranded caller treated as fine
         "missed_ids": [r["id"] for r in rows if r[question] and r["p"][question] < threshold],
@@ -134,6 +149,16 @@ def main() -> int:
             if res["missed_ids"]:
                 print(f"      MISSED: {', '.join(res['missed_ids'])}")
         print()
+
+    print("precision by base rate — what a truck actually rolls for nothing")
+    print("  (the set above is enriched; these are the same classifiers at deployment rates)")
+    header = "  " + f"{'arm':14s}" + "".join(f"{r:>8.0%}" for r in DEPLOYMENT_BASE_RATES)
+    print(header)
+    for name in arms:
+        res = report["arms"][name]["at_default"]["is_safe_to_drive"]
+        cells = "".join(f"{res['precision_by_base_rate'][f'{r:.0%}']:>8.3f}" for r in DEPLOYMENT_BASE_RATES)
+        print(f"  {name:14s}{cells}   (specificity {res['specificity']:.3f})")
+    print()
 
     print("threshold sweep — is_safe_to_drive (recall of unsafe callers vs false alarms)")
     for name in arms:

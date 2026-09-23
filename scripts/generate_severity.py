@@ -61,10 +61,39 @@ ROUTINE_PROMPT = (
     "the car still drives fine with. Each must be one self-contained sentence. "
     "Write them {style}. Return JSON only."
 )
+# The negative class this project was missing, and the reason the safety question fires on
+# "the air conditioning isn't blowing cold any more".
+#
+# The old routine prompt asked for "a minor fault the car still drives fine with", so every
+# fault-reporting negative arrived carrying its own reassurance. The model learned to look for the
+# reassuring clause rather than judge the fault: it called any bare fault statement unsafe. And the
+# register was wrong too - training lines ran to 27 words where a caller speaks five.
+#
+# So this asks for the deployment shape: short, bare, first-person, stating the fault and stopping.
+MINOR_FAULT_PROMPT = (
+    "Write {n} short things a caller might say to a car dealership about a fault that does NOT make "
+    "the car unsafe to drive: air conditioning, heating, a radio or screen, a window, a seat, trim, "
+    "paint, a door or boot release, a non-critical warning light, a cosmetic dent or scratch, a "
+    "noise that is annoying rather than dangerous, or a slow leak that does not affect control. "
+    "CRITICAL: each must be ONE SHORT SENTENCE of at most 14 words, stated plainly, the way a real "
+    "caller speaks - name the fault and stop. Do NOT add that the car is safe, fine, drivable or "
+    "still running. Do NOT reassure, explain or apologise. Do NOT ask whether they have the right "
+    "number or the right place, and do not add any framing around the fault. "
+    "Write them {style}. Return JSON only."
+)
+
+# The register is the point of this category. Anything long, hedged or self-reassuring teaches the
+# shortcut rather than the distinction, so it is dropped rather than labelled.
+MAX_MINOR_FAULT_WORDS = 18
 
 
 def generate_utterances(kind: str, n: int, *, provider: str, model: str) -> List[str]:
-    prompt = {"hazard": HAZARD_PROMPT, "complaint": COMPLAINT_PROMPT, "routine": ROUTINE_PROMPT}[kind]
+    prompt = {
+        "hazard": HAZARD_PROMPT,
+        "complaint": COMPLAINT_PROMPT,
+        "routine": ROUTINE_PROMPT,
+        "minor_fault": MINOR_FAULT_PROMPT,
+    }[kind]
     style = random.choice(synthgen.STYLES)
     schema = {
         "type": "object",
@@ -84,7 +113,10 @@ def generate_utterances(kind: str, n: int, *, provider: str, model: str) -> List
         return []
     data = call.get("data") if isinstance(call.get("data"), dict) else {}
     out = data.get("utterances") or []
-    return [u.strip() for u in out if isinstance(u, str) and len(u.strip()) > 12]
+    texts = [u.strip() for u in out if isinstance(u, str) and len(u.strip()) > 12]
+    if kind == "minor_fault":
+        texts = [t for t in texts if len(t.split()) <= MAX_MINOR_FAULT_WORDS]
+    return texts
 
 
 def label_two_passes(text: str, key: str, provider: str, model: str) -> Dict[str, Any]:
@@ -108,10 +140,21 @@ def main() -> int:
     ap.add_argument("--hazards", type=int, default=60, help="batches of hazard utterances to generate")
     ap.add_argument("--complaints", type=int, default=40)
     ap.add_argument("--routine", type=int, default=30)
+    ap.add_argument(
+        "--minor-faults",
+        type=int,
+        default=0,
+        help="batches of SHORT non-hazard fault reports (the deployment register)",
+    )
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--concurrency", type=int, default=8)
     ap.add_argument("--provider", default="deepseek")
     ap.add_argument("--model", default="")
+    ap.add_argument(
+        "--skip-realistic",
+        action="store_true",
+        help="do not re-use the routing corpus as severity utterances (for targeted top-up runs)",
+    )
     ap.add_argument("--resume", action="store_true", default=True)
     ap.add_argument("--no-resume", dest="resume", action="store_false")
     ap.add_argument(
@@ -145,7 +188,7 @@ def main() -> int:
     # ---- sources
     realistic = []
     src = ROOT / "data" / "calls" / "synthetic.jsonl"
-    if src.is_file():
+    if src.is_file() and not args.skip_realistic:
         realistic = [json.loads(l)["text"] for l in src.read_text().splitlines() if l.strip()]
         random.Random(7).shuffle(realistic)
         if args.limit:
@@ -164,6 +207,7 @@ def main() -> int:
     generated: List[str] = []
     jobs = (
         [("hazard", args.hazards), ("complaint", args.complaints), ("routine", args.routine)]
+        + ([("minor_fault", args.minor_faults)] if args.minor_faults else [])
     )
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         futs = []
