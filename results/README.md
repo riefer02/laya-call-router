@@ -31,7 +31,18 @@ it used.
 | `eval_v7.json` | four-arm eval, **the first checkpoint with clean provenance** (v13: register-corrected data, the calibration fix, the held-out acceptance split). destination 0.914, **joint 0.876** — worse than v6. But the **call level is 0.926 against v6's 0.852**, because the dispatch hijacks halved (4 → 2). `results/severity_v7.json` and `acceptance_v7.json` come from the same run. |
 | `severity_v7.json` | the register experiment's test. `is_safe_to_drive` **passed its gate**: recall held at 1.000 while false alarms fell **8 → 3** and precision 0.692 → **0.857**, recovering the untrained model's precision with the trained model's recall. `needs_human` **failed**: recall 0.857 → 0.714 (missed `sev-40`, `sev-42`). |
 | `acceptance_v7.json` | the **first honest acceptance measurement** — scored on `acceptance_dev.jsonl`, held out by reply phrasing. Base 0.615 with `unclear` 0 of 33; fine-tuned **1.000**, `unclear` 33 of 33. The booking bug (never abstaining) is fixed. Caveat: the split holds out *reply phrasings*, not transcripts. |
-| `eval_v6_fixedcalib.json` | ablation: v6's weights with v7's calibration behaviour (inherited map removed). Isolates the trainer fix from the data change in v7's routing regression. |
+| `eval_v6_fixedcalib.json` | ablation: v6's weights with v7's calibration behaviour (inherited map removed). Isolates the trainer fix from the data change in v7's routing regression — **it is inert** (identical misses, +0.000 joint), as theory says a temperature scale cannot change an argmax. |
+| `eval_v8.json`, `severity_v8.json`, `acceptance_v8.json` | **v14, the clean additive experiment.** v6's exact data (minus the 6 contaminated rows) plus the 222 terse rows, and nothing else — built by construction so the delta is provable. It settles the confound v7 left open:
+
+| | dest | joint | call | `is_safe` FA | `needs_human` recall |
+| --- | --- | --- | --- | --- | --- |
+| v6 (long data) | 0.963 | 0.926 | 0.852 | 10 | 0.857 |
+| v7 (+terse, −172 long) | 0.914 | 0.876 | 0.926 | 3 | 0.714 |
+| **v14 (+terse only)** | 0.938 | 0.889 | 0.889 | **3** | 0.714 |
+
+**The terse rows did the work, not the deletions.** v14 keeps all 172 long hazards and still gets false alarms down to 3 with recall held at 1.000 — so the register hypothesis is confirmed and attributable, which is what v7 could not show. It also shows the collateral is the same addition: `needs_human` recall falls to 0.714 in both, because the 112 new terse hazards are all escalation positives and dilute that class.
+
+**But v14 is not the better demo checkpoint.** It regresses `call-glass` (a windscreen booking → Roadside) and `tow-09`, while recovering the detailing cases. v7 gets 6 of 6 demo-relevant calls; v14 gets 5. `models/active` stays on v7. |
 | `acceptance.json` | the mid-conversation question, before training: overall 0.644, and `unclear` **0 of 130**. It never abstains, which is why the booking demo is flaky. Measured on `acceptance_train.jsonl`, but the model was untrained on it, so this reads as zero-shot. |
 | `acceptance_leaky.json` | ⚠️ **Do not quote.** The trained acceptance model reporting **1.000 accuracy** — scored against `acceptance_train.jsonl`, the file training is built from. Kept as the example of what a leak looks like from the inside. |
 
