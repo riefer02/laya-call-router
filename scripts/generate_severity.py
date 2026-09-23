@@ -114,7 +114,27 @@ def main() -> int:
     ap.add_argument("--model", default="")
     ap.add_argument("--resume", action="store_true", default=True)
     ap.add_argument("--no-resume", dest="resume", action="store_false")
+    ap.add_argument(
+        "--rebalance-only",
+        action="store_true",
+        help="re-apply the positive-rate cap to what is already on disk, with no API calls",
+    )
     args = ap.parse_args()
+
+    if args.rebalance_only:
+        if not OUT.is_file():
+            raise SystemExit(f"nothing to rebalance: {OUT} does not exist")
+        rows = [json.loads(line) for line in OUT.read_text().splitlines() if line.strip()]
+        print(f"rebalancing {len(rows)} rows already on disk (no API calls)\n")
+        final = rebalance(rows)
+        write_rows(OUT, final)
+        print(f"\nwrote {OUT} ({len(final)} utterances)")
+        for key in KEYS:
+            c = Counter(r[key] for r in final if key in r)
+            tot = c.get(True, 0) + c.get(False, 0)
+            rate = c.get(True, 0) / tot if tot else 0
+            print(f"  {key:18s} true={c.get(True,0):4d} false={c.get(False,0):4d}  ({rate:.0%} positive)")
+        return 0
 
     provider = args.provider
     model = args.model or llm.PROVIDERS[provider].default_model
@@ -188,22 +208,54 @@ def main() -> int:
                 print(f"  {done}/{len(futs)} calls · ${cost:.4f} · {kept} usable", flush=True)
 
     # ---- balance
-    # The realistic set is overwhelmingly safe, and a model trained on it alone learns to answer
-    # "safe" and be right most of the time. That is the one failure a safety-first policy cannot
-    # tolerate, so positives are kept generously rather than capped to the natural rate.
-    def usable(r, key):
-        return r.get(f"{key}_agreed") and r.get(key) is not None
+    # The generated hazards and complaints are deliberately over-represented, because the natural
+    # rate is one-sided and a model trained only on it learns to answer "safe" and be right most of
+    # the time. But over-representing has its own failure: at a 60% positive rate the model learns a
+    # prior nothing like a real switchboard, and a threshold cannot undo a shifted prior. So the
+    # positive rate is capped at ~40%, which keeps recall learnable without distorting the base rate
+    # beyond what the operating point can absorb.
+    final = rebalance(rows)
+    write_rows(OUT, final)
+    print(f"\nwrote {OUT} ({len(final)} utterances, ${cost:.4f})")
+    for key in KEYS:
+        c = Counter(r[key] for r in final if key in r)
+        tot = c.get(True, 0) + c.get(False, 0)
+        rate = c.get(True, 0) / tot if tot else 0
+        print(f"  {key:18s} true={c.get(True,0):4d} false={c.get(False,0):4d}  ({rate:.0%} positive)")
+    return 0
 
+
+def rebalance(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Cap each question's positive rate, and merge to one row per utterance.
+
+    Split out so it can be re-run without touching the API: `--rebalance-only`. Getting the rate
+    wrong is a judgement call, and a judgement call should be cheap to revisit.
+    """
+
+    def usable(r, key):
+        # Presence of the key IS the agreement. The pipeline tracks a `{key}_agreed` flag while
+        # labelling, but it is dropped when rows are merged to one-per-utterance — so checking for
+        # it here matched nothing and emptied this file once. The data was recoverable only by
+        # paying for it again; the guard below exists so that cannot happen twice.
+        return key in r and r[key] is not None
+
+    rng = random.Random(3)
     out: List[Dict[str, Any]] = []
     for key in KEYS:
         pos = [r for r in rows if usable(r, key) and r[key] is True]
         neg = [r for r in rows if usable(r, key) and r[key] is False]
-        keep_neg = neg[: max(len(pos) * 2, 200)]
-        out.extend(pos)
+        rng.shuffle(pos)
+        rng.shuffle(neg)
+        keep_pos = pos[: max(len(neg), 1) * 2 // 3]
+        keep_neg = neg[: max(len(keep_pos) * 2, 200)]
+        out.extend(keep_pos)
         out.extend(keep_neg)
-        print(f"{key}: {len(pos)} true / {len(keep_neg)} false kept (from {len(neg)} available)")
+        rate = len(keep_pos) / max(1, len(keep_pos) + len(keep_neg))
+        print(
+            f"{key}: {len(keep_pos)} true / {len(keep_neg)} false kept "
+            f"({rate:.0%} positive, from {len(pos)}/{len(neg)} available)"
+        )
 
-    # one row per utterance, carrying whichever keys survived
     merged: Dict[str, Dict[str, Any]] = {}
     for r in out:
         m = merged.setdefault(r["text"], {"text": r["text"], "src": r.get("src", "")})
@@ -212,12 +264,19 @@ def main() -> int:
                 m[key] = r[key]
     final = [m for m in merged.values() if any(k in m for k in KEYS)]
 
-    OUT.write_text("".join(json.dumps(r) + "\n" for r in final))
-    print(f"\nwrote {OUT} ({len(final)} utterances, ${cost:.4f})")
-    for key in KEYS:
-        c = Counter(r[key] for r in final if key in r)
-        print(f"  {key:18s} true={c.get(True,0):4d} false={c.get(False,0):4d}")
-    return 0
+    if not final:
+        raise SystemExit(
+            f"refusing to write an empty file from {len(rows)} input rows. "
+            "Zero out of many is a bug, not a result."
+        )
+    return final
+
+
+def write_rows(path: Path, rows: List[Dict[str, Any]]) -> None:
+    """Write atomically, so a crash cannot leave a truncated file behind."""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    tmp.replace(path)
 
 
 if __name__ == "__main__":

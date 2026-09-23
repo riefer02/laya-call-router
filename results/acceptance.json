@@ -1,0 +1,71 @@
+{
+  "n": 390,
+  "arms": {
+    "base": {
+      "n": 390,
+      "accuracy": 0.5538,
+      "per_class": {
+        "none_of_these": {
+          "correct": 129,
+          "n": 130,
+          "accuracy": 0.9923
+        },
+        "slot_1": {
+          "correct": 44,
+          "n": 44,
+          "accuracy": 1.0
+        },
+        "slot_2": {
+          "correct": 41,
+          "n": 43,
+          "accuracy": 0.9535
+        },
+        "slot_3": {
+          "correct": 2,
+          "n": 43,
+          "accuracy": 0.0465
+        },
+        "unclear": {
+          "correct": 0,
+          "n": 130,
+          "accuracy": 0.0
+        }
+      },
+      "abstain_rate": 0.0,
+      "latency_ms_p50": 11.3
+    },
+    "fine-tuned": {
+      "n": 390,
+      "accuracy": 0.6436,
+      "per_class": {
+        "none_of_these": {
+          "correct": 130,
+          "n": 130,
+          "accuracy": 1.0
+        },
+        "slot_1": {
+          "correct": 44,
+          "n": 44,
+          "accuracy": 1.0
+        },
+        "slot_2": {
+          "correct": 43,
+          "n": 43,
+          "accuracy": 1.0
+        },
+        "slot_3": {
+          "correct": 34,
+          "n": 43,
+          "accuracy": 0.7907
+        },
+        "unclear": {
+          "correct": 0,
+          "n": 130,
+          "accuracy": 0.0
+        }
+      },
+      "abstain_rate": 0.0,
+      "latency_ms_p50": 11.3
+    }
+  }
+}
