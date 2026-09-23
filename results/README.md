@@ -19,10 +19,14 @@ it used.
 | `eval_v3.json` | four-arm eval, 4-epoch fine-tune. destination 0.938, joint 0.864, queue 0.951. |
 | `eval_v4.json` | four-arm eval, 8-epoch fine-tune. destination 0.951, joint 0.914, queue 0.963. |
 | `eval_newtaxonomy_base.json` | base Laya on the corrected taxonomy, before any fine-tuning: 0.654 / 0.518. |
-| `dataset_report.json` | the current synthetic set — 1395 rows, acceptance criteria, per-class counts. |
-| `severity.json` | the yes/no questions, **old wording**, threshold 0.3: recall 0.778, missed 4 of 18. |
+| `dataset_report.json` | the synthetic set — 1395 rows, acceptance criteria, per-class counts. **Predates the containment trim**, which removed one row that echoed a held-out case; the live count is 1394 (1255 train / 139 dev). |
+| `severity.json` | the yes/no questions, **old wording**, threshold 0.3: recall 0.778, missed 4 of 18. Superseded by the rewording. |
 | `severity_reworded.json` | **same model, reworded question**, threshold 0.7: recall **1.000**, missed **0 of 18**. No training involved — the question asked what the caller *said* rather than whether the *vehicle* was unsafe. |
-| `acceptance.json` | the mid-conversation question: overall 0.644, and `unclear` **0 of 130**. It never abstains, which is why the booking demo is flaky. |
+| `severity_trained.json` | the yes/no questions after they were finally **trained** (v5). `needs_human` recall **0.571 → 0.857** on genuinely held-out cases, but precision collapses (0.207) and the probabilities are saturated, so the threshold sweep is flat. |
+| `severity_calibrated.json` | the **temperature experiment**. `temperature_by_options` is inherited from the base checkpoint and overrides the trainer's fitted vector — a real bug. Removing it moves a noul probability from 1.000 to **0.996**, so it is *not* the cause of the saturation. Recorded because it killed a hypothesis I had already half-written up. |
+| `eval_v5.json` | four-arm eval, the multi-task 4-epoch fine-tune. destination 0.938, **joint 0.877**, call-level 0.889 — down from v4's 0.914 / 0.963. Confounded with the epoch count; the 8-epoch run is in flight. |
+| `acceptance.json` | the mid-conversation question, before training: overall 0.644, and `unclear` **0 of 130**. It never abstains, which is why the booking demo is flaky. Measured on `acceptance_train.jsonl`, but the model was untrained on it, so this reads as zero-shot. |
+| `acceptance_leaky.json` | ⚠️ **Do not quote.** The trained acceptance model reporting **1.000 accuracy** — scored against `acceptance_train.jsonl`, the file training is built from. Kept as the example of what a leak looks like from the inside. |
 
 ## Superseded — old 9-department taxonomy
 
@@ -48,3 +52,10 @@ ones** and must not be quoted as if they were.
   `non_customer` both go to Front Desk). Both are reported; neither replaces the other.
 - **The ground truth is single-labelled.** Where all three models agree against it (see `det-04`),
   the label is the likeliest thing to be wrong.
+- **"Held out" is checked, not intended.** The eval sets come out of the same pipeline as the
+  training data, and three of these reports were found reading it: the acceptance eval scored the
+  training file outright, and two cases leaked by *containment* — a short eval utterance sitting
+  inside a longer training row, which an exact-text check cannot see and Jaccard scores too low to
+  catch. Tests now assert exact disjointness *and* containment disjointness for routing and severity,
+  and phrasing disjointness for acceptance. Re-run `scripts/trim_heldout_echoes.py` if a generator
+  changes.

@@ -227,6 +227,12 @@ cascade (base and fine-tuned), a cheap structured-output model (`gpt-5.4-nano`),
 **The fine-tuned cascade matches both LLM arms on the decision, at ~65× the speed and for nothing
 per call — and unlike them, its number does not move.**
 
+> **These are the 8-epoch, two-question checkpoint (`models/kaggle-out-v4`).** A later run trained the
+> four yes/no and booking questions as well and **regressed** to joint 0.877 / call-level 0.889 — but
+> it also ran 4 epochs instead of 8, so the two changes are confounded and the disentangling run was
+> still training. `results/eval_v5.json` has it. The table above is the best measured checkpoint, not
+> the newest one.
+
 Read that carefully, because the tempting version of that sentence is wrong. Across four runs on
 identical inputs, `deepseek-flash` scored joint **0.914, 0.889, 0.901 and 0.926** — it leads us in
 some runs and trails in others. Our 0.914 has not moved once, because the cascade is deterministic:
@@ -293,7 +299,9 @@ not ship unless it passes (`scripts/generate_training.py` exits non-zero otherwi
 | intra-corpus duplicates | 0 | **0** |
 | two-phrasing agreement | 100% of kept rows | **100%** |
 
-**1,395 examples** (1,256 train / 139 dev) for **$0.91** in teacher calls. Teacher is
+**1,394 examples** (1,255 train / 139 dev) for **$0.91** in teacher calls. (One further row was
+removed afterwards: it contained a held-out case verbatim, which an exact-text check could not see.)
+Teacher is
 `deepseek-flash`; a candidate only becomes a training example when **two independently-worded
 labelling passes agree with each other and with the intended target**.
 
@@ -429,38 +437,39 @@ needs-human).
 
 **The errors are not symmetric, so accuracy would be the wrong headline.** Missing a stranded
 caller leaves someone at the side of a road; a false alarm sends a truck to someone who was fine.
-The report leads with recall and names the missed cases:
+The report leads with recall and names the missed cases. **The first reading was 0.778** — the model
+failed to dispatch 4 of 18 stranded or unsafe callers.
+The misses clustered on *implied* hazards — "smoke coming from under the hood", "the accelerator
+stuck open" — where the caller never says they are stopped. The question asked what the caller
+*indicates*, so the model answered literally while a person would hear a fire risk.
 
-| question | recall | precision | missed |
-| --- | --- | --- | --- |
-| `is_safe_to_drive` (fine-tuned) | **0.778** | 1.000 | **4 of 18** |
-| `needs_human` (fine-tuned) | 0.571 | 0.250 | 3 of 7 |
-| `is_safe_to_drive` (base) | 0.722 | 0.929 | 5 of 18 |
-| `needs_human` (base) | **0.143** | 0.071 | 6 of 7 |
+**Rewording it fixed that, and needed no retraining at all.** Asking about the *vehicle* rather than
+the *statement* took recall to **1.000 — 0 of 18 missed**, for three extra dispatches. `sev-11`
+("there's a burning smell and smoke through the vents") shows the mechanism: **p=0.00** under the old
+wording, **0.99** under the new. The model was never unsure; the question was wrong.
 
-**Even the fine-tuned model fails to dispatch 4 of 18 stranded or unsafe callers.** The misses
-cluster on *implied* hazards — "smoke coming from under the hood", "the accelerator stuck open" —
-where the caller never says they are stopped. The question asks what the caller *indicates*, so the
-model answers literally while a person would hear a fire risk. That is a question-wording problem
-as much as a model one, and it is written down rather than smoothed over.
+| question | variant | recall | precision | missed |
+| --- | --- | --- | --- | --- |
+| `is_safe_to_drive` | base | 0.722 | 0.929 | 5 of 18 |
+| `is_safe_to_drive` | reworded, untrained (v4) | **1.000** | **0.857** | 0 of 18 |
+| `is_safe_to_drive` | reworded, trained (v5) | **1.000** | 0.667 | 0 of 18 |
+| `needs_human` | reworded, untrained (v4) | 0.571 | **1.000** | 3 of 7 |
+| `needs_human` | reworded, trained (v5) | **0.857** | 0.207 | 1 of 7 |
 
-`needs_human` is much weaker: complaints and escalations are missed 43% of the time with heavy
-false positives. It is not yet trustworthy.
+The 45 cases are genuinely held out — a test now asserts no eval case is a substring of a training
+row, which is how `sev-04` was caught hiding in two of them.
 
-**One thing the threshold sweep made obvious and free.** On the fine-tuned model precision is
-1.000 at every threshold from 0.3 to 0.8, while recall falls as the bar rises:
+Training the yes/no questions did what it was meant to on **recall**: `needs_human` went from missing
+3 of 7 escalations to missing 1. It then over-fired on both questions, and the likely cause is the
+**training prior** — the severity data is capped at a 40% positive rate where a real switchboard is
+nowhere near that, so the model learned to expect far more hazards than exist.
 
-```
-thr 0.3   recall 0.833   precision 1.0   missed 3   false alarms 0
-thr 0.5   recall 0.778   precision 1.0   missed 4   false alarms 0
-thr 0.8   recall 0.722   precision 1.0   missed 5   false alarms 0
-```
-
-Lowering dispatch from 0.5 to 0.3 catches one more stranded caller and sends no extra trucks. The
-policy now uses **0.3**. Doing that exposed a real inconsistency — the `unsafe_to_drive` flag, the
-priority, the handler and the transfer decision were reading three different thresholds, so a
-caller could be dispatched as unsafe while the audit trail said they were not. One number now
-drives all of them, with an invariant test either side of it.
+**And saturation means a threshold cannot repair it.** On the trained model the probabilities sit at
+≥0.95 or ≤0.05 for 43 of 45 cases, so the sweep is flat from 0.3 to 0.8. A flat sweep means the
+errors are confident ones. Dispatch and escalation now share a single threshold of **0.7** across the
+`unsafe_to_drive` flag, the priority, the handler and the transfer decision — those used to read
+three different numbers, so a caller could be dispatched as unsafe while the audit trail said they
+were not.
 
 ## Scheduling: the call ends in an appointment
 
@@ -489,8 +498,12 @@ Two deliberate choices:
   near-uniform distribution is not a decision — the same rule that stops a hard stop firing on a
   weak signal elsewhere in this system.
 
-The acceptance classifier is still **untrained** — it is the base checkpoint answering a question it
-has never seen, which is why the floor matters. Training it is the next piece of work.
+The acceptance classifier is now **trained**, and its headline number had to be thrown away. It
+reported **1.000 accuracy** against a base of 0.554 — and it was scoring `acceptance_train.jsonl`,
+the file training is built from. The check now holds out whole reply phrasings
+(`acceptance_dev.jsonl`), because every reply is a template and a row split would still leak "Yes,
+{t} works for me." into both halves. **Until a retrain on that split, booking reliability is
+unmeasured rather than fixed**, and the confidence floor remains what makes a wrong answer safe.
 
 ## Measurements (Apple M5 Pro, 64 GB)
 
@@ -544,15 +557,22 @@ scripts/
   try_call.py           run a call and print the trace headless
   eval.py               the four-arm evaluation (cascade / LLM arms / hybrid frontier)
   eval_severity.py      the safety questions: recall of stranded callers
+  eval_acceptance.py    the booking question, scored on the held-out dev split
   validate_teacher.py   the teacher gate — run before spending on generation
-  generate_training.py  build the training set, with acceptance criteria
+  generate_training.py  build the routing training set, with acceptance criteria
+  generate_severity.py  build the yes/no training set (two-pass agreement, then rebalance)
+  generate_acceptance.py  build the booking training set, holding out reply phrasings
+  trim_heldout_echoes.py  drop training rows that echo a held-out case
   relabel_groundtruth.py  migrate the ground truth onto a new taxonomy, with a drift report
   generality_test.py    does fine-tuning still handle unseen option spaces?
   probe_slots.py        slot-wording measurements
   bench_call.py         per-turn cost, with a saved baseline
 training/
+  run_config.json    the committed training recipe (epochs, learning rates)
   build_items.py     labelled utterance -> (sequence, target) pairs
   train_ddp.py       the vendored RLCD trainer (parameterised, defaults unchanged)
+  make_notebook.py   generates the Kaggle notebook; a test compares the two
+  make_kaggle_dataset.py  packages the data files the notebook copies
   kaggle_run.py      submit / watch the free 2xT4 fine-tune
 data/calls/         labelled ground truth: routing, calls, severity
 results/            the raw reports, tracked, with a README saying which are superseded
@@ -569,21 +589,24 @@ uv run pytest -q
 
 ## Not built yet
 
-**The acceptance classifier is untrained.** It is the base checkpoint answering a question it has
-never seen, which is why it once filed an appointment for a caller who agreed to nothing. The
-confidence floor makes that safe rather than correct; training it needs multi-turn examples
-(offered times → which one was taken), which is a generation mode we do not have yet.
+**Booking reliability is unmeasured.** The acceptance classifier is trained, but the 1.000 it
+reported was memorisation — it was scoring its own training file. The held-out split
+(`acceptance_dev.jsonl`, disjoint by reply phrasing) exists and the leak is now caught by a test, but
+scoring it honestly needs a retrain. Until then the confidence floor is what keeps a wrong answer
+safe rather than correct.
+
+**The multi-task retrain cost routing accuracy** — joint 0.914 → 0.877, call-level 0.963 → 0.889.
+That run trained all four yes/no and booking questions *and* ran 4 epochs instead of 8, so the two
+changes are confounded; the 8-epoch run is in flight. `results/eval_v5.json` is the raw report.
 
 **The other open items, in the order I would do them:**
 
-- **`needs_human` is not trustworthy** (recall 0.571, precision 0.250). Complaints and escalations
-  are missed 43% of the time.
-- **`is_safe_to_drive` misses 4 of 18.** The misses are *implied* hazards where the caller never
-  says they are stopped — the question asks what the caller indicates, so the model answers
-  literally. Rewording it to ask about hazard rather than statement is the fix to try first.
-- **A second human labeller.** One case (`det-04`) is missed by every model; where all three
-  disagree with the key, the key is the likeliest thing to be wrong. This is the ceiling on the
-  destination number and no amount of model work moves it.
+- **The severity questions over-fire.** `needs_human` recall is genuinely better (0.571 → 0.857 on
+  held-out data), but precision is 0.207, and the probabilities are saturated so no threshold helps.
+  The 40% positive training rate is the prime suspect — a real switchboard is nowhere near it.
+- **A second human labeller.** One case (`det-04`) is missed by every model; `gen-08` is answered
+  against our label by all three. Where every model disagrees with the key, the key is the likeliest
+  thing to be wrong. This is the ceiling on the destination number and no model work moves it.
 - **The store facts are unused.** `facts` (hours, address, directions, loaner policy) is loaded and
   rendered, but the switchboard does not yet *answer* from it — it still transfers a factual
   question. Measured motivation: hours and directions is one of the top repeatable Fixed Ops call
@@ -595,6 +618,10 @@ confidence floor makes that safe rather than correct; training it needs multi-tu
 The training and evaluation loop is complete and reproducible: `validate_teacher.py` →
 `generate_training.py` → `kaggle_run.py submit --watch` → `eval.py` → `generality_test.py`. Every
 gate is a command that exits non-zero when it fails, rather than a judgement call.
+
+**One lesson from this round is worth carrying into every future run:** three measurements were
+reading their own training data, and all three read *better* for it. A held-out set is not held out
+because you intended it to be, and a number that improves a lot is the one to audit first.
 
 ## Security
 

@@ -22,6 +22,17 @@ put.** It also books real appointments now, not just routes.
 That distinction — a stable number versus a noisy one — turned out to be the more defensible thing
 to say, and I only found it by running the same evaluation four times.
 
+**Then the retrain that was meant to make it better made it worse.** Teaching the model the two
+safety questions and the booking question cost **3.7 points of joint accuracy** (0.914 → 0.877), and
+the run that would say whether that was the new tasks or just too few epochs was still training when
+these notes were written. A project that only reports the runs where the number went up is not
+measuring anything, so the regression is the headline here rather than a footnote.
+
+And the more useful lesson came from the opposite direction: three of the numbers we were proudest
+of turned out to be **reading their own training data**. A perfect acceptance score was
+memorisation, and the safety case the whole rewording exercise was built around was sitting in the
+training set. The improvements that survived that audit are the ones worth anything.
+
 But the interesting part isn't the final number. It's that almost every improvement came from
 fixing something in *how we had framed the problem* — not from the model, the data volume, or the
 prompt. Several of those fixes were to my own mistakes, and a few of them were only visible because
@@ -58,7 +69,7 @@ that didn't exist in the world.
 
 A candidate only became training data if two independently-worded labelling passes agreed with each
 other *and* with the intended target. That's a high-precision filter, and it worked — zero invalid
-labels in 1,395 rows.
+labels in 1,394 rows.
 
 But it means we're distilling `deepseek-flash`, so its agreement with our hand labels is the best
 we can hope for. My plan to break through that ceiling was to use a *bigger* teacher.
@@ -74,7 +85,7 @@ general model is often just a different model.
 
 ---
 
-## The same bug, four times, in four disguises
+## The same bug, eight times, in eight disguises
 
 This is the pattern I'd warn someone about first.
 
@@ -95,11 +106,36 @@ This is the pattern I'd warn someone about first.
    transfer decision each read a different number. A caller could be dispatched as unsafe while the
    audit trail said they weren't.
 
-Every one of these was silent. None threw an error you'd notice. Three of them cost real accuracy.
+5. **The Kaggle notebook is generated from a script, and the generated one had drifted.** Its list
+   of files to copy still named four of the six the dataset ships, so a whole GPU run trained
+   **2,512 items instead of 6,210** — the safety and booking questions simply weren't in it. No
+   error, no warning; the job reported success. There is now a test comparing the notebook against
+   its generator.
+
+6. **The epoch count lived in `JEV_EPOCHS` in the shell at the moment the notebook was generated.**
+   Regenerating the notebook without exporting it silently baked in the 4-epoch default, so the next
+   run was four epochs short of the eight we knew we needed. An env var you must remember at the
+   shell is not a source of truth; the recipe lives in `training/run_config.json` now, and a test
+   asserts the notebook agrees with it.
+
+7. **`build_items.py` printed a note and carried on when a data file was missing.** That is what made
+   #5 invisible: a job that trains a fifth of the data and reports no problem is worse than one that
+   crashes. A silent downgrade is not a smaller job, it is a wrong measurement. It raises now.
+
+8. **The calibration temperature was fitted into one field and read from another.** The trainer fits
+   a temperature per question type and writes it to `temperature`; inference prefers an inherited
+   `temperature_by_options` map, and every bucket our questions occupy is in that map. So the step
+   the trainer's own comment calls *"what makes the confidence usable"* had **never applied to a
+   single question**.
+
+Every one of these was silent. None threw an error you'd notice. Three of them cost real accuracy,
+and two of them cost a GPU run that produced nothing usable.
 
 **The lesson:** one fact living in two places will eventually disagree, and it will do it quietly.
 The fix isn't vigilance, it's structure — the taxonomy, the question text and the thresholds all
-live in one config file now, and there are tests either side of them.
+live in one config file now, and there are tests either side of them. Every item above ended with a
+test or a single source, and the two that cost GPU runs are the two where I wrote a note instead of
+a test the first time.
 
 ---
 
@@ -205,11 +241,23 @@ while a person would hear a fire.
 
 That's a question-wording problem as much as a model one, and we'd never have known.
 
-The same measurement paid for itself immediately. Because the errors aren't symmetric — a missed
-stranded caller is someone at the side of a road, a false alarm is a wasted journey — we swept the
-threshold instead of picking 0.5 because it's round. Precision stayed at 1.000 from 0.3 all the way
-to 0.8, while recall fell. **Lowering dispatch to 0.3 catches one more stranded caller and sends no
-extra trucks.**
+**So we reworded it, and it needed no training at all.** Asking about the *vehicle* instead of the
+*statement* took recall from 0.778 to **1.000** — 0 of 18 stranded callers missed, for three extra
+dispatches. The clearest case is `sev-11`, *"there's a burning smell and smoke through the vents"*:
+p=0.00 under the old wording, 0.99 under the new. The model was never unsure; it was answering the
+question we actually asked.
+
+Two things then complicated that, and both are recorded rather than tidied away. Training the
+question properly made precision *worse* (0.857 → 0.667), and `sev-04` — one of the cases the
+rewording is credited with rescuing — turned out to be sitting in the training set. The recall gain
+from rewording holds, because it was measured before any training; the trained numbers carry both
+caveats.
+
+Because the errors aren't symmetric — a missed stranded caller is someone at the side of a road, a
+false alarm is a wasted journey — the operating point is chosen by sweep, not by picking 0.5 because
+it's round. **And this is where saturation bites:** on the trained model the sweep is flat from 0.3
+to 0.8, so the point is not really being chosen at all. A flat sweep means the errors are confident
+ones, and no threshold touches a confident error.
 
 **The lesson:** the unmeasured parts of a system are exactly the parts you're most confident about.
 And when errors are asymmetric, accuracy is the wrong headline — lead with the error you can't
@@ -262,16 +310,100 @@ work left on the table.**
 
 ---
 
+## We were measuring ourselves
+
+The single most valuable thing that happened in this session was discovering that three of our
+measurements were reading their own training data.
+
+**The acceptance score was memorisation.** The booking question reported **1.000 accuracy** against
+0.554 for the base model, and that read as the flaky-demo problem solved. The eval script was
+scoring `acceptance_train.jsonl` — the file training is built from. And because every reply in that
+data is a template, even a proper random row split would have leaked: "Yes, {t} works for me." would
+sit in both halves. The split now holds out whole *reply phrasings*, so what is measured is
+understanding a way of saying yes the model has not read before.
+
+**Two more leaked by containment, which no text comparison could see.** The near-duplicate guard
+refused anything within Jaccard 0.6 of the held-out cases. But a short query inside a longer sentence
+scores *low* on Jaccard, because the union is large:
+
+```
+"What time do you open on Saturdays?"                   7 words
+"What time do you open on Saturdays? I couldn't…"      14 words     Jaccard 0.50  → passed the guard
+```
+
+The same shape hid `sev-04` — *"there's smoke coming from under the hood"* — inside two training
+rows. `sev-04` is the case the reworded safety question is specifically credited with rescuing:
+p=0.00 under the old wording, 0.99 under the new one. So the model we said had learned to hear a
+fire might have been remembering one. Exact-text disjointness is not disjointness, and *that is the
+check we were relying on*.
+
+All three had the same root cause: **the eval sets and the training sets come out of the same
+pipeline.** That is convenient and it is exactly why the leak is invisible. A held-out set is not
+held out because you intended it to be; it is held out when something checks.
+
+> **The lesson:** a flattering number deserves more suspicion than a disappointing one. 0.554 → 1.000
+> should have been the moment I audited the measurement, and instead it was the moment I started
+> writing it up.
+
+---
+
+## A hypothesis, and the experiment that killed it
+
+Chasing the saturated probabilities, I found a real bug: the trainer fits a calibration temperature
+per question type and writes it to `temperature`, but inference prefers a `temperature_by_options`
+map inherited from the base checkpoint — and every option-count bucket our questions touch is in that
+map. So **the fitted temperature had never been applied to a single question.** The trainer's own
+comment calls that step "what makes the confidence usable".
+
+That felt like the explanation. Overconfident probabilities, a softening step that was silently
+skipped — the fix was one line, and it would un-saturate everything.
+
+I staged a checkpoint with the inherited map removed and measured it:
+
+```
+noul probability, map kept:      1.000
+noul probability, map removed:   0.996
+```
+
+**Almost nothing.** The plumbing was broken, but it was not the cause. The trained logits are
+extreme on their own, and even the temperature the trainer *chose* (3.683) cannot soften them. The
+saturation is real model confidence.
+
+That mattered, because it changed the conclusion. If the saturation had been a plumbing bug, the
+fix would have been free. Because it is real confidence, **the false alarms it produces cannot be
+tuned away with a threshold** — a threshold on a saturated distribution is a no-op — and the likely
+cause moves to the training prior: the severity data is capped at a 40% positive rate where a real
+switchboard is nowhere near that. So the next thing to change is the training mix, not the
+calibration.
+
+> **The lesson:** fixing a real bug is not the same as fixing the symptom that led you to it. I had
+> a true finding, a plausible story, and no causal evidence. One cheap experiment separated them, and
+> the thing worth keeping is that I ran it *before* writing the conclusion down — because the
+> conclusion I would have written was wrong.
+
+---
+
 ## Things we know but haven't fixed
 
-- **The acceptance classifier is untrained.** It's the base model answering a question it's never
-  seen. The confidence floor makes that safe, not correct.
-- **`needs_human` isn't trustworthy** — 43% of complaints and escalations are missed.
+- **The acceptance question is trained but unmeasurable.** The 1.000 it reports is memorisation; the
+  held-out split exists now, and scoring it honestly needs a retrain. Until then the booking demo's
+  reliability is unknown, not fixed.
+- **`needs_human` now catches more and trusts itself too much.** Recall improved to 0.857 on
+  held-out data, which is real, but precision is 0.207 — it fires on 6 calls in 10. The confidence
+  floor makes the over-firing annoying rather than dangerous; the training prior is the suspect.
+- **The probabilities are saturated, so a threshold is not a control.** On the trained safety
+  questions the sweep is flat from 0.3 to 0.8. Where the model is confidently wrong there is nothing
+  to tune, and every reported operating point should be read as "the model's opinion", not "the
+  point we chose".
+- **Routing went backwards in the multi-task retrain** (joint 0.914 → 0.877), and we do not yet know
+  whether that is the four new training tasks or four fewer epochs.
 - **The store facts are loaded but unused.** The switchboard could answer "what time do you open?"
   from them. Right now it still transfers.
 - **The `other` fallback is dead.** The fine-tuned model never uses it (0.0%, down from the base
   model's 23.5%). It always commits. For routing that's arguably right, but there's no "I'm not
   sure" left in the system.
+- **All of it rests on 81 single-labelled cases.** One case is 1.23 points, and where every model
+  disagrees with the key, the key is the likeliest thing to be wrong.
 
 ---
 
