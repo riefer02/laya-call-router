@@ -1,9 +1,14 @@
-# Morning review
+# The plan
 
-Where the project stands, what I did overnight, and what I'd do next — with honest estimates
-rather than confident-sounding ones.
+Where the project stands, what the measurements actually say, and the order I would do the rest in —
+with honest estimates rather than confident-sounding ones.
 
 Read `LEARNINGS.md` for the narrative. This is the decision document.
+
+**The short version:** routing is done and ties the frontier model. **The safety surface is the weak
+half**, and it was being flattered by a measurement — the dispatch fires on the wrong calls about
+19 times in 20 at the rate a real switchboard sees. Fixing that is the next move, and the fix for the
+*routing symptom* must not be mistaken for the fix.
 
 ---
 
@@ -157,85 +162,110 @@ because a flattering number that was wrong is worth being able to point at.
 
 ---
 
-## What I would do next, in order
+## The plan
 
 Estimates are ranges with reasoning. "Confidence" is how sure I am the *direction* is right.
 
-### 1. Stop the safety flag from overwriting the routing — **the biggest measured win available**
+**What "the best version" means here:** every call reaches the right queue, a truck rolls only when
+someone is genuinely stranded, the booking flow works, and the numbers are defensible. Routing is
+essentially done. **The safety surface is the weak half** — and one measurement was flattering it.
+
+Ordered by (impact × confidence) ÷ cost.
+
+### Move 1 — Stop the safety flag overwriting the routing
 
 **What:** `dealership.py` sets `queue = "Roadside / Towing"` whenever `unsafe` clears the threshold.
-Make dispatch a **parallel action** — a flag and a truck — instead of a replacement for the routing
-decision. The call still routes to Body Shop; roadside rolls alongside it.
+Make dispatch a **parallel action** — a flag and a truck — instead of a replacement for where the
+call goes. The call still routes to Body Shop; roadside rolls alongside it.
 
-**Why:** this single line is responsible for **every** call-level failure we have. The destination
-decisions are now 0.963 accurate and we are throwing them away. It is also the honest reading of the
-data: "where does this call belong" and "does a truck roll" are two different questions and they are
-collapsed into one string.
+**Why:** that one line is responsible for **every** call-level failure we have. The destination
+decisions are 0.963 accurate and we are discarding them.
+**Projected gain:** call-level **0.852 → 0.93-0.96**, without giving back a single stranded caller.
+**Cost:** ~1 hour, $0, no GPU. **Confidence:** high — the line is named and the calls are listed.
 
-**Projected gain:** call-level **0.852 → 0.93–0.96**, recovering the pre-rewording number without
-giving back a single stranded caller.
-**Cost:** ~1 hour, $0, no GPU. **Confidence:** high — I have named the line and the failing calls.
+> ⚠️ **And this fix hides the real problem.** It lifts the call-level metric while the dispatch
+> over-fires exactly as much as before — at a 2% base rate **94% of trucks still roll for nothing.**
+> This is principle 10: a fix that makes the numbers go up is the moment to check whether it fixes
+> the fault or the metric. Moves 1 and 2 are not alternatives; doing only Move 1 would be the
+> "merge `front_desk` and `non_customer`" mistake again, with a better-looking number.
 
-### 2. Lower the severity positive rate toward the real base rate
+### Move 2 — Make the safety numbers honest, then fix the over-dispatch
 
-**What:** re-cap `severity_train.jsonl` below 40%; the natural rate for `needs_human` is far lower.
+**2a. Report precision at a deployment base rate.** Immediate, no GPU, no retraining. Our severity
+set is 40% positive because it was built to measure recall; quoting its precision describes a world
+that does not exist. The base-rate table belongs in `results/README.md` next to every safety number.
 
-**Why:** the trained model over-fires (precision 0.692 and 0.240), the probabilities are saturated so
-no threshold helps, and a shifted prior is the classic cause. The comment in `generate_severity.py`
-already predicted this and capped at 40% — **40% was still too high.**
-**Projected gain:** `is_safe_to_drive` precision **0.692 → 0.80-0.86**. **Cost:** `--rebalance-only`,
-no API calls. **Confidence:** medium-high on direction.
+**2b. Rebuild the severity data at a realistic prior.** Re-cap below 40% and re-measure at *both*
+rates. The trained model traded specificity (0.889 → 0.704) for sensitivity, and at low base rates
+specificity is what precision is made of.
+**Cost:** `--rebalance-only`, no API calls; ~$1.30 only if labels need regenerating.
 
-### 3. Re-measure acceptance on the held-out split
+**2c. Only then revisit the dispatch bar** — which is currently not a control at all, since the
+sweep is flat from 0.3 to 0.6. If it stays flat after the prior is fixed, accept that confidence
+cannot gate this decision and stop reporting an operating point as if it were a choice.
 
-**What:** retrain (v13) and score against `acceptance_dev.jsonl`.
+### Move 3 — v13: one GPU run that consolidates everything
 
-**Why:** the current number is void — it was memorisation. The base model on the dev split is a
-legitimate zero-shot reading worth having regardless.
-**Projected gain:** unknown, and that is the point — **we have never measured this.**
-**Cost:** free GPU, one run. **Confidence:** high it lands between 0.554 and 1.000; I will not guess.
+The first run that can measure what we actually ship:
+- severity at the corrected prior,
+- the **fixed calibration** (`train_ddp.py` no longer ships the inherited map that overrode its own fit),
+- the **acceptance split**, so the booking number is held out for the first time.
 
-### 4. A second labeller — still the ceiling on the destination number
+**Gate:** routing must hold at ≥ 0.926 joint. If it drops, the prior change is the suspect.
+**Cost:** one free 2×T4 run, ~50 min. **Confidence:** high that the measurement happens; the numbers
+are genuinely unknown, which is the point.
 
-One case (`det-04`) is missed by every model; `gen-08` is answered against our label by all three.
-Where every model disagrees with the key, the key is the likeliest thing to be wrong. No model work
-moves this. **+1.2 to +3.7 destination** as a *measurement correction*, not a model improvement.
+### Move 4 — The ceiling: a second labeller, and a bigger test set
 
-### 5. Answer from the store facts — free product win
+`det-04` is missed by every model; `gen-08` is answered against our label by all three. Where every
+model disagrees with the key, the key is the likeliest thing to be wrong. **+1.2 to +3.7
+destination** as a *measurement correction*, not a model improvement — and growing 81 cases to ~150
+is the only way a 2-point delta stops being noise.
 
-The agent should answer "what time do you open?" from `facts` instead of transferring. Data already
-loaded, hours/directions is top repeatable Fixed Ops volume. ~1 hour, $0, no metric moves.
+### Move 5 — Product completeness
+
+Answer "what time do you open?" from `facts` instead of transferring (loaded, unused, top repeatable
+Fixed Ops volume). And decide what to do about the dead `other` fallback: the fine-tuned model never
+abstains (0.0%), so there is no "I'm not sure" left anywhere in the system.
 
 ---
 
 ## What I would NOT do
 
-- **More epochs, blindly.** v4 converged at 0.042. But note v5's loss was *still falling* at 4
-  epochs on the bigger set — which is exactly why v12 exists.
-- **Tune a threshold to fix the safety precision.** The sweep is flat from 0.3 to 0.8 for a reason:
-  the model is confidently wrong. A threshold on a saturated distribution is a no-op.
+- **More epochs, blindly.** v4 converged at 0.042 and v6 at 0.036, and v12 settled the epoch
+  question: 8 epochs with all five tasks is the best checkpoint we have. It is not a knob to keep
+  turning.
+- **Tune a threshold to fix the safety precision.** The sweep is flat from 0.3 to 0.6 for a reason:
+  the model is confidently wrong. A threshold on a saturated distribution is a no-op — and the
+  threshold went *up* while the false alarms went *up*, which is what that looks like in practice.
 - **A bigger teacher.** Measured: `deepseek-v4-pro` agrees with our labels *less* than flash at 3×
   the cost.
 - **Trust any single run.** One case on 81 is 1.23 points; the LLM arms moved 2.5 points between
   identical runs.
+- **Ship Move 1 on its own.** Uncoupling dispatch from routing lifts the call-level number to ~0.96
+  and leaves the over-dispatch completely untouched. It is a real fix for a real bug, and it is also
+  the most flattering kind of change: a metric that improves because we stopped counting the fault.
 
 ---
 
 ## Open questions for you
 
-1. **Is the rewording trade the right one?** It catches **4 more stranded callers** (0.833 → 1.000
-   recall) and costs **3 misrouted calls** out of 27, because a false "unsafe" overwrites the routing.
-   I would keep the safety behaviour and fix the override — I think sending a truck to someone who
-   was fine is a smaller harm than leaving someone at the roadside, and the routing cost is a bug
-   rather than a necessary price. But it is your call, and it is the one place where "more accurate"
-   and "safer" genuinely pull apart.
+1. **Confirm the trade.** The rewording catches **4 more stranded callers** and misroutes **3 calls**,
+   because a false "unsafe" overwrites the routing. I would keep the sensitivity and fix the
+   override — leaving someone at the roadside is a worse failure than sending a truck to someone who
+   was fine. It is the one place where "more accurate" and "safer" pull apart, so I want your call
+   rather than mine.
 
-2. **How much is the booking demo worth?** The acceptance classifier is trained and *unmeasurable*
-   until we retrain on the held-out split. That is one GPU run away, but it is another run.
+2. **Do Move 1 and Move 2 together, or Move 1 alone first?** Move 1 is an hour and lifts the
+   headline. Move 2 is what actually stops the wrong trucks. My recommendation is to do them as one
+   change, because shipped alone, Move 1 makes the product look fixed while it isn't.
 
-3. **Do we grow the test set?** 81 cases means one case is 1.23 points. Growing to ~150 would halve
-   the interval — but it is more single-labeller labels, which is the constraint we are already
-   fighting.
+3. **Is the booking flow worth one more GPU run?** Move 3 is ~50 minutes and free, and it is the
+   first honest measurement of whether the switchboard can book. If the demo matters, it does.
+
+4. **Do we grow the test set?** 81 cases means one case is 1.23 points and a 2-point "win" is noise.
+   Growing to ~150 would halve the interval — but it is more single-labeller labels, which is the
+   constraint we are already fighting.
 
 ---
 

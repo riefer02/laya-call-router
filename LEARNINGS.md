@@ -364,6 +364,41 @@ held out because you intended it to be; it is held out when something checks.
 
 ---
 
+## The base rate, and a precision that means nothing
+
+The severity set is 18 unsafe calls out of 45. **40% positive.** That enrichment is deliberate and
+correct: unsafe calls are rare, and you need them concentrated to measure whether you catch them.
+
+But precision read off an enriched set is not precision. Precision depends on the base rate, and the
+set we measure on has a base rate eight to twenty times the deployment one. Recompute the same
+classifier at rates a switchboard actually sees:
+
+| | sensitivity | specificity | precision @40% (the set) | @5% | @2% | @1% |
+| --- | --- | --- | --- | --- | --- | --- |
+| old wording, untrained | 1.000 | 0.889 | 0.857 | 0.321 | 0.155 | 0.083 |
+| **trained (v6)** | 1.000 | 0.704 | **0.692** | 0.151 | **0.064** | 0.033 |
+
+Read the last two columns. **At a 2% base rate, 94% of our dispatches are wrong** — and *training
+made it worse in deployment while making it look better on the set*. The trained model's measured
+precision fell only 0.857 → 0.692; its deployment precision fell **0.155 → 0.064**, because training
+traded specificity (0.889 → 0.704) for sensitivity, and at low base rates specificity dominates
+precision completely.
+
+This also explains the call-level damage quantitatively. A ~30% false-positive rate on the negatives
+means roughly three of every ten non-urgent calls trip the dispatch — and we measured exactly that:
+**3 of 27 calls hijacked to Roadside / Towing.**
+
+**Nothing about this was wrong with the model, the training, or the intent.** It is a measurement
+that cannot answer the question being asked of it: a recall-first set can tell you *"do we catch the
+stranded caller"*, and it structurally cannot tell you *"how often does the truck roll for nothing"*.
+
+> **The lesson:** when a class is rare, an enriched eval set measures recall and *inflates* precision.
+> Report the base rate alongside, or the number will describe a world that does not exist. This is
+> the fifth measurement that flattered us, and the first one that wasn't a bug — the set was designed
+> correctly for the question it was built to answer, and I quoted it for a question it never could.
+
+---
+
 ## A hypothesis, and the experiment that killed it
 
 Chasing the saturated probabilities, I found a real bug: the trainer fits a calibration temperature
@@ -465,6 +500,11 @@ correct answer to one question is silently overwriting a correct answer to the o
   `dealership.py` replaces the call's queue with `Roadside / Towing` whenever the unsafe question
   fires, so a false alarm discards a correct routing decision. It costs 3 of 27 calls. Dispatch
   should run alongside the routing, not instead of it.
+- **The dispatch would be wrong about 94% of the time in deployment.** At the 40% base rate of our
+  severity set the trained classifier looks like 0.692 precision; at the 2% rate a switchboard
+  actually sees it is **0.064**, and training made it *worse* than untrained (0.155 → 0.064) by
+  trading specificity for sensitivity. Fixing the override will hide this from the call-level
+  metric without touching it — the metric and the fault are different things.
 - **The call-level number in `results/eval_v4.json` is not comparable to the later ones.** It was
   measured before the safety rewording, and the same checkpoint scores 0.963 or 0.852 depending on
   which policy was live. Check the policy, not just the model.
@@ -489,29 +529,34 @@ Everything above compresses into a short list. Every one of these cost something
    classifier at 1.000 was a leak. The retrain that "regressed" was two confounds. Both looked like
    findings and neither was.
 
-3. **Before changing how sensitive a decision is, find what consumes it.** The severity report said
+3. **When a class is rare, an enriched eval set measures recall and inflates precision.** Our
+   dispatch looked like 0.69 precision on a 40%-positive set and is **0.064** at the 2% rate a
+   switchboard actually sees. Report the base rate or the number describes a world that isn't there.
+
+4. **Before changing how sensitive a decision is, find what consumes it.** The severity report said
    "three false alarms", which sounds like a wasted truck. It was three discarded routing decisions.
 
-4. **One fact in two places, or two facts in one place, gets resolved silently and wrongly.** Nine
+5. **One fact in two places, or two facts in one place, gets resolved silently and wrongly.** Nine
    instances. None threw an error. The fix is structure and a test, never vigilance.
 
-5. **A threshold is only a control if the distribution isn't saturated.** Where the model is
+6. **A threshold is only a control if the distribution isn't saturated.** Where the model is
    confidently wrong there is nothing to tune, and reporting an operating point implies a choice
    that isn't being made.
 
-6. **Check what else changed before you credit the model.** The call-level drop was a policy change,
+7. **Check what else changed before you credit the model.** The call-level drop was a policy change,
    the routing "regression" was an epoch count. Both times the tidy story was wrong.
 
-7. **Balance the axis you're classifying, not the axis that looks tidy.** Equal examples per
+8. **Balance the axis you're classifying, not the axis that looks tidy.** Equal examples per
    sub-queue starved a destination, and "balanced" hid it.
 
-8. **Check the boundary is real before blaming the classifier.** Tires and detailing were never
+9. **Check the boundary is real before blaming the classifier.** Tires and detailing were never
    departments. We spent a long time teaching a distinction that did not exist.
 
-9. **When a fix makes your numbers go up, check whether it fixes the thing or hides it.** Merging two
-   confusable classes would have erased four errors and made the taxonomy worse.
+10. **When a fix makes your numbers go up, check whether it fixes the thing or hides it.** Merging two
+    confusable classes would have erased four errors and made the taxonomy worse — and the dispatch
+    fix below will lift a metric without touching the over-dispatch that caused it.
 
-10. **Report the noisy comparison honestly.** We are at parity with a frontier model on the decision,
+11. **Report the noisy comparison honestly.** We are at parity with a frontier model on the decision,
     60× faster, and at zero marginal cost per call — and on 81 cases the honest claim stops there.
     The intervals overlap, and saying so costs nothing.
 
