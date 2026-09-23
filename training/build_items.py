@@ -72,6 +72,27 @@ def build_item(tok, cfg, state, instructions, criteria, gold):
     }
 
 
+def build_noul_item(tok, cfg, state, instructions, criteria, value):
+    """One yes/no item. `target` is [P(false), P(true)] and there are always two markers.
+
+    Mirrors the reference implementation in the model bundle's own `rl_common.encode_record`: a
+    noul is encoded as a two-option choice between "false: ..." and "true: ...", which is why the
+    option text is what actually defines the question.
+    """
+    q = {"t": "noul", "ins": instructions, "crit": criteria}
+    ids, markers = build_sequence(tok, state, q, cfg["max_len"], cfg["head_max_len"])
+    if len(markers) != 2:
+        return None
+    y = 1.0 if value else 0.0
+    return {
+        "ids": ids,
+        "markers": markers,
+        "qtype": QTYPES["noul"],
+        "target": [1.0 - y, y],
+        "label": int(y),
+    }
+
+
 def main() -> None:
     src = sys.argv[1] if len(sys.argv) > 1 else "data/calls/synthetic.jsonl"
     dst = sys.argv[2] if len(sys.argv) > 2 else "/kaggle/working/train_items.pt"
@@ -107,6 +128,51 @@ def main() -> None:
 
     items, skipped = [], 0
     from collections import Counter
+
+    # ---- yes/no items, if we have severity labels for them
+    # These were never trained before, which is why `is_safe_to_drive` missed a fifth of the
+    # stranded callers it was supposed to dispatch.
+    sev_src = os.environ.get("JEV_SEVERITY") or os.path.join(os.path.dirname(src), "severity_train.jsonl")
+    noul_spec = profile.get("noul") or {}
+    noul_rows: list = []
+    if os.path.isfile(sev_src):
+        noul_rows = [json.loads(line) for line in open(sev_src) if line.strip()]
+        print(f"loaded {len(noul_rows)} severity-labelled utterances from {sev_src}")
+    else:
+        print(f"no severity data at {sev_src} - training choice questions only")
+
+    for row in noul_rows:
+        for key, spec in noul_spec.items():
+            if key not in row:
+                continue
+            crit = {"false": spec.get("false", ""), "true": spec.get("true", "")}
+            it = build_noul_item(
+                tok, cfg, row["text"], spec.get("instructions", key), crit, row[key]
+            )
+            if it is None:
+                skipped += 1
+            else:
+                it["task"] = key
+                items.append(it)
+
+    # ---- acceptance items: the only question whose state is a whole conversation
+    acc_src = os.environ.get("JEV_ACCEPTANCE") or os.path.join(
+        os.path.dirname(src), "acceptance_train.jsonl"
+    )
+    if os.path.isfile(acc_src) and "acceptance" in questions:
+        acc_rows = [json.loads(line) for line in open(acc_src) if line.strip()]
+        print(f"loaded {len(acc_rows)} acceptance examples from {acc_src}")
+        for row in acc_rows:
+            it = build_item(
+                tok, cfg, row["text"], questions["acceptance"], row["options"], row["choice"]
+            )
+            if it is None:
+                skipped += 1
+            else:
+                it["task"] = "acceptance"
+                items.append(it)
+    else:
+        print(f"no acceptance data at {acc_src} - the booking flow stays untrained")
 
     for row in rows:
         destination, subqueue, text = row["destination"], row.get("subqueue"), row["text"]

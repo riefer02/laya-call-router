@@ -39,6 +39,10 @@ DEFAULT_QUESTIONS: Dict[str, str] = {
         "This is a {label} call. What exactly does the caller want, and which sub-queue should "
         "it go to? Pick the single closest option."
     ),
+    "acceptance": (
+        "Which of the times the agent just offered did the caller agree to? If they did not "
+        "clearly accept one, choose 'unclear'."
+    ),
 }
 
 

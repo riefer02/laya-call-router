@@ -257,14 +257,17 @@ def acceptance_options(offered: Sequence[Slot]) -> Dict[str, str]:
     return options
 
 
-def acceptance_question(offered: Sequence[Slot]) -> Dict[str, Any]:
+def acceptance_question(offered: Sequence[Slot], profile: Optional[SP.StoreProfile] = None) -> Dict[str, Any]:
+    """The instruction comes from the store profile, like every other question.
+
+    It is the same reason as the choice questions: the fine-tune learns one exact instruction, so
+    training and inference must not hold separate copies. `build_items.py` reads the same string.
+    """
+    p = profile or SP.load()
     return {
         "acceptance": {
             "type": "choice",
-            "instructions": (
-                "Which of the times the agent just offered did the caller agree to? "
-                "If they did not clearly accept one, choose 'unclear'."
-            ),
+            "instructions": p.question_text("acceptance"),
             "criteria": acceptance_options(offered),
         }
     }

@@ -18,7 +18,8 @@
   ],
   "questions": {
     "destination": "Which part of the dealership should handle this caller? Pick where the work belongs, not the first thing the caller mentioned.",
-    "subqueue": "This is a {label} call. What exactly does the caller want, and which sub-queue should it go to? Pick the single closest option."
+    "subqueue": "This is a {label} call. What exactly does the caller want, and which sub-queue should it go to? Pick the single closest option.",
+    "acceptance": "Which of the times the agent just offered did the caller agree to? If they did not clearly accept one, choose 'unclear'."
   },
   "_noul_note": [
     "The yes/no questions, defined once for the same reason as the choice questions above: the",

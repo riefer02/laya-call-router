@@ -21,6 +21,8 @@ OUT = ROOT / "kaggle" / "jev-dealership-data"
 
 FILES = [
     ("data/calls/synthetic.jsonl", "synthetic.jsonl"),
+    ("data/calls/severity_train.jsonl", "severity_train.jsonl"),
+    ("data/calls/acceptance_train.jsonl", "acceptance_train.jsonl"),
     ("config/store_profile.json", "store_profile.json"),
     ("training/build_items.py", "build_items.py"),
     ("training/train_ddp.py", "train_ddp.py"),

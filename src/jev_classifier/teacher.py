@@ -116,3 +116,82 @@ def cost_of(record: Dict[str, Any]) -> Optional[float]:
         int(usage.get("prompt_cache_hit", 0)),
         int(usage.get("completion_tokens", 0)),
     )
+
+
+# --------------------------------------------------------------------------- yes/no questions
+# The noul questions drive dispatch and escalation, and were never trained - they were answered by
+# whichever head the base checkpoint happened to ship, with an encoder that had been fine-tuned on
+# a different task. `is_safe_to_drive` missed 4 of 18 stranded callers that way.
+#
+# `json_object` gives no structural guarantee, so the answer is an enumerated string rather than a
+# boolean, and it is parsed rather than trusted.
+NOUL_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {"answer": {"type": "string", "enum": ["true", "false"]}},
+    "required": ["answer"],
+    "additionalProperties": False,
+}
+
+
+def noul_system_prompt(key: str, variant: int = 1) -> str:
+    q = SP.load().noul_question(key)
+    if variant == 1:
+        return (
+            "You answer one yes/no question about a car-dealership phone call.\n\n"
+            f"Question: {q['instructions']}\n\n"
+            f"Answer true when: {q['criteria']['true']}\n"
+            f"Answer false when: {q['criteria']['false']}\n\n"
+            'Reply with JSON only: {"answer": "true"} or {"answer": "false"}.'
+        )
+    return (
+        "Read the caller's message and decide.\n\n"
+        f"{q['instructions']}\n"
+        f"  true  - {q['criteria']['true']}\n"
+        f"  false - {q['criteria']['false']}\n\n"
+        'Output JSON only, exactly {"answer": "true"} or {"answer": "false"}.'
+    )
+
+
+def parse_bool(raw: object) -> Optional[bool]:
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        v = raw.strip().lower()
+        if v in ("true", "yes", "1"):
+            return True
+        if v in ("false", "no", "0"):
+            return False
+    return None
+
+
+def label_noul(
+    text: str,
+    key: str,
+    *,
+    provider: str = "deepseek",
+    model: Optional[str] = None,
+    thinking: bool = True,
+    variant: int = 1,
+) -> Dict[str, Any]:
+    """Label one utterance for one yes/no question."""
+    call = llm.chat_json(
+        noul_system_prompt(key, variant),
+        f'Caller: "{text}"',
+        NOUL_SCHEMA,
+        provider=provider,
+        model=model,
+        thinking=thinking,
+    )
+    raw = call["data"] if isinstance(call.get("data"), dict) else {}
+    value = parse_bool(labels.field(raw, "answer", "value", key))
+    return {
+        "key": key,
+        "value": value,
+        "valid": value is not None,
+        "raw": labels.field(raw, "answer", "value", key),
+        "latency_ms": call["latency_ms"],
+        "usage": call["usage"],
+        "provider": call["provider"],
+        "model": call["model"],
+        "variant": variant,
+    }
