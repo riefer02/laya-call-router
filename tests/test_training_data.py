@@ -324,3 +324,34 @@ def test_the_severity_merge_preserves_fields_it_does_not_know_about():
     assert out[0]["kind"] == "minor_fault", "a field the merge does not know about was dropped"
     assert out[0]["src"] == "generated"
     assert "is_safe_to_drive_agreed" not in out[0], "transient flags should still be dropped"
+
+
+def test_a_top_up_cannot_delete_rows_already_on_disk():
+    """Adding data for one question must never remove data for another.
+
+    Adding 112 `needs_human` positives pushed that question over its ceiling, and the cap answered
+    by deleting 172 `is_safe_to_drive` positives - 24% of that class. The mitigation ("prefer rows
+    whose other label is negative") cannot help when the protected rows alone exceed the allowance,
+    which is why v7's data quietly became a different experiment from v6's. Protection is explicit
+    now, and a rate that cannot be met without deleting baseline rows is reported rather than paid.
+    """
+    gen = _load_script("generate_severity")
+    rows = [{"text": f"baseline {i}", "is_safe_to_drive": True, "needs_human": True} for i in range(10)]
+    rows += [{"text": f"added {i}", "is_safe_to_drive": False, "needs_human": True} for i in range(10)]
+    rows += [{"text": f"neg {i}", "is_safe_to_drive": False, "needs_human": False} for i in range(3)]
+
+    out = gen.rebalance(rows, protected={f"baseline {i}" for i in range(10)})
+    texts = {r["text"] for r in out}
+    assert all(f"baseline {i}" in texts for i in range(10)), "a baseline row was deleted"
+    assert not any(f"added {i}" in texts for i in range(10)), "the cap should eat additions, not baseline"
+
+
+def test_the_ceiling_can_be_disabled_for_a_run_whose_baseline_exceeds_it():
+    """v6 trained at a 42% positive rate; a run measuring an *addition* must not also re-cap the
+    baseline's rate, or it changes two things and can attribute neither."""
+    gen = _load_script("generate_severity")
+    rows = [{"text": f"p{i}", "is_safe_to_drive": True, "needs_human": True} for i in range(8)]
+    rows += [{"text": f"n{i}", "is_safe_to_drive": False, "needs_human": False} for i in range(2)]
+    assert len(gen.rebalance(rows, ceiling=1.0)) == 10, "ceiling 1.0 must not drop anything"
+    # 2 negatives allow int(2 * 0.4/0.6) = 1 positive, so 1 positive + 2 negatives survive.
+    assert len(gen.rebalance(rows, ceiling=0.40)) == 3, "the 40% ceiling should bite"

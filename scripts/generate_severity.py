@@ -28,7 +28,7 @@ import sys
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -195,6 +195,12 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true", default=True)
     ap.add_argument("--no-resume", dest="resume", action="store_false")
     ap.add_argument(
+        "--ceiling",
+        type=float,
+        default=0.40,
+        help="positive-rate ceiling; 1.0 disables capping (for a run whose baseline already exceeds it)",
+    )
+    ap.add_argument(
         "--rebalance-only",
         action="store_true",
         help="re-apply the positive-rate cap to what is already on disk, with no API calls",
@@ -206,7 +212,8 @@ def main() -> int:
             raise SystemExit(f"nothing to rebalance: {OUT} does not exist")
         rows = [json.loads(line) for line in OUT.read_text().splitlines() if line.strip()]
         print(f"rebalancing {len(rows)} rows already on disk (no API calls)\n")
-        final = rebalance(rows)
+        # Nothing is protected here: this path exists to re-cap what is already on disk.
+        final = rebalance(rows, ceiling=args.ceiling)
         write_rows(OUT, final)
         print(f"\nwrote {OUT} ({len(final)} utterances)")
         for key in KEYS:
@@ -306,7 +313,8 @@ def main() -> int:
     # prior nothing like a real switchboard, and a threshold cannot undo a shifted prior. So the
     # positive rate is capped at ~40%, which keeps recall learnable without distorting the base rate
     # beyond what the operating point can absorb.
-    final = rebalance(rows)
+    # Everything already on disk is protected: a top-up adds, it does not re-select.
+    final = rebalance(rows, protected=set(existing), ceiling=args.ceiling)
     write_rows(OUT, final)
     print(f"\nwrote {OUT} ({len(final)} utterances, ${cost:.4f})")
     for key in KEYS:
@@ -317,7 +325,9 @@ def main() -> int:
     return 0
 
 
-def rebalance(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def rebalance(
+    rows: List[Dict[str, Any]], protected: Iterable[str] = (), ceiling: float = 0.40
+) -> List[Dict[str, Any]]:
     """Merge to one row per utterance, then cap each question's positive rate.
 
     Split out so it can be re-run without touching the API: `--rebalance-only`. Getting the rate
@@ -327,7 +337,15 @@ def rebalance(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     then merging undoes it: a row kept for one question carries the other question's label too, so
     the union drifts back towards whichever class was over-generated. Measured - `needs_human` was
     capped to 40% and came out at 57% once merged.
+
+    **`protected` names utterances already on disk, which this run must not delete.** A top-up that
+    can remove baseline rows is not a top-up. Adding 112 `needs_human` positives pushed that question
+    over its ceiling, and the cap answered by deleting 172 `is_safe_to_drive` positives - 24% of that
+    class - because the "prefer rows whose other label is negative" mitigation cannot help when the
+    protected rows alone exceed the allowance. v7's data silently became a different experiment from
+    v6's, and the difference was only visible by diffing the two snapshots afterwards.
     """
+    protected = set(protected)
 
     def labelled(row, key) -> bool:
         # Presence of the key IS the agreement. The pipeline tracks a `{key}_agreed` flag while
@@ -382,29 +400,43 @@ def rebalance(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         idx = [i for i in keep if key in final[i]]
         pos = [i for i in idx if final[i][key] is True]
         neg = [i for i in idx if final[i][key] is False]
-        # at most 2 positives per 3 negatives, i.e. a 40% ceiling
-        allowed = max(len(neg), 1) * 2 // 3
+        allowed = len(pos) if ceiling >= 1.0 else int(max(len(neg), 1) * ceiling / (1.0 - ceiling))
         if len(pos) <= allowed:
             rate = len(pos) / max(1, len(pos) + len(neg))
             print(f"{key}: {len(pos)} true / {len(neg)} false kept ({rate:.0%} positive, no cap)")
             continue
-        # Which rows to drop matters, because dropping a row removes it from BOTH questions.
+
+        # Rows already on disk are not this run's to delete. Cap the additions instead.
+        pinned = [i for i in pos if final[i]["text"] in protected]
+        free = [i for i in pos if final[i]["text"] not in protected]
+        if len(pinned) >= allowed:
+            keep -= set(free)
+            rate = len(pinned) / max(1, len(pinned) + len(neg))
+            print(
+                f"{key}: {len(pinned)} protected positives already exceed the {ceiling:.0%} ceiling; "
+                f"dropped all {len(free)} added positives and left the rate at {rate:.0%}. "
+                "The baseline's rate is a property of the baseline, not of this run."
+            )
+            continue
+
+        # Which additions to drop matters, because dropping a row removes it from BOTH questions.
         # Measured: capping `needs_human` cost 354 of 759 `is_safe_to_drive` positives - it thinned
         # the safety class by half as collateral. So rows that carry a positive label for another
-        # question are dropped last. The two questions are trained as separate items, so preferring
-        # to keep one does not distort the other's conditional distribution.
+        # question are dropped last.
         def other_positive(i: int) -> bool:
             return any(final[i].get(k) is True for k in KEYS if k != key)
 
-        rng.shuffle(pos)
+        rng.shuffle(free)
         # sort DESCENDING by "carries another positive label", so the tail - the part that gets
         # dropped - is the rows whose removal costs the other question nothing
-        pos.sort(key=other_positive, reverse=True)
-        keep -= set(pos[allowed:])
-        rate = allowed / max(1, allowed + len(neg))
+        free.sort(key=other_positive, reverse=True)
+        room = allowed - len(pinned)
+        keep -= set(free[room:])
+        total = len(pinned) + min(room, len(free))
+        rate = total / max(1, total + len(neg))
         print(
-            f"{key}: {allowed} true / {len(neg)} false kept "
-            f"({rate:.0%} positive, capped from {len(pos)})"
+            f"{key}: {total} true / {len(neg)} false kept "
+            f"({rate:.0%} positive, capped from {len(pos)}; {len(pinned)} protected)"
         )
 
     out = [final[i] for i in sorted(keep) if any(k in final[i] for k in KEYS)]

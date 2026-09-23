@@ -1,0 +1,72 @@
+{
+  "n": 109,
+  "data": "data/calls/acceptance_dev.jsonl",
+  "arms": {
+    "base": {
+      "n": 109,
+      "accuracy": 0.6147,
+      "per_class": {
+        "none_of_these": {
+          "correct": 43,
+          "n": 43,
+          "accuracy": 1.0
+        },
+        "slot_1": {
+          "correct": 11,
+          "n": 11,
+          "accuracy": 1.0
+        },
+        "slot_2": {
+          "correct": 11,
+          "n": 11,
+          "accuracy": 1.0
+        },
+        "slot_3": {
+          "correct": 2,
+          "n": 11,
+          "accuracy": 0.1818
+        },
+        "unclear": {
+          "correct": 0,
+          "n": 33,
+          "accuracy": 0.0
+        }
+      },
+      "abstain_rate": 0.0,
+      "latency_ms_p50": 11.1
+    },
+    "fine-tuned": {
+      "n": 109,
+      "accuracy": 1.0,
+      "per_class": {
+        "none_of_these": {
+          "correct": 43,
+          "n": 43,
+          "accuracy": 1.0
+        },
+        "slot_1": {
+          "correct": 11,
+          "n": 11,
+          "accuracy": 1.0
+        },
+        "slot_2": {
+          "correct": 11,
+          "n": 11,
+          "accuracy": 1.0
+        },
+        "slot_3": {
+          "correct": 11,
+          "n": 11,
+          "accuracy": 1.0
+        },
+        "unclear": {
+          "correct": 33,
+          "n": 33,
+          "accuracy": 1.0
+        }
+      },
+      "abstain_rate": 0.3028,
+      "latency_ms_p50": 11.3
+    }
+  }
+}

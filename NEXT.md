@@ -37,6 +37,42 @@ positive, so that number is clean.
 
 ---
 
+## v13 landed: mixed, and the two metrics disagree
+
+The first checkpoint with clean provenance. Its scorecard, with honest directions:
+
+| | v6 (clean) | **v7** | |
+| --- | --- | --- | --- |
+| destination (81 cases) | 0.963 | 0.914 | worse (−3 cases) |
+| joint | 0.925 | 0.876 | worse |
+| **call level (27 calls)** | **0.852** | **0.926** | **better** |
+| `is_safe_to_drive` precision | 0.692 | **0.857** | better |
+| `is_safe_to_drive` recall | 1.000 | 1.000 | held |
+| `needs_human` recall | 0.857 | 0.714 | **worse** |
+| acceptance (held out) | not measurable | **1.000** | first honest number |
+| leak audit | 7 leaks | **clean** | — |
+
+**The decision level regressed and the product level improved, and the improvement is exactly what
+the experiment targeted.** v7's call-level misses are **2, down from 4**, and the two it fixed —
+`call-collision` and `call-glass`, both callers booking body work — were being sent to
+`Roadside / Towing` by safety false positives. The hijacks halved because the false alarms did.
+
+So the register move **passed its gate on `is_safe_to_drive`** (recall held at 1.000 while false
+alarms fell 8 → 3) and **failed on `needs_human`** (recall 0.857 → 0.714). By the rule I set before
+running it, that means validated for one question and not the other — not "broadly good".
+
+**The acceptance result is the first honest one we have**: base 0.615 with `unclear` 0 of 33,
+fine-tuned **1.000 with `unclear` 33 of 33**. The bug where the switchboard filed appointments for
+callers who agreed to nothing is fixed. One caveat: the split holds out *reply phrasings*, not
+transcripts, so this measures understanding an unseen way of saying yes — not conversation
+understanding.
+
+**Still confounded.** v7 differs from v6 in two ways — the data and the calibration fix. A staged v6
+with only the calibration change is measured in `results/eval_v6_fixedcalib.json`; the plan below says
+what to do with it.
+
+---
+
 ## Where it stands
 
 | metric | base | v4 (8ep, 2 tasks) | v5 (4ep, 5 tasks) | **v6 (8ep, 5 tasks)** | nano | deepseek-flash |
