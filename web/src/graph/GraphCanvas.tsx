@@ -55,6 +55,7 @@ function Canvas() {
   const summary = useRun((s) => s.summary);
   const activeId = useRun((s) => s.activeId);
   const follow = useRun((s) => s.follow);
+  const done = useRun((s) => s.events.length > 0 && s.applied >= s.events.length);
   const { fitView, setCenter } = useReactFlow();
 
   // Frame the whole call when a run loads, and again once it completes (the graph grows tall as
@@ -65,8 +66,11 @@ function Canvas() {
   }, [runId, summary, fitView]);
 
   // Camera follows the active node so you can watch the decision move through the pipeline.
+  // It yields once the call is finished: both effects fire on the last event, and following won the
+  // race, so a completed call ended centred on its last node with the earlier ones cut off the left
+  // edge. A finished call should show the whole thing.
   useEffect(() => {
-    if (!follow || !activeId) return;
+    if (!follow || !activeId || done) return;
     const node = nodesMap[activeId];
     if (!node) return;
     const c = nodeCenter(node.col, node.turn);
@@ -75,7 +79,7 @@ function Canvas() {
       40
     );
     return () => window.clearTimeout(id);
-  }, [activeId, follow, nodesMap, setCenter]);
+  }, [activeId, follow, done, nodesMap, setCenter]);
 
   const rfNodes = useMemo<Node[]>(() => {
     const lanes: Node[] = turns.map((t) => {
@@ -152,7 +156,7 @@ function Canvas() {
       maxZoom={1.6}
       fitView
       fitViewOptions={{ padding: 0.14, minZoom: 0.55, maxZoom: 1 }}
-      proOptions={{ hideAttribution: false }}
+      proOptions={{ hideAttribution: true }}
       key={runId ?? "empty"}
     >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#162033" />

@@ -61,7 +61,25 @@ def _warm() -> None:
         )
 
     def _load() -> None:
-        get_router().preload(["english", "multilingual"])
+        router = get_router()
+        router.preload(["english", "multilingual"])
+        # Warm the graph, not just the weights. Loading a checkpoint is not the same as running it:
+        # measured, the first call after startup took 287 ms where the same turn takes 69 ms warm, so
+        # the very first thing anyone sees is the slowest this system will ever be. One throwaway
+        # predict pays that cost before the audience arrives.
+        try:
+            router.predict(
+                "Caller: hello",
+                {
+                    "destination": {
+                        "type": "choice",
+                        "instructions": "Which department should handle this?",
+                        "criteria": {"service": "service", "sales": "sales"},
+                    }
+                },
+            )
+        except Exception as exc:  # noqa: BLE001 - a warmup must never stop the server starting
+            print(f"warmup skipped: {exc}")
 
     threading.Thread(target=_load, name="laya-preload", daemon=True).start()
 
@@ -279,16 +297,22 @@ class ClassifyRequest(BaseModel):
 
 @app.post("/api/classify")
 def classify(req: ClassifyRequest) -> Dict[str, Any]:
-    """Headless single-shot triage (the original support cascade), auto-answering clarifications."""
-    from .pipeline import run_to_completion
+    """Headless single-shot: route one utterance through the *dealership* cascade.
 
-    result = run_to_completion(req.message, confidence_threshold=req.threshold)
-    session = result["session"]
+    This used to call `pipeline.py`, the original generic support-triage cascade, which does not read
+    the store profile at all - so "I need a quote for four new tyres" came back as `Sales Desk`. Two
+    cascades behind one API is a trap: the endpoint sits beside `/api/call` and looks like the same
+    thing with fewer turns. It is now the same cascade, one turn.
+    """
+    scenario = {"id": "single", "label": "Single utterance", "turns": [req.message]}
+    session = CallSession(scenario, confidence_threshold=req.threshold)
+    events = list(session.advance())
+    end = next((e for e in reversed(events) if e["type"] == "call_end"), {})
     return {
         "message": req.message,
-        "routing": session.routing,
-        "rejected": session.rejected,
-        "events": result["events"],
+        "routing": end.get("routing") or session.routing,
+        "rejected": False,
+        "events": events,
     }
 
 

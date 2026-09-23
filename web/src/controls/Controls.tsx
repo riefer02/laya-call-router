@@ -4,6 +4,9 @@ import { fetchRun, fetchRuns, fetchScenarios, runScenario } from "../api";
 import { useRun } from "../store/run";
 import type { RunListItem, Scenario } from "../types";
 
+// Every eval run is recorded too, so the replay list grows into the hundreds.
+const REPLAY_LIMIT = 12;
+
 function Btn({
   children,
   onClick,
@@ -130,6 +133,9 @@ export default function Controls() {
       <label className="ml-1 flex items-center gap-2 text-[10px] text-slate-400">
         speed
         <input
+          id="playback-speed"
+          name="playback-speed"
+          aria-label="playback speed"
           type="range"
           min={1}
           max={20}
@@ -148,6 +154,9 @@ export default function Controls() {
       </Btn>
       <label className="flex items-center gap-1.5 text-[10px] text-slate-400" title="camera follows the active decision">
         <input
+          id="follow-camera"
+          name="follow-camera"
+          aria-label="camera follows the active decision"
           type="checkbox"
           checked={follow}
           onChange={(e) => setFollow(e.target.checked)}
@@ -166,11 +175,21 @@ export default function Controls() {
           className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-300 outline-none"
         >
           <option value="">↺ replay recording…</option>
-          {runs.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.scenario?.label ?? r.id} · {new Date(r.modified * 1000).toLocaleTimeString()}
+          {/* Most recent first, capped. Every eval run is recorded too, so this list grows into the
+              hundreds and becomes unusable in a demo - and the useful ones are always the newest. */}
+          {[...runs]
+            .sort((a, b) => b.modified - a.modified)
+            .slice(0, REPLAY_LIMIT)
+            .map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.scenario?.label ?? r.id} · {new Date(r.modified * 1000).toLocaleTimeString()}
+              </option>
+            ))}
+          {runs.length > REPLAY_LIMIT && (
+            <option value="" disabled>
+              … {runs.length - REPLAY_LIMIT} older recordings
             </option>
-          ))}
+          )}
         </select>
       </div>
 

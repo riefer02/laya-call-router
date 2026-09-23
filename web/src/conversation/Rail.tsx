@@ -1,11 +1,35 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRun } from "../store/run";
 import type { AppliedNode } from "../store/run";
+import { runTurns } from "../api";
 
 export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const nodes = useRun((s) => s.nodes);
   const select = useRun((s) => s.select);
   const selected = useRun((s) => s.selected);
+  const load = useRun((s) => s.load);
+
+  // Live mode: the turns you type are kept here and the whole list is re-sent on each submit, so the
+  // call is recomputed from the top and the graph stays consistent with the scripted path. Nothing
+  // session-shaped lives on the server, which is why a live call and a recorded one look the same.
+  const [draft, setDraft] = useState("");
+  const [typed, setTyped] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  async function send() {
+    const text = draft.trim();
+    if (!text || busy) return;
+    const next = [...typed, text];
+    setBusy(true);
+    try {
+      const payload = await runTurns(next, next[0].slice(0, 28));
+      setTyped(next);
+      setDraft("");
+      load(payload.events, { label: "Typed call" });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const turns = useMemo(() => {
     const byTurn = new Map<number, AppliedNode[]>();
@@ -50,7 +74,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
     <aside className="flex w-80 shrink-0 flex-col border-r border-slate-800 bg-slate-950/60">
       <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
         <span className="text-[10px] uppercase tracking-widest text-slate-500">
-          Support conversation
+          Conversation
         </span>
         <button
           onClick={onToggle}
@@ -61,9 +85,9 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
         </button>
       </div>
       <div className="scroll-thin flex-1 overflow-y-auto p-3">
-        {turns.length === 0 && (
+        {turns.length === 0 && typed.length === 0 && (
           <p className="mt-6 text-center text-[11px] text-slate-600">
-            Run a call to see the conversation.
+            Run a call, or type a caller turn below.
           </p>
         )}
         {turns.map((t) => (
@@ -100,6 +124,50 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
             </div>
           </div>
         ))}
+      </div>
+      {/* Live input. Press Enter and the switchboard answers; keep typing and it continues the call,
+          because each submit replays the whole turn list. */}
+      <div className="border-t border-slate-800 p-2">
+        <div className="flex items-center gap-1.5">
+          <input
+            id="live-turn"
+            name="live-turn"
+            aria-label="type a caller turn"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void send();
+            }}
+            placeholder={busy ? "routing…" : "type a caller turn, press Enter"}
+            className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-[11px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-violet-500/60"
+          />
+          <button
+            type="button"
+            onClick={() => void send()}
+            disabled={busy || !draft.trim()}
+            title="route this turn"
+            className="rounded-md border border-slate-700 px-2 py-1.5 text-[11px] text-slate-300 hover:text-white disabled:opacity-40"
+          >
+            ⏎
+          </button>
+        </div>
+        <div className="mt-1 flex items-center justify-between px-0.5">
+          <span className="font-mono text-[9px] text-slate-600">
+            {typed.length ? `${typed.length} typed turn${typed.length === 1 ? "" : "s"}` : "live — no model generates text"}
+          </span>
+          {typed.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setTyped([]);
+                setDraft("");
+              }}
+              className="text-[9px] text-slate-500 hover:text-slate-300"
+            >
+              ↺ clear
+            </button>
+          )}
+        </div>
       </div>
     </aside>
   );

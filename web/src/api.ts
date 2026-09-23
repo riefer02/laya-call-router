@@ -30,6 +30,18 @@ export async function runScenario(scenarioId: string): Promise<RunPayload> {
   );
 }
 
+/** A call built from turns you typed. The whole list is re-sent each time, so the call is replayed
+ *  from the top and the result is identical to a scripted one — the backend holds no session. */
+export async function runTurns(turns: string[], label = "Typed call"): Promise<RunPayload> {
+  return json<RunPayload>(
+    await fetch("/api/call", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ turns, label }),
+    })
+  );
+}
+
 export async function fetchRun(runId: string): Promise<RunPayload> {
   return json<RunPayload>(await fetch(`/api/runs/${runId}`));
 }
