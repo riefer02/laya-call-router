@@ -1,6 +1,7 @@
 # Secrets — never commit. See SECURITY notes in README.
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 secrets.json

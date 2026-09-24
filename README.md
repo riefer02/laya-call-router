@@ -41,6 +41,19 @@ uv run uvicorn jev_classifier.api:app --port 8765
 The `core.hooksPath` setting enables the repository's secret-scanning and Git LFS hooks. It is
 local Git configuration, so run it once after cloning.
 
+The local Laya demo does not need hosted-model credentials. If you want to run the hosted comparison
+or teacher-labelling scripts, copy [`.env.example`](.env.example) to `.env` and fill in only the
+provider keys you need:
+
+```bash
+cp .env.example .env
+```
+
+Kaggle authentication is separate: the Kaggle CLI reads `~/.kaggle/access_token`.
+`KAGGLE_USERNAME` in the example is only an optional default owner for
+`training/make_kaggle_dataset.py`. Submitting a Kaggle job can consume quota and is not part of the
+local demo.
+
 Open <http://127.0.0.1:8765>. For frontend work, run `cd web && npm run dev` in a second terminal
 and open <http://localhost:5173>.
 
