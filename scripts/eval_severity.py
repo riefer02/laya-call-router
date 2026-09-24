@@ -11,7 +11,7 @@ The first is the failure worth designing against, so this reports recall on the 
 sweeps the threshold, which is the knob that trades the two.
 
     uv run python scripts/eval_severity.py
-    uv run python scripts/eval_severity.py --finetuned models/kaggle-out-v4/laya-dealership-routing
+    uv run python scripts/eval_severity.py --finetuned models/active
 """
 
 from __future__ import annotations
@@ -97,12 +97,12 @@ def at_threshold(rows: List[dict], question: str, threshold: float) -> Dict[str,
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--finetuned", default="", help="path to a fine-tuned Laya checkpoint")
+    ap.add_argument("--finetuned", default="models/active", help="path to a fine-tuned Laya checkpoint")
     ap.add_argument(
         "--threshold", type=float, default=None,
         help="override both policy thresholds for an experiment",
     )
-    ap.add_argument("--out", default="results/severity.json")
+    ap.add_argument("--out", default="results/severity_local.json")
     args = ap.parse_args()
     thresholds = {
         "is_safe_to_drive": D.unsafe_threshold(),

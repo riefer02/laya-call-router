@@ -2,10 +2,11 @@
 
 The whole project's evaluation so far is synthetic-on-synthetic. This is the external check.
 
-Laya's defining property is that the *option space is defined at request time*, so a new schema
-needs no retraining. We then fine-tuned the encoder hard on 43 fixed intents for 4 epochs. If that
-destroyed the property, then "a store adds a Fleet queue and it just works" is false, and per-store
-configuration becomes per-store retraining — a different product.
+Laya's defining property is that the *option space is defined at request time*, so a new schema needs
+no retraining. This is a historical transfer diagnostic from an earlier fine-tune; it is not the
+active v7 benchmark. If fine-tuning destroys the property, then "a store adds a Fleet queue and it
+just works" is false, and per-store configuration becomes per-store retraining — a different
+product.
 
 Two suites, both real human text, both fetched as plain CSV/JSON so this needs no new dependency:
 

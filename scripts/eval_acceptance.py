@@ -6,7 +6,7 @@ about it" was forced into a slot or a rejection, which is why a booking was file
 had agreed to nothing, and why the demo books on some runs and asks again on others.
 
     uv run python scripts/eval_acceptance.py
-    uv run python scripts/eval_acceptance.py --finetuned models/kaggle-out-v5/laya-dealership-routing
+    uv run python scripts/eval_acceptance.py --finetuned models/active
 """
 
 from __future__ import annotations
@@ -118,9 +118,9 @@ def score(scored: List[dict]) -> Dict[str, object]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--finetuned", default="")
+    ap.add_argument("--finetuned", default="models/active")
     ap.add_argument("--data", default=str(DATA), help="held-out set (never the training file)")
-    ap.add_argument("--out", default="results/acceptance.json")
+    ap.add_argument("--out", default="results/acceptance_local.json")
     args = ap.parse_args()
 
     SP.clear_cache()

@@ -29,12 +29,14 @@ report files behind them. [DEMO.md](DEMO.md) is a short presentation guide.
 Install [Git LFS](https://git-lfs.com/) before cloning so the fine-tuned weights download with the
 repository. This development runner uses MLX on macOS with Apple Silicon; the checkpoint is a
 separate artifact that can be served from another compatible runtime later. You also need Python
-3.12, `uv`, and Node.js.
+3.12, `uv`, and Node.js. The current demo is not a Linux/Windows runtime.
 
 ```bash
+git lfs pull
 uv sync
-cd web && npm install && npm run build && cd ..
+cd web && npm ci && npm run build && cd ..
 git config core.hooksPath .githooks
+uv run python scripts/doctor.py
 uv run uvicorn jev_classifier.api:app --port 8765
 ```
 
@@ -100,6 +102,12 @@ small set. The sample is too small to establish a quality ranking.
 | Department and request type both right | 71/81 | 72/81 | 73/81 |
 | Final team right across 27 scripted calls | 25/27 | 26/27 | 26/27 |
 | Median time for one routing case | 21 ms | 651 ms | 1,451 ms |
+| API cost per routing case | — | $0.000031 | $0.000124 |
+| API cost for 81 routing cases | — | $0.0025 | $0.0100 |
+
+The hosted figures are reported API spend for the routing cases in `results/eval_v7.json`. The local
+MLX arm has no per-call API fee; its hardware, electricity, and operations costs are not included.
+These are not full-conversation or production infrastructure costs.
 
 These are **routing-case** times, not full conversation times. The debugger's model-time counter
 adds classifier work across every turn. Serving costs depend on where you host the model; this MLX
@@ -160,6 +168,21 @@ The next step is broader conversational evaluation using a frozen typed-conversa
 hosted inference adapter is optional future work if operational deployment becomes a goal. This is a
 working, inspectable example to build on: use your own labels, facts, and fresh evaluation set when
 applying it elsewhere.
+
+## Security and local-only boundary
+
+This is a local research demo, not an authenticated service. Keep the server bound to loopback:
+
+```bash
+uv run uvicorn jev_classifier.api:app --host 127.0.0.1 --port 8765
+```
+
+Do not expose it to a public interface. Hosted comparison and teacher scripts read credentials from
+`.env`; keep that file local and use `.env.example` only as a template. The repository does not
+contain real booking records or hosted-model credentials.
+
+The first run of the external generality evaluation downloads public datasets into the ignored
+`data/external/` directory and requires internet access. The local dealership demo does not.
 
 ## License
 

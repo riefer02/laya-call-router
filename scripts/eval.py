@@ -5,7 +5,7 @@
     uv run python scripts/eval.py --skip-llm           # cascade arms only, no key needed
     uv run python scripts/eval.py --limit 20 --determinism 1
 
-Writes results/eval.json. Keys are read from .env / the environment and never printed.
+Writes results/eval_local.json by default. Keys are read from .env / the environment and never printed.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def main() -> None:
             "counting the case as wrong is a what-if penalty. Applied symmetrically, or not at all."
         ),
     )
-    ap.add_argument("--out", default="results/eval.json")
+    ap.add_argument("--out", default="results/eval_local.json")
     args = ap.parse_args()
 
     routing = H.load_routing()

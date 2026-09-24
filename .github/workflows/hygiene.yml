@@ -1,0 +1,33 @@
+name: Hygiene
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: astral-sh/setup-uv@v5
+      - name: Check Python lockfile
+        run: uv lock --check
+      - name: Compile Python sources
+        run: python -m compileall -q src scripts training tests
+      - name: Install frontend dependencies
+        working-directory: web
+        run: npm ci
+      - name: Build frontend
+        working-directory: web
+        run: npm run build

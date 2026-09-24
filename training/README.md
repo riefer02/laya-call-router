@@ -41,8 +41,9 @@ should set `JEV_REQUIRE_SPLITS=1`; otherwise the fallback is not an honest calib
 
 
 The current v7 weights are already bundled. Retraining requires a GPU environment, the training
-data, and the upstream Laya dependencies. Inspect `training/run_config.json` and the generated
-notebook before launching a job: a Kaggle submission starts compute and may consume quota.
+data, and the upstream Laya dependencies. Inspect `training/run_config.json` and the generated notebook before launching a job. Set
+`base_model_revision` to an immutable Hugging Face commit for a reproducible new run. A Kaggle
+submission starts compute and may consume quota.
 
 ```bash
 uv run python training/make_kaggle_dataset.py --owner YOUR_KAGGLE_USERNAME

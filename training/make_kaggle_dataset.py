@@ -45,10 +45,12 @@ def main() -> None:
     for src_rel, dst_name in FILES:
         src = ROOT / src_rel
         if not src.is_file():
-            raise SystemExit(
-                f"missing {src_rel}\n"
+            remedy = (
                 "run: uv run python scripts/generate_training.py --per-subqueue 50"
+                if src_rel == "data/calls/synthetic.jsonl"
+                else "restore the file from the frozen v7 snapshot or the current training data"
             )
+            raise SystemExit(f"missing {src_rel}\n{remedy}")
         shutil.copy(src, OUT / dst_name)
         size = (OUT / dst_name).stat().st_size
         total += size

@@ -5,7 +5,7 @@ option space is defined at request time, so a new schema needs no retraining. We
 43 fixed intents; this measures what that cost.
 
     uv run python scripts/generality_test.py --limit 400
-    uv run python scripts/generality_test.py --finetuned models/kaggle-out-v2/laya-dealership-routing
+    uv run python scripts/generality_test.py --finetuned models/active
 
 Runs locally. No API keys, no cost.
 """
@@ -53,13 +53,13 @@ def run_suite(agent, texts, gold, options, label: str, report: int) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=400, help="cases per suite (0 = all)")
-    ap.add_argument("--finetuned", default="models/kaggle-out-v2/laya-dealership-routing")
+    ap.add_argument("--finetuned", default="models/active")
     ap.add_argument("--head-max-len", type=int, default=256)
     ap.add_argument("--max-len", type=int, default=1024)
     ap.add_argument("--raised", action="store_true",
                     help="also run Banking77 with a 512-token option budget, to measure the "
                          "documented >20-option weakness")
-    ap.add_argument("--out", default="results/generality.json")
+    ap.add_argument("--out", default="results/generality_local.json")
     args = ap.parse_args()
 
     print("=== external generality suites (real human text, not dealership) ===\n")

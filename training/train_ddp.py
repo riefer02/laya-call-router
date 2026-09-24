@@ -22,7 +22,7 @@ Run on Kaggle with 2xT4:
     torchrun --standalone --nproc_per_node=2 training/train_ddp.py <model_dir> <output_dir>
 """
 
-import os, sys, time, json, random, math, hashlib, platform
+import os, sys, time, json, random, math, hashlib, platform, importlib.metadata
 from datetime import datetime, timezone
 from pathlib import Path
 import numpy as np
@@ -171,6 +171,13 @@ def _sha256(path):
     return digest.hexdigest()
 
 
+def _package_version(name):
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
 def _write_run_manifest(output_dir, *, model_dir, items_path, calibration_path, validation_path, cfg, seed, rank, world_size, task_counts):
     manifest = {
         "schema_version": 1,
@@ -199,6 +206,14 @@ def _write_run_manifest(output_dir, *, model_dir, items_path, calibration_path, 
             "python": sys.version.split()[0],
             "platform": platform.platform(),
             "torch": torch.__version__,
+            "packages": {
+                name: _package_version(name)
+                for name in ("laya", "transformers", "torch", "safetensors", "huggingface-hub", "numpy")
+            },
+            "base_model": {
+                "id": os.environ.get("LAYA_MODEL_ID", "convaiinnovations/laya"),
+                "revision": os.environ.get("LAYA_MODEL_REVISION"),
+            },
             "rank": rank,
             "world_size": world_size,
         },

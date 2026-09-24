@@ -5,13 +5,15 @@
     "silently reset the run to 4 epochs - the same one-fact-in-two-places failure this project keeps",
     "meeting. A committed file cannot be forgotten at the shell.",
     "train_ddp.py still reads the environment; the notebook exports these values, so this file is the",
-    "single source.",
+    "single source. Set base_model_revision to an immutable Hugging Face commit for a reproducible run.",
     "8 epochs matched the v4 run, so the epoch count is not a confound when comparing them."
   ],
   "epochs": 8,
   "lr_encoder": 2.5e-5,
   "lr_head": 1.0e-4,
   "seed": 42,
+  "base_model_id": "convaiinnovations/laya",
+  "base_model_revision": "main",
   "max_len": 512,
   "head_max_len": 192
 }

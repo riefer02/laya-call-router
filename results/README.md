@@ -78,6 +78,9 @@ ones** and must not be quoted as if they were.
 
 ## Reading any of these
 
+Local evaluation commands default to `*_local.json` outputs so they do not overwrite these tracked
+historical reports. Pass an explicit `--out` only when you intend to create a new versioned report.
+
 - **One case on 81 is 1.23 points.** Wilson 95% intervals are in every report; two arms whose
   intervals overlap are not distinguishable at this sample size. The LLM arms moved 2.5 points
   between consecutive runs on identical inputs.
