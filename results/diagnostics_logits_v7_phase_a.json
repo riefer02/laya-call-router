@@ -1,6 +1,6 @@
 {
   "checkpoint": "models/kaggle-out-v7/laya-dealership-routing",
-  "data": "/Users/andrew/Code/jev-classifier/data/calls/routing.jsonl",
+  "data": "data/calls/routing.jsonl",
   "n_cases": 81,
   "destination": {
     "n": 81,

@@ -1,7 +1,24 @@
-# What We Learned Turning a Small Decision Model Into a Call Router
+# Laya Call Router: Technical Findings and Lessons
 
 *What Laya taught us about synthetic data, teacher limits, model speed, and the difference between
 a convincing demo and a trustworthy system.*
+
+This is a technical report about a small typed-decision model and the system built around it. It is
+not a production-readiness certificate, a claim of general model parity, or a report of real
+dealership performance.
+
+## Scope and evidence status
+
+| Topic | Status in this report |
+| --- | --- |
+| v7 routing and full-call results | Measured on the frozen, synthetic-heavy development set |
+| Safety results | Measured on an enriched safety set; not a deployment precision estimate |
+| Generality results | External transfer diagnostic, not a dealership test |
+| Real dealership calls and independent labels | Not available |
+| Hosting and operating costs | Not estimated; workload and deployment measurements are still needed |
+
+The report keeps those categories separate. A useful result on a narrow benchmark is still a useful
+result, but it should not be silently promoted into a broader product claim.
 
 ## The one-minute version
 
@@ -90,8 +107,8 @@ runs. Their confidence intervals overlap.
 
 The honest wording is:
 
-> On this small, hand-labelled routing set, the local model performed at roughly the same level as
-> the two hosted models.
+> On this small, frozen, hand-labelled routing benchmark, the local model performed at roughly the
+> same level as the two hosted models.
 
 That is less dramatic than “we beat frontier models,” but much more useful.
 
@@ -361,6 +378,28 @@ It is:
 > Is the total cost of operating a reliable model lower than the recurring cost, latency, privacy,
 > and lock-in cost of the API at our actual volume?
 
+## Deployment thoughts — not implemented
+
+The repository currently demonstrates the local decision layer. It does not contain a production
+hosting service, an audio/phone integration, or a measured cloud benchmark.
+
+If the model were actually deployed, the simplest path would be a native Laya service with a pinned
+checkpoint and a small operational surface. It should record at least:
+
+- request and checkpoint identity;
+- typed decision and policy outcome;
+- latency, error, and handoff counts; and
+- the distinction between model output and the final user-visible action.
+
+A LiteLLM-style proxy could be useful for centralized usage, budget, and provider controls, but it
+should only be placed in front of the service after confirming that the typed Laya protocol can be
+represented faithfully. A generic OpenAI-compatible chat proxy is not automatically compatible with
+an application that needs structured decision fields and policy metadata.
+
+These are deployment design notes, not additional evidence. There is intentionally no hosting-cost
+table here until a real deployment workload, concurrency profile, and cold-start behavior have been
+measured.
+
 ## Where Laya fits in a product
 
 Laya is not trying to be the entire product. It is a fast decision layer that can sit before:
@@ -402,8 +441,45 @@ The next experiment should not immediately be a larger RL run.
 | 6. Review disagreements | Humans identify ambiguous policy boundaries |
 | 7. Decide on another run | Only after the evidence justifies it |
 
-The missing ingredient is not necessarily more synthetic data. It is data that matches the
-distribution of the world where the product will actually run.
+## The useful conclusion
+
+The system works best when the caller stays close to the structured examples it was trained on. That
+includes ordinary dealership requests such as “I need an oil change” or “I want to buy a car.” It
+is much less reliable when the conversation contains small talk, hesitation, corrections, multiple
+requests, or unrelated material.
+
+That is not a surprising result. The model was trained as a narrow typed-decision component, not as
+the entire conversational brain of a dealership phone system. Small talk is not merely extra text to
+ignore: it changes the distribution of the transcript and can make the model infer a vehicle context
+or choose a route too early. The model is also overconfident on some incorrect decisions, so a high
+probability is not evidence that the decision is correct.
+
+The typed demo makes this limitation especially visible. Typed input is cleaner than real phone
+audio, so failures with small talk are a warning sign rather than something we can dismiss as an ASR
+problem. The existing cascade also matters: a wrong early destination, a pinned decision, or an
+over-eager safety answer can affect the rest of the call even when the model itself is only one
+component.
+
+The result should therefore be stated narrowly:
+
+> The current Laya model is promising for clean, bounded decision points inside a controlled
+> workflow. It has not yet demonstrated reliable handling of messy natural dealership conversations.
+
+The next useful test is a small frozen typed-conversation stress set, not a larger reinforcement
+learning run. It should include clean requests, polite small talk, hesitation, self-corrections,
+multiple requests, incomplete information, unrelated calls, and cases that should trigger
+clarification or human handoff. For each case, we should record where the system first diverges:
+
+| Divergence | Likely lesson |
+| --- | --- |
+| Wrong destination | Data or model robustness |
+| Correct destination, wrong subqueue | Taxonomy or question wording |
+| Correct route, wrong safety action | Policy or state handling |
+| Early decision never recovers | Pinning or conversation state |
+| Unrelated call reaches dispatch | Scope guard and fallback policy |
+
+This framing is more useful than declaring the model either “ready” or “useless.” It identifies the
+actual boundary of the result and gives us a concrete, evidence-based way to improve the system.
 
 ## Final thought
 

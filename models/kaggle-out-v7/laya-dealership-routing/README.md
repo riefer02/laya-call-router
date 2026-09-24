@@ -19,8 +19,9 @@ See the repository's [training guide](../../../training/README.md) for the recip
 
 ## What was measured
 
-On 81 hand-labelled routing cases, v7 answered both destination and request type correctly for
-71 cases; the `gpt-5.4-nano` and `deepseek-flash` comparison arms scored 72 and 73. On 27 scripted
+On the frozen 81-case legacy/development routing benchmark, v7 answered both destination and request
+type correctly for 71 cases; the `gpt-5.4-nano` and `deepseek-flash` comparison arms scored 72 and
+73. On 27 scripted
 calls, v7 chose the right final team for 25. It caught 18 of 18 labelled hazards in a separate
 safety set and falsely flagged 3 of 27 safe cases. These are small, domain-specific samples; the
 model should be evaluated on new labels and full conversations before another application uses it.

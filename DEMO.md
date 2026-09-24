@@ -30,8 +30,9 @@ connection to a tow service.
 4. **Try a different ending.** “Hours” answers from the store schedule; “Part order” transfers to
    the parts team; “No start” raises the roadside flag. These cases show the same model feeding
    different application actions.
-5. **Open Evidence.** The routing comparison uses 81 labelled cases; the full-call comparison uses
-   27 scripted calls; the safety report has 45 cases. The page names the report files it reads.
+5. **Open Evidence.** The routing comparison uses a frozen 81-case legacy/development benchmark; the
+   full-call comparison uses 27 scripted calls; the safety report has 45 cases. The page names the
+   report files it reads.
 
 Playback controls step through the recorded events without rerunning the backend. The caller input
 at the bottom lets you try new text; each submission recomputes the full typed call. Those new
@@ -46,5 +47,6 @@ runner. These results put a small specialist model close to the hosted models on
 make every step of its application visible. The sample is too small to rank close scores.
 
 The checkpoint is packaged for readers to run and inspect. MLX is the current development
-runtime; a compatible hosted runner is a next step. The [pitch](PITCH.md) gives a concise story,
+runtime; a compatible hosted runner could be a future deployment option, but is not required for
+this research demo. The [pitch](PITCH.md) gives a concise story,
 [LEARNINGS.md](LEARNINGS.md) explains the experiments, and [NEXT.md](NEXT.md) lists the work ahead.

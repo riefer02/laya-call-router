@@ -29,6 +29,15 @@ from jev_classifier.diagnostics import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _portable_path(value: str | Path) -> str:
+    """Prefer repository-relative paths in generated provenance reports."""
+    path = Path(value)
+    try:
+        return str(path.resolve().relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _labels(question: Dict[str, Any]) -> List[str]:
     return list(question.get("criteria", {}))
 
@@ -108,8 +117,8 @@ def main() -> int:
             )
 
     report = {
-        "checkpoint": str(checkpoint),
-        "data": str(Path(args.data)),
+        "checkpoint": _portable_path(checkpoint),
+        "data": _portable_path(args.data),
         "n_cases": len(cases),
         "destination": _metrics(destination_rows),
         "subqueue_teacher_forced_gold_destination": _metrics(subqueue_rows) if subqueue_rows else {"n": 0},

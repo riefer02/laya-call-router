@@ -10,10 +10,11 @@ Written for a person, not a changelog. The numbers are all in `results/`.
 ## The short version — active v7 checkpoint
 
 We set out to make a small typed-decision model competitive with `deepseek-flash` on dealership
-call routing. The active v7 fine-tune scores **71/81 joint routing cases**. `gpt-5.4-nano` scored
-72/81 and `deepseek-flash` 73/81 in that run. That is close on this small set, but it does not
-establish a tie or a win. The local routing pass took about **21 ms**, versus 651 ms and 1,451 ms
-for the API arms, with no per-call API fee. See `results/eval_v7.json`.
+call routing. The active v7 fine-tune scores **71/81 joint routing cases** on the frozen
+81-case legacy/development benchmark. `gpt-5.4-nano` scored 72/81 and `deepseek-flash` 73/81 in
+that run. That is close on this small set, but it does not establish a tie or a win. The local
+routing pass took about **21 ms**, versus 651 ms and 1,451 ms for the API arms, with no per-call
+API fee. See `results/eval_v7.json`.
 
 The demo now checks its own endings: **12 of 13 scenarios** complete as stated, including five real
 bookings, two roadside cases, three transfers, an hours answer, and a wrong-number close. The

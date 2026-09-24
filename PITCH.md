@@ -9,16 +9,16 @@ The debugger lets you replay a call and inspect the source and evidence for ever
 
 The useful experiment is whether a small specialist model can handle a narrow decision task well
 enough to support a real workflow. Fine-tuning raised joint routing accuracy from 42/81 to 71/81
-on our hand-labelled set. In the same evaluation, `gpt-5.4-nano` scored 72/81 and
-`deepseek-flash` 73/81. The three results are close on this sample; a larger test would be needed
-to rank them. The fine-tune's median routing-case time was 21 ms in the MLX development setup,
+on our frozen 81-case legacy/development benchmark. In the same evaluation, `gpt-5.4-nano` scored
+72/81 and `deepseek-flash` 73/81. The three results are close on this sample; a larger test would
+be needed to rank them. The fine-tune's median routing-case time was 21 ms in the MLX development setup,
 against 651 ms and 1,451 ms for the two API calls. A whole call takes longer and involves more
 than one decision.
 
 The checkpoint is included through Git LFS so people can run the same model, inspect the recorded
-reports, and try new calls. MLX is the current development runner. The weights can later be served
-from a compatible hosted runtime; where and how they are hosted will determine operating cost and
-latency.
+reports, and try new calls. MLX is the current development runner. A compatible hosted runtime
+would be an optional future deployment option; where and how the weights are hosted would determine
+operating cost and latency.
 
 ## What to demonstrate
 

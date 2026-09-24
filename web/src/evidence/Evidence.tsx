@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchEvidence } from "../api";
 import type { Evidence as EvidenceData } from "../types";
 
@@ -16,17 +16,30 @@ function usd(x: number | null | undefined): string {
   return x === 0 ? "$0" : `$${x.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`;
 }
 
+const SECTION_LINKS = [
+  ["evidence-overview", "Overview"],
+  ["evidence-routing", "Routing"],
+  ["evidence-calls", "Whole calls"],
+  ["evidence-confidence", "Confidence"],
+  ["evidence-safety", "Safety"],
+  ["evidence-taxonomy", "Taxonomy"],
+  ["evidence-training", "Training data"],
+  ["evidence-generality", "Generality"],
+] as const;
+
 function Section({
+  id,
   title,
   hint,
   children,
 }: {
+  id: string;
   title: string;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-7">
+    <section id={id} data-evidence-section className="scroll-mt-6 mb-8">
       <h2 className="text-[12px] font-semibold uppercase tracking-wider text-slate-300">{title}</h2>
       {hint && <p className="mt-1 max-w-3xl text-[11.5px] leading-relaxed text-slate-500">{hint}</p>}
       <div className="mt-2.5">{children}</div>
@@ -48,10 +61,29 @@ function Bar({ value, accent = "#8b5cf6" }: { value: number; accent?: string }) 
 export default function Evidence() {
   const [data, setData] = useState<EvidenceData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<string>(SECTION_LINKS[0][0]);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchEvidence().then(setData).catch((e) => setError(String(e)));
   }, []);
+
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+    const sections = [...root.querySelectorAll<HTMLElement>("[data-evidence-section]")];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]?.target.id) setActiveSection(visible[0].target.id);
+      },
+      { root, rootMargin: "-12% 0px -72% 0px", threshold: [0, 0.1, 1] },
+    );
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, [data]);
 
   // Keep the summary tied to the report being shown. This is a description of the sample,
   // not a claim that a small difference establishes a model ranking.
@@ -79,28 +111,126 @@ export default function Evidence() {
   }
 
   const arms = data.arms;
+  const fineArm = arms.find((arm) => arm.key === "cascade-ft");
+  const hostedArms = arms.filter(
+    (arm) => arm.key !== "cascade-ft" && arm.key !== "laya" && arm.joint != null,
+  );
+  const bestHosted = hostedArms.reduce<(typeof hostedArms)[number] | null>(
+    (winner, arm) => !winner || (arm.joint ?? 0) > (winner.joint ?? 0) ? arm : winner,
+    null,
+  );
+  const fineCalls = data.calls.find((call) => call.label === "fine-tuned");
+  const fineSafety = data.severity.find((row) => row.arm === "fine-tuned") ?? data.severity[0];
+  const safetyScore = fineSafety?.safe;
+  const fineCorrect = fineArm?.joint != null && data.n_cases
+    ? Math.round(fineArm.joint * data.n_cases)
+    : null;
+  const hostedCorrect = bestHosted?.joint != null && data.n_cases
+    ? Math.round(bestHosted.joint * data.n_cases)
+    : null;
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-950 px-6 py-5 text-slate-200">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-6">
-          <h1 className="text-[15px] font-semibold text-slate-100">
-            What the tests found
-          </h1>
-          <p className="mt-1 max-w-3xl text-[11.5px] leading-relaxed text-slate-500">
-            These figures come from the versioned reports in <code className="text-slate-400">results/</code>.
-            The routing test has {data.n_cases} labelled cases. One case changes the score by{" "}
-            {(100 / data.n_cases).toFixed(2)} percentage points, so read small gaps with care.
-          </p>
-          <p className={`mt-2 max-w-3xl text-[11px] ${data.sources.matches_served_model ? "text-slate-500" : "text-amber-300"}`}>
-            {data.sources.matches_served_model
-              ? `Report for the loaded checkpoint: ${data.sources.routing} and ${data.sources.severity}.`
-              : `Reference reports: ${data.sources.routing} and ${data.sources.severity}. The loaded model is ${data.sources.checkpoint}; these results may not match calls you run here.`}
-          </p>
-        </header>
+    <div ref={scrollRef} className="h-full overflow-y-auto bg-slate-950 px-6 py-5 text-slate-200">
+      <div className="mx-auto max-w-6xl">
+        <div className="grid gap-8 lg:grid-cols-[10.5rem_minmax(0,1fr)]">
+          <aside className="order-1 lg:order-none">
+            <nav
+              aria-label="Evidence sections"
+              className="flex gap-1 overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/50 p-2 lg:sticky lg:top-4 lg:flex-col"
+            >
+              <div className="hidden px-2 pb-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600 lg:block">
+                On this page
+              </div>
+              {SECTION_LINKS.map(([id, label]) => (
+                <a
+                  key={id}
+                  href={`#${id}`}
+                  onClick={() => setActiveSection(id)}
+                  className={`whitespace-nowrap rounded px-2 py-1 text-[10.5px] transition-colors ${
+                    activeSection === id
+                      ? "bg-violet-500/15 text-violet-200"
+                      : "text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                  }`}
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+          </aside>
+
+          <main className="order-2 min-w-0 lg:order-none">
+            <header id="evidence-overview" data-evidence-section className="scroll-mt-6 mb-5">
+              <h1 className="text-[15px] font-semibold text-slate-100">What the tests found</h1>
+              <p className="mt-1 max-w-3xl text-[11.5px] leading-relaxed text-slate-500">
+                These figures come from the versioned reports in{" "}
+                <code className="text-slate-400">results/</code>. The routing test has {data.n_cases}{" "}
+                labelled cases. One case changes the score by {(100 / data.n_cases).toFixed(2)}{" "}
+                percentage points, so read small gaps with care.
+              </p>
+              <p
+                className={`mt-2 max-w-3xl text-[11px] ${
+                  data.sources.matches_served_model ? "text-slate-500" : "text-amber-300"
+                }`}
+              >
+                {data.sources.matches_served_model
+                  ? `Report for the loaded checkpoint: ${data.sources.routing} and ${data.sources.severity}.`
+                  : `Reference reports: ${data.sources.routing} and ${data.sources.severity}. The loaded model is ${data.sources.checkpoint}; these results may not match calls you run here.`}
+              </p>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                {[
+                  {
+                    label: "joint routing",
+                    value: fineCorrect != null ? `${fineCorrect}/${data.n_cases}` : "—",
+                    note: "destination + request type",
+                  },
+                  {
+                    label: "whole calls",
+                    value:
+                      fineCalls?.queue != null && fineCalls.n
+                        ? `${Math.round(fineCalls.queue * fineCalls.n)}/${fineCalls.n}`
+                        : "—",
+                    note: "correct final team",
+                  },
+                  {
+                    label: "local decision",
+                    value: ms(fineArm?.latency_p50),
+                    note: "median routing pass",
+                  },
+                  {
+                    label: "hazard recall",
+                    value:
+                      safetyScore?.recall != null
+                        ? `${Math.round(safetyScore.recall * safetyScore.positives)}/${safetyScore.positives}`
+                        : "—",
+                    note: safetyScore ? `${safetyScore.false_alarms} false alarms` : "not reported",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2.5"
+                  >
+                    <div className="text-[9px] uppercase tracking-wider text-slate-600">
+                      {item.label}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[16px] font-semibold text-slate-100">
+                      {item.value}
+                    </div>
+                    <div className="mt-0.5 text-[9.5px] text-slate-500">{item.note}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 max-w-3xl text-[10.5px] leading-relaxed text-slate-500">
+                The best hosted arm on this set scored {hostedCorrect ?? "—"}/{data.n_cases}. The
+                evidence is small and synthetic-heavy, and one ambiguous off-topic call still
+                reaches Roadside. Read the sections below rather than treating the page as a
+                production-readiness certificate.
+              </p>
+            </header>
 
         {/* ------------------------------------------------------------ headline */}
         <Section
+          id="evidence-routing"
           title={`Routing decisions — ${data.n_cases} labelled cases`}
           hint={headline}
         >
@@ -175,6 +305,7 @@ export default function Evidence() {
 
         {/* ------------------------------------------------------------ calls */}
         <Section
+          id="evidence-calls"
           title={`Whole calls — ${data.calls[0]?.n ?? "—"} scripted examples`}
           hint="Each score checks the final team across a full scripted call. These calls cover all 26 specific request types. The earlier 10-call set was too small to expose several failures."
         >
@@ -193,6 +324,7 @@ export default function Evidence() {
 
         {/* ------------------------------------------------------------ calibration */}
         <Section
+          id="evidence-confidence"
           title="When is the model confident?"
           hint="A useful confidence score would separate correct answers from wrong ones. This model gives high confidence to several wrong routes, so confidence alone does not catch them."
         >
@@ -222,6 +354,7 @@ export default function Evidence() {
         {/* ------------------------------------------------------------ severity */}
         {data.severity.length > 0 && (
           <Section
+            id="evidence-safety"
             title="Safety and human handoff"
             hint="A missed stranded caller may need help; a false alarm routes a safe call to Roadside in this prototype. No truck is sent. Recall is the share of real positives caught; precision is the share of flags that were right."
           >
@@ -301,6 +434,7 @@ export default function Evidence() {
 
         {/* ------------------------------------------------------------ taxonomy */}
         <Section
+          id="evidence-taxonomy"
           title="Teams and request types"
           hint="Each card is a department. The tags show the requests it handles. A store can edit this structure in config/store_profile.json, then test its own examples before using it."
         >
@@ -334,6 +468,7 @@ export default function Evidence() {
 
         {/* ------------------------------------------------------------ dataset */}
         <Section
+          id="evidence-training"
           title="Training data"
           hint="Examples were checked for valid labels, duplicates and overlap with the test set. We also set a minimum number of examples for each department so smaller departments were represented."
         >
@@ -367,6 +502,7 @@ export default function Evidence() {
         {/* ------------------------------------------------------------ generality */}
         {data.generality.verdict && (
           <Section
+            id="evidence-generality"
             title="Can it handle new answer choices?"
             hint="The answer choices are supplied with each question. This check asks whether fine-tuning for this store hurt the model's ability to answer different questions."
           >
@@ -392,6 +528,8 @@ export default function Evidence() {
           <code>scripts/generate_training.py</code> and <code>scripts/generality_test.py</code>. The
           full narrative is in <code>LEARNINGS.md</code>.
         </p>
+          </main>
+        </div>
       </div>
     </div>
   );

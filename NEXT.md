@@ -13,8 +13,10 @@ optional validation/calibration item files, validation history, a best-validatio
 a run manifest. A future run should set `JEV_REQUIRE_SPLITS=1`; the legacy calibration fallback is
 explicitly marked untrusted.
 
-The next implementation step is the contract-based synthetic dataset and split builder. It should
-be dry-run with fixtures before any paid teacher call or GPU submission.
+The next implementation step is a small frozen typed-conversation stress set and a clean handoff
+between the Evidence page, the README, and the active checkpoint report. This should stay local and
+should not expand into a hosted service or cost-reporting project unless operational deployment
+becomes an explicit goal.
 
 The current demo serves the v7 fine-tune, replays inspectable calls, and checks 13 scripted
 scenarios. The checkpoint is bundled through Git LFS. [LEARNINGS.md](LEARNINGS.md) records the
@@ -41,11 +43,15 @@ experiments and corrections; [results/README.md](results/README.md) identifies t
 4. Automate a rerun from the bundled frozen v7 snapshot and compare its measured outputs with the
    included checkpoint. The current packaging command uses the newer working data by default.
 
+## Keep deployment optional
+
+A hosted inference adapter, usage gateway, and operating-cost report are deliberately not active
+research tasks for this repository. They become relevant only if operational deployment becomes an
+explicit goal and there is a real workload to measure.
+
 ## Make the example easier to reuse
 
-1. Add a hosted inference adapter for the packaged checkpoint and measure its own latency and
-   operating cost. MLX is the current development runner, not a required final deployment shape.
-2. Move dealership-specific dialogue and scheduling facts behind the store profile where that
+1. Move dealership-specific dialogue and scheduling facts behind the store profile where that
    makes a new domain simpler to implement and test.
-3. Add a second small domain with its own profile, labels, and complete-call evaluations. This
+2. Add a second small domain with its own profile, labels, and complete-call evaluations. This
    will test whether the process described in the README transfers beyond this dealership.

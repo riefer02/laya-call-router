@@ -34,8 +34,12 @@ separate artifact that can be served from another compatible runtime later. You 
 ```bash
 uv sync
 cd web && npm install && npm run build && cd ..
+git config core.hooksPath .githooks
 uv run uvicorn jev_classifier.api:app --port 8765
 ```
+
+The `core.hooksPath` setting enables the repository's secret-scanning and Git LFS hooks. It is
+local Git configuration, so run it once after cloning.
 
 Open <http://127.0.0.1:8765>. For frontend work, run `cd web && npm run dev` in a second terminal
 and open <http://localhost:5173>.
@@ -73,9 +77,10 @@ confirmation matches the filed appointment.
 
 ## What we measured
 
-The active **v7** report used 81 hand-labelled routing cases, 27 scripted evaluation calls, and a
-separate 45-case safety set. The fine-tune landed close to the hosted models on this small set. The
-sample is too small to establish a quality ranking.
+The active **v7** report used a frozen 81-case legacy/development routing benchmark, 27 scripted
+evaluation calls, and a separate 45-case safety set. The evidence is small and synthetic-heavy; it is
+not a real-world dealership validation set. The fine-tune landed close to the hosted models on this
+small set. The sample is too small to establish a quality ranking.
 
 | Measure | Local fine-tune | gpt-5.4-nano | deepseek-flash |
 | --- | ---: | ---: | ---: |
@@ -138,7 +143,8 @@ and the rest explains how the project got there. [NEXT.md](NEXT.md) lists the re
 - The bundled v7 checkpoint reproduces inference, and `models/kaggle-out-v7/` includes the frozen
   training snapshot and hashes. A new training run can still differ because of GPU execution.
 
-The next step is broader conversational evaluation and a hosted inference adapter. This is a
+The next step is broader conversational evaluation using a frozen typed-conversation stress set. A
+hosted inference adapter is optional future work if operational deployment becomes a goal. This is a
 working, inspectable example to build on: use your own labels, facts, and fresh evaluation set when
 applying it elsewhere.
 

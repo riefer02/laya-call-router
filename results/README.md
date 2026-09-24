@@ -7,7 +7,8 @@ are now committed.
 
 **Start with v7:** `eval_v7.json`, `severity_v7.json`, and `acceptance_v7.json` describe the
 checkpoint bundled under `models/active`. The v6 and v14 files below are useful comparisons from
-earlier experiments; their praise and rankings describe those runs, not the active demo.
+earlier experiments; their praise and rankings describe those runs, not the active demo. The active
+routing result is a frozen 81-case legacy/development benchmark, not a pristine real-world test.
 
 **Ground truth is `data/calls/*.jsonl`** and the taxonomy is `config/store_profile.json`. Every
 report here was produced by `scripts/eval.py`, `scripts/validate_teacher.py`,
