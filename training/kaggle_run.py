@@ -6,8 +6,11 @@ Turns a multi-step manual handoff into one command by driving the Kaggle CLI:
     uv run python training/kaggle_run.py watch              # poll until done, download the model
     uv run python training/kaggle_run.py submit --watch     # both
 
-Requires the Kaggle CLI (`uv tool install kaggle`) and a token at `~/.kaggle/access_token`.
-Nothing here reads or prints the token.
+Requires the Kaggle CLI (`uv tool install kaggle`) and an authenticated Kaggle account. The CLI
+supports `kaggle auth login`, `KAGGLE_API_TOKEN`, `~/.kaggle/access_token`, and legacy
+`~/.kaggle/kaggle.json`. Nothing here reads or prints the token. Official documentation:
+https://github.com/Kaggle/kaggle-cli/blob/main/docs/README.md#authentication (checked 2026-09-24,
+main branch).
 
 Pushing a kernel **runs** it on Kaggle's GPUs and consumes your quota — that is the point, but it
 is not free, so `submit` prints what it is about to do first.
@@ -55,8 +58,9 @@ def username() -> str:
     name = (out.stdout or "").strip()
     if not name:
         raise SystemExit(
-            "could not determine the Kaggle username. Is ~/.kaggle/access_token present, and is "
-            "the CLI installed (`uv tool install kaggle`)?\n"
+            "could not determine the Kaggle username. Run `kaggle auth login`, set "
+            "KAGGLE_API_TOKEN, or place a token at ~/.kaggle/access_token, and ensure the CLI is "
+            "installed (`uv tool install kaggle`).\n"
             f"{out.stderr[:300]}"
         )
     return name

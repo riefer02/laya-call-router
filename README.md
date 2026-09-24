@@ -51,10 +51,12 @@ provider keys you need:
 cp .env.example .env
 ```
 
-Kaggle authentication is separate: the Kaggle CLI reads `~/.kaggle/access_token`.
-`KAGGLE_USERNAME` in the example is only an optional default owner for
-`training/make_kaggle_dataset.py`. Submitting a Kaggle job can consume quota and is not part of the
-local demo.
+Kaggle authentication is separate. The [current CLI authentication
+instructions](https://github.com/Kaggle/kaggle-cli/blob/main/docs/README.md#authentication) list
+`kaggle auth login`, a `KAGGLE_API_TOKEN` environment variable, `~/.kaggle/access_token`, and the
+legacy `~/.kaggle/kaggle.json` file. `KAGGLE_USERNAME` in the example is only an optional default
+owner for `training/make_kaggle_dataset.py`. Submitting a Kaggle job can consume quota and is not
+part of the local demo.
 
 Open <http://127.0.0.1:8765>. For frontend work, run `cd web && npm run dev` in a second terminal
 and open <http://localhost:5173>.

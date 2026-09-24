@@ -113,6 +113,16 @@ def main() -> int:
     else:
         warn("Kaggle CLI is not installed (only needed for training)")
 
+    kaggle_auth = (
+        bool(os.environ.get("KAGGLE_API_TOKEN"))
+        or (Path.home() / ".kaggle" / "access_token").is_file()
+        or (Path.home() / ".kaggle" / "kaggle.json").is_file()
+    )
+    if kaggle_auth:
+        ok("Kaggle authentication is configured (value not displayed)")
+    else:
+        warn("Kaggle authentication is not configured; run `kaggle auth login` if training")
+
     if os.environ.get("KAGGLE_USERNAME"):
         ok("KAGGLE_USERNAME is set (value not displayed)")
     else:
