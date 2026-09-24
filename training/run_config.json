@@ -10,5 +10,8 @@
   ],
   "epochs": 8,
   "lr_encoder": 2.5e-5,
-  "lr_head": 1.0e-4
+  "lr_head": 1.0e-4,
+  "seed": 42,
+  "max_len": 512,
+  "head_max_len": 192
 }

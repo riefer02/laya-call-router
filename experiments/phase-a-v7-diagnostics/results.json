@@ -1,0 +1,39 @@
+{
+  "checkpoint": "models/kaggle-out-v7/laya-dealership-routing",
+  "data": "data/calls/routing.jsonl",
+  "n_cases": 81,
+  "destination": {
+    "n": 81,
+    "accuracy": 0.91358,
+    "nll": 1.56316,
+    "brier": 0.172803,
+    "ece": 0.08641,
+    "mean_confidence": 0.999991
+  },
+  "subqueue_teacher_forced_gold_destination": {
+    "n": 81,
+    "accuracy": 0.938272,
+    "nll": 0.838835,
+    "brier": 0.110064,
+    "ece": 0.06082,
+    "mean_confidence": 0.983445
+  },
+  "end_to_end_subqueue_accuracy": 0.8765432098765432,
+  "joint_accuracy": 0.8765432098765432,
+  "mean_logit_margin": 21.095184702932098,
+  "mean_free_energy": -15.58932254226233,
+  "option_order": {
+    "destination_cases_changed": 4,
+    "destination_consistency": 0.9506172839506173,
+    "failures": [
+      {"id": "det-01", "expected": "service", "predictions": ["non_customer", "service"]},
+      {"id": "det-04", "expected": "service", "predictions": ["body_shop", "service"]},
+      {"id": "gen-06", "expected": "front_desk", "predictions": ["non_customer", "parts"]},
+      {"id": "gen-08", "expected": "front_desk", "predictions": ["non_customer", "service"]}
+    ]
+  },
+  "scope_question_on_legacy_checkpoint": {
+    "counts": {"unrelated": 34, "unclear": 36, "dealership_business": 11},
+    "warning": "v7 was not trained on scope; this is a diagnostic, not a score."
+  }
+}

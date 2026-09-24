@@ -21,7 +21,24 @@ wording in one place. `build_items.py` reads it directly, so training and infere
 questions. The data files are under `data/calls/`; generated candidates must pass the checks in
 `scripts/generate_training.py` and `scripts/audit_snapshots.py` before their scores are cited.
 
-## Reproduce the workflow
+## Phase-A training contract
+
+The trainer now supports an honest split boundary without changing the RLCD objective:
+
+- `JEV_SEED` seeds Python, NumPy, Torch, and CUDA;
+- `JEV_MAX_LEN` and `JEV_HEAD_MAX_LEN` are shared by the item builder and trainer;
+- `JEV_CALIBRATION_ITEMS` points at calibration items and is required when
+  `JEV_REQUIRE_SPLITS=1`;
+- `JEV_VALIDATION_ITEMS` points at validation items used for per-epoch proper scores and
+  `checkpoint_best`;
+- `JEV_STRICT_BUILD=1` refuses silently skipped training items;
+- every run writes `run_manifest.json` with input hashes, task counts, seed, runtime, and the
+  calibration/validation source.
+
+The legacy fallback still samples calibration items from training data when no calibration file
+is supplied, but it prints a warning and records that fallback in the manifest. A future GPU run
+should set `JEV_REQUIRE_SPLITS=1`; otherwise the fallback is not an honest calibration result.
+
 
 The current v7 weights are already bundled. Retraining requires a GPU environment, the training
 data, and the upstream Laya dependencies. Inspect `training/run_config.json` and the generated

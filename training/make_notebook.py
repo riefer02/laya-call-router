@@ -23,6 +23,9 @@ RUN_CONFIG = json.loads((HERE / "run_config.json").read_text())
 EPOCHS = int(RUN_CONFIG["epochs"])
 LR_ENCODER = float(RUN_CONFIG["lr_encoder"])
 LR_HEAD = float(RUN_CONFIG["lr_head"])
+SEED = int(RUN_CONFIG["seed"])
+MAX_LEN = int(RUN_CONFIG["max_len"])
+HEAD_MAX_LEN = int(RUN_CONFIG["head_max_len"])
 
 MD_HEADER = """# Fine-tuning Laya for dealership call routing
 
@@ -125,7 +128,7 @@ print("laya", laya.__version__, "| transformers", transformers.__version__, "| t
 
 FIND_DATA = '''import os, glob, shutil
 
-WANTED = ("synthetic.jsonl", "severity_train.jsonl", "acceptance_train.jsonl", "store_profile.json", "build_items.py", "train_ddp.py")
+WANTED = ("synthetic.jsonl", "severity_train.jsonl", "acceptance_train.jsonl", "store_profile.json", "build_items.py", "train_ddp.py", "validation.py", "run_config.json")
 
 def log_tree(root, limit=40):
     print(f"  tree under {root}:")
@@ -173,7 +176,7 @@ n = sum(1 for _ in open("/kaggle/working/synthetic.jsonl"))
 print(f"\\n{n} labelled training utterances")
 '''
 
-BUILD = '''!cd /kaggle/working && python build_items.py /kaggle/working/synthetic.jsonl /kaggle/working/train_items.pt
+BUILD = '''!cd /kaggle/working && JEV_STRICT_BUILD=1 python build_items.py /kaggle/working/synthetic.jsonl /kaggle/working/train_items.pt
 '''
 
 TRAIN = f'''MODEL_DIR = "/kaggle/working/laya_base"
@@ -190,7 +193,11 @@ LR_HEAD = {LR_HEAD}
 os.environ["JEV_EPOCHS"] = str(EPOCHS)
 os.environ["JEV_LR_ENCODER"] = str(LR_ENCODER)
 os.environ["JEV_LR_HEAD"] = str(LR_HEAD)
-print(f"training for {{EPOCHS}} epochs at lr {{LR_ENCODER}}/{{LR_HEAD}}")
+os.environ["JEV_SEED"] = str({SEED})
+os.environ["JEV_MAX_LEN"] = str({MAX_LEN})
+os.environ["JEV_HEAD_MAX_LEN"] = str({HEAD_MAX_LEN})
+os.environ.setdefault("JEV_REQUIRE_SPLITS", "0")
+print(f"training for {{EPOCHS}} epochs at lr {{LR_ENCODER}}/{{LR_HEAD}} with seed {{os.environ['JEV_SEED']}}")
 
 OUTPUT_DIR = "/kaggle/working/laya-dealership-routing"
 cmd = (f"torchrun --standalone --nproc_per_node={{NPROC}} /kaggle/working/train_ddp.py "

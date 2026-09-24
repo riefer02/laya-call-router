@@ -1,0 +1,65 @@
+{
+  "config": {
+    "destination_state": {
+      "call": "text"
+    },
+    "diagnostic": "raw-logits",
+    "permutations": [
+      "identity",
+      "reverse"
+    ]
+  },
+  "created_at": "2026-09-24T16:53:54.848120+00:00",
+  "experiment_id": "phase-a-v7-diagnostics",
+  "extra": {
+    "command": "uv run python scripts/diagnose_logits.py --checkpoint models/kaggle-out-v7/laya-dealership-routing --out results/diagnostics_logits_v7_phase_a.json",
+    "gpu_training": false,
+    "hosted_calls": 0
+  },
+  "git_revision": "4638f5d19e7e3066f5168c216b9cfea64869616e",
+  "inputs": {
+    "diagnostic_script": {
+      "bytes": 5851,
+      "path": "scripts/diagnose_logits.py",
+      "sha256": "79bab995ecef77e732e14f937af0646468e51f84447215447c5bab544c4e44cd"
+    },
+    "diagnostics_module": {
+      "bytes": 7033,
+      "path": "src/jev_classifier/diagnostics.py",
+      "sha256": "129c55de0c9e4d6e4cff8662702b63cd59663d13c40c22bf7b9ac0b91c422460"
+    },
+    "profile": {
+      "bytes": 16170,
+      "path": "config/store_profile.json",
+      "sha256": "598a604543d857740bf73d5a3185d3eebae5783532c84e3feab9b8b5f7ea77f3"
+    },
+    "results": {
+      "bytes": 1656,
+      "path": "results/diagnostics_logits_v7_phase_a.json",
+      "sha256": "2eca7f38444d5fa1739ec1689d717ef025dcf340c46191737c9e07e091f19a88"
+    },
+    "routing": {
+      "bytes": 10925,
+      "path": "data/calls/routing.jsonl",
+      "sha256": "6737a8b21b90b291b8444ffa301251e43f353bc88fc987a47b701de131c8aebd"
+    },
+    "run_config": {
+      "bytes": 705,
+      "path": "training/run_config.json",
+      "sha256": "e6d0c0a312bb634506030dc0df06a89b4a56fd536b6c53888767ebbc61dc96df"
+    }
+  },
+  "manifest_sha256": "d4b9eaa89a3a57570679262a7b8678e13c2569b8f0e6905c80a02aaa27bc3123",
+  "model": {
+    "id": "models/kaggle-out-v7/laya-dealership-routing",
+    "revision": "v7-frozen-artifact"
+  },
+  "packages": {
+    "laya-mlx": "0.2.0"
+  },
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "python": "3.12.8",
+  "root": ".",
+  "schema_version": 1,
+  "seed": null
+}

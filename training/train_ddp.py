@@ -22,7 +22,9 @@ Run on Kaggle with 2xT4:
     torchrun --standalone --nproc_per_node=2 training/train_ddp.py <model_dir> <output_dir>
 """
 
-import os, sys, time, json, random, math
+import os, sys, time, json, random, math, hashlib, platform
+from datetime import datetime, timezone
+from pathlib import Path
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -80,6 +82,133 @@ def fit_one_temp(sel):
     return float(torch.clamp(log_t.exp(), 0.1, 10.0).item())
 
 
+def evaluate_validation_items(model, items, tok, device, cfg, batch_size: int = 16):
+    """Evaluate a fixed item set without gradients and return per-task proper-score rows."""
+    if not items:
+        return []
+    model.eval()
+    rows = []
+    with torch.no_grad():
+        for start in range(0, len(items), batch_size):
+            chunk = items[start : start + batch_size]
+            batch = collate_train_batch(chunk, tok.pad_token_id)
+            with torch.autocast("cuda", dtype=torch.float16):
+                logits, _ = model(
+                    batch["input_ids"].to(device),
+                    batch["attention_mask"].to(device),
+                    batch["marker_pos"].to(device),
+                    batch["marker_mask"].to(device),
+                    batch["qtype"].to(device),
+                )
+            logits = logits.float()
+            mask = batch["marker_mask"].to(device)
+            target = batch["target"].to(device)
+            for index, item in enumerate(chunk):
+                k = int(mask[index].sum().item())
+                z = logits[index, :k]
+                t = target[index, :k]
+                log_probs = torch.log_softmax(z, dim=-1)
+                p = torch.softmax(z, dim=-1)
+                rows.append(
+                    {
+                        "task": item.get("task", f"qtype-{int(item.get('qtype', -1))}"),
+                        "correct": int(int(p.argmax().item()) == int(t.argmax().item())),
+                        "nll": float(-(t * log_probs).sum().item()),
+                        "brier": float(((p - t) ** 2).sum().item()),
+                    }
+                )
+    model.train()
+    return rows
+
+
+def summarise_validation(rows):
+    """Small local copy of the pure selection rule so the Kaggle script is self-contained."""
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(row["task"], []).append(row)
+    by_task = {}
+    for task, values in sorted(grouped.items()):
+        n = len(values)
+        by_task[task] = {
+            "n": n,
+            "accuracy": sum(v["correct"] for v in values) / n,
+            "nll": sum(v["nll"] for v in values) / n,
+            "brier": sum(v["brier"] for v in values) / n,
+        }
+    task_scores = [v["nll"] for v in by_task.values()]
+    return {
+        "by_task": by_task,
+        "macro_nll": sum(task_scores) / len(task_scores) if task_scores else None,
+    }
+
+
+def _save_checkpoint(model, tok, output_dir, name, *, epoch, total_epochs, avg_loss, updates, seed):
+    ckpt_dir = os.path.join(output_dir, name)
+    os.makedirs(ckpt_dir, exist_ok=True)
+    state = {k: v.half().contiguous().cpu() for k, v in model.state_dict().items()}
+    save_file(state, os.path.join(ckpt_dir, "model.safetensors"))
+    model.encoder.config.save_pretrained(os.path.join(ckpt_dir, "encoder"))
+    tok.save_pretrained(os.path.join(ckpt_dir, "tokenizer"))
+    with open(os.path.join(ckpt_dir, "checkpoint_meta.json"), "w") as handle:
+        json.dump(
+            {
+                "epoch": epoch,
+                "total_epochs": total_epochs,
+                "avg_loss": avg_loss,
+                "optimizer_updates": updates,
+                "seed": seed,
+            },
+            handle,
+            indent=2,
+        )
+
+
+def _sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_run_manifest(output_dir, *, model_dir, items_path, calibration_path, validation_path, cfg, seed, rank, world_size, task_counts):
+    manifest = {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "model_dir": str(model_dir),
+        "items": {"path": str(items_path), "sha256": _sha256(items_path)},
+        "calibration": (
+            {"path": str(calibration_path), "sha256": _sha256(calibration_path)}
+            if calibration_path
+            else {"source": "legacy-fallback", "warning": "calibration was sampled from training items"}
+        ),
+        "validation": (
+            {"path": str(validation_path), "sha256": _sha256(validation_path)}
+            if validation_path
+            else None
+        ),
+        "config": {
+            "max_len": cfg.get("max_len"),
+            "head_max_len": cfg.get("head_max_len"),
+            "seed": seed,
+            "epochs": int(os.environ.get("JEV_EPOCHS", "4")),
+            "lr_encoder": float(os.environ.get("JEV_LR_ENCODER", "2.5e-5")),
+            "lr_head": float(os.environ.get("JEV_LR_HEAD", "1.0e-4")),
+        },
+        "runtime": {
+            "python": sys.version.split()[0],
+            "platform": platform.platform(),
+            "torch": torch.__version__,
+            "rank": rank,
+            "world_size": world_size,
+        },
+        "task_counts": task_counts,
+    }
+    with open(Path(output_dir) / "run_manifest.json", "w") as handle:
+        json.dump(manifest, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
 def main():
     dist.init_process_group("nccl")
     rank = dist.get_rank()
@@ -91,13 +220,24 @@ def main():
     model_dir = sys.argv[1]
     output_dir = sys.argv[2]
     items_path = sys.argv[3] if len(sys.argv) > 3 else "/kaggle/working/train_items.pt"
+    calibration_path = sys.argv[4] if len(sys.argv) > 4 else os.environ.get("JEV_CALIBRATION_ITEMS")
+    validation_path = os.environ.get("JEV_VALIDATION_ITEMS")
+
+    seed = int(os.environ.get("JEV_SEED", "42"))
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
     with open(os.path.join(model_dir, "rl_agent_config.json")) as f:
         cfg = json.load(f)
     cfg["gradient_checkpointing"] = True
     cfg["max_tokens_per_batch"] = 4096
-    cfg["max_len"] = 1024
-    cfg["head_max_len"] = 256
+    # The builder and trainer must use one budget. The legacy script silently changed this after
+    # items had already been encoded, which made train_items_meta.json and the saved config disagree.
+    cfg["max_len"] = int(os.environ.get("JEV_MAX_LEN", "512"))
+    cfg["head_max_len"] = int(os.environ.get("JEV_HEAD_MAX_LEN", "192"))
 
     tok = AutoTokenizer.from_pretrained(os.path.join(model_dir, "tokenizer"))
     model = build_model(cfg, encoder_dir=os.path.join(model_dir, "encoder"))
@@ -115,7 +255,35 @@ def main():
     ddp_model = DDP(model, device_ids=[local_rank], find_unused_parameters=True)
 
     all_items = torch.load(items_path, weights_only=False)
+    task_counts = {}
+    for item in all_items:
+        task = str(item.get("task", "unknown"))
+        task_counts[task] = task_counts.get(task, 0) + 1
     my_items = all_items[rank::world_size]
+    if os.environ.get("JEV_REQUIRE_SPLITS", "0") == "1" and not (calibration_path and validation_path):
+        raise SystemExit(
+            "JEV_REQUIRE_SPLITS=1 requires both JEV_CALIBRATION_ITEMS and JEV_VALIDATION_ITEMS"
+        )
+    if calibration_path and not os.path.isfile(calibration_path):
+        raise SystemExit(f"calibration item file does not exist: {calibration_path}")
+    if validation_path and not os.path.isfile(validation_path):
+        raise SystemExit(f"validation item file does not exist: {validation_path}")
+    calibration_items = (
+        torch.load(calibration_path, weights_only=False) if calibration_path else None
+    )
+    validation_items = (
+        torch.load(validation_path, weights_only=False) if validation_path else None
+    )
+    if rank == 0:
+        print(
+            f"split inputs: train={items_path} calibration={calibration_path or 'LEGACY-FALLBACK'} "
+            f"validation={validation_path or 'none'}"
+        )
+        if calibration_items is None:
+            print(
+                "WARNING: calibration is being sampled from training items for backwards "
+                "compatibility; this is not a held-out calibration result"
+            )
 
     # The one change to the vendored recipe: these are read from the environment so the epoch
     # count and learning rates can be ablated without editing this file per experiment. The
@@ -140,7 +308,10 @@ def main():
         weight_decay=0.01,
     )
 
-    total_updates = (len(my_items) // (MICRO_BATCH * GRAD_ACCUM)) * EPOCHS
+    updates_per_epoch = max(1, (len(my_items) + MICRO_BATCH * GRAD_ACCUM - 1) // (MICRO_BATCH * GRAD_ACCUM))
+    total_updates = updates_per_epoch * EPOCHS
+    optimizer_updates = 0
+    validation_history = []
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=max(1, total_updates), eta_min=1e-6
     )
@@ -154,7 +325,11 @@ def main():
     t0 = time.time()
 
     for epoch in range(EPOCHS):
-        random.seed(42 + epoch + rank)
+        random.seed(seed + epoch + rank)
+        np.random.seed(seed + epoch + rank)
+        torch.manual_seed(seed + epoch + rank)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed + epoch + rank)
         random.shuffle(my_items)
         epoch_loss, n_batches = 0.0, 0
         optimizer.zero_grad(set_to_none=True)
@@ -209,9 +384,14 @@ def main():
             if accum_step % GRAD_ACCUM == 0 or (b_idx + MICRO_BATCH) >= len(my_items):
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), 1.0)
+                old_scale = scaler.get_scale()
                 scaler.step(optimizer)
                 scaler.update()
-                scheduler.step()
+                # GradScaler may skip an optimizer step on non-finite gradients. The scheduler
+                # must not advance for a step that did not happen (the v7 log showed this warning).
+                if scaler.get_scale() >= old_scale:
+                    scheduler.step()
+                    optimizer_updates += 1
                 optimizer.zero_grad(set_to_none=True)
 
             epoch_loss += loss.item() * GRAD_ACCUM
@@ -233,24 +413,46 @@ def main():
 
         dist.barrier()
 
+        if validation_items is not None:
+            # Only rank 0 runs the deterministic validation pass; the other ranks wait at the
+            # barrier. This avoids invoking the DDP wrapper outside a gradient-synchronised step.
+            if rank == 0:
+                val_rows = evaluate_validation_items(model, validation_items, tok, device, cfg)
+                val_summary = summarise_validation(val_rows)
+                validation_history.append({"epoch": epoch + 1, **val_summary})
+                with open(os.path.join(output_dir, "validation_history.json"), "w") as handle:
+                    json.dump(validation_history, handle, indent=2, sort_keys=True)
+                    handle.write("\n")
+                eligible = [row for row in validation_history if row.get("macro_nll") is not None]
+                best = min(eligible, key=lambda row: row["macro_nll"]) if eligible else None
+                if best is not None and best["epoch"] == epoch + 1:
+                    _save_checkpoint(
+                        model,
+                        tok,
+                        output_dir,
+                        "checkpoint_best",
+                        epoch=epoch + 1,
+                        total_epochs=EPOCHS,
+                        avg_loss=epoch_loss / max(1, n_batches),
+                        updates=optimizer_updates,
+                        seed=seed,
+                    )
+                print(f"  validation: {val_summary}")
+            dist.barrier()
+
         if rank == 0:
-            ckpt_dir = os.path.join(output_dir, "checkpoint_latest")
-            os.makedirs(ckpt_dir, exist_ok=True)
-            ckpt_sd = {k: v.half().contiguous().cpu() for k, v in model.state_dict().items()}
-            save_file(ckpt_sd, os.path.join(ckpt_dir, "model.safetensors"))
-            model.encoder.config.save_pretrained(os.path.join(ckpt_dir, "encoder"))
-            tok.save_pretrained(os.path.join(ckpt_dir, "tokenizer"))
-            with open(os.path.join(ckpt_dir, "checkpoint_meta.json"), "w") as f:
-                json.dump(
-                    {
-                        "epoch": epoch + 1,
-                        "total_epochs": EPOCHS,
-                        "avg_loss": epoch_loss / max(1, n_batches),
-                    },
-                    f,
-                    indent=2,
-                )
-            print(f"  Saved rolling checkpoint (epoch {epoch+1}/{EPOCHS}) to {ckpt_dir}")
+            _save_checkpoint(
+                model,
+                tok,
+                output_dir,
+                "checkpoint_latest",
+                epoch=epoch + 1,
+                total_epochs=EPOCHS,
+                avg_loss=epoch_loss / max(1, n_batches),
+                updates=optimizer_updates,
+                seed=seed,
+            )
+            print(f"  Saved rolling checkpoint (epoch {epoch+1}/{EPOCHS}) to checkpoint_latest")
 
     dist.barrier()
 
@@ -260,7 +462,12 @@ def main():
         del optimizer, scaler, scheduler
         torch.cuda.empty_cache()
         model.eval()
-        calib_items = all_items[::15][:400]
+        calib_items = calibration_items if calibration_items is not None else all_items[::15][:400]
+        if calibration_items is None:
+            print(
+                "WARNING: fitting temperature on legacy training items; pass a separate "
+                "calibration file for an honest calibration result"
+            )
         calib_preds = []
         with torch.no_grad():
             for c_idx in range(0, len(calib_items), 16):
@@ -313,6 +520,18 @@ def main():
         with open(os.path.join(output_dir, "rl_agent_config.json"), "w") as f:
             json.dump(cfg, f, indent=2)
         print(f"Model successfully saved to {output_dir}!")
+        _write_run_manifest(
+            output_dir,
+            model_dir=model_dir,
+            items_path=items_path,
+            calibration_path=calibration_path,
+            validation_path=validation_path,
+            cfg=cfg,
+            seed=seed,
+            rank=rank,
+            world_size=world_size,
+            task_counts=task_counts,
+        )
 
     dist.destroy_process_group()
 

@@ -14,7 +14,18 @@ report here was produced by `scripts/eval.py`, `scripts/validate_teacher.py`,
 `scripts/generality_test.py` or `scripts/generate_training.py`, and every one names the checkpoint
 it used.
 
-## Current — corrected taxonomy
+## Phase-A diagnostics
+
+`diagnostics_logits_v7_phase_a.json` is a local raw-logit measurement of the bundled v7 checkpoint.
+It uses the same `{"call": text}` state shape as `eval.py`, reports teacher-forced subqueue
+accuracy separately from end-to-end joint accuracy, tests reversed option order, and probes the
+new scope question. It is a diagnostic, not a new headline score. The matching narrative and
+provenance record are in [`experiments/phase-a-v7-diagnostics/`](../experiments/phase-a-v7-diagnostics/).
+
+The diagnostic found 4/81 destination predictions change when option order is reversed. It also
+found mean maximum probability `0.999991` alongside destination NLL `1.56316`; confidence is
+saturated and cannot currently authorise unattended action.
+
 
 | file | what it measured |
 | --- | --- |

@@ -19,7 +19,9 @@
   "questions": {
     "destination": "Which part of the dealership should handle this caller? Pick where the work belongs, not the first thing the caller mentioned.",
     "subqueue": "This is a {label} call. What exactly does the caller want, and which sub-queue should it go to? Pick the single closest option.",
-    "acceptance": "Which of the times the agent just offered did the caller agree to? If they did not clearly accept one, choose 'unclear'."
+    "acceptance": "Which of the times the agent just offered did the caller agree to? If they did not clearly accept one, choose 'unclear'.",
+    "scope": "What is this call about? Choose dealership_business only when the caller is discussing a vehicle, a dealership service, a purchase, a part, finance, or dealership policy. Choose unrelated for a wrong number or a matter that is not about this dealership. Choose unclear when the caller has not said enough to decide.",
+    "safety_applicability": "Does the caller describe a condition of a specific vehicle that could affect whether it is safe to drive? Choose applicable only when there is a vehicle condition to assess, not_applicable for routine or unrelated calls, and unclear when the context is insufficient."
   },
   "_noul_note": [
     "The yes/no questions, defined once for the same reason as the choice questions above: the",

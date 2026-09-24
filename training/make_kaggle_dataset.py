@@ -26,6 +26,8 @@ FILES = [
     ("config/store_profile.json", "store_profile.json"),
     ("training/build_items.py", "build_items.py"),
     ("training/train_ddp.py", "train_ddp.py"),
+    ("training/validation.py", "validation.py"),
+    ("training/run_config.json", "run_config.json"),
 ]
 
 

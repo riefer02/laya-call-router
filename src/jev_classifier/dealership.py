@@ -30,6 +30,17 @@ SUBQUEUES: Dict[str, Dict[str, str]] = {
     d.key: {s.key: s.description for s in PROFILE.subqueues_for(d.key)} for d in PROFILE.destinations
 }
 DESTINATION_QUESTION: Dict = PROFILE.destination_question()
+# Phase-A guard questions. They are intentionally not in PASS1_QUESTIONS yet: the bundled v7
+# checkpoint was not trained on them. Keeping the definitions here lets the policy and its tests
+# land without silently asking an untrained model a new question in the demo.
+SCOPE_QUESTION: Dict = PROFILE.scope_question()
+SAFETY_APPLICABILITY_QUESTION: Dict = PROFILE.safety_applicability_question()
+SCOPE_DEALERSHIP = "dealership_business"
+SCOPE_UNRELATED = "unrelated"
+SCOPE_UNCLEAR = "unclear"
+SAFETY_APPLICABLE = "applicable"
+SAFETY_NOT_APPLICABLE = "not_applicable"
+SAFETY_UNCLEAR = "unclear"
 
 # --------------------------------------------------------------------------- slots
 LOCATIONS: Dict[str, str] = {loc["key"]: loc["description"] for loc in PROFILE.locations}
@@ -167,8 +178,35 @@ def subqueue_question_paraphrase(destination: str) -> Optional[Dict[str, Any]]:
     }
 
 
+def _answer_value(answers: Dict, qid: str):
+    """Read a typed answer without assuming that the optional Phase-A question was asked."""
+    ans = answers.get(qid)
+    if not isinstance(ans, dict):
+        return None
+    if ans.get("type") == "choice":
+        return ans.get("choice")
+    if ans.get("type") == "noul":
+        return ans.get("noul")
+    return ans.get("score")
+
+
+def scope_allows_safety(scope: Optional[str], safety_applicable: Optional[str] = None) -> bool:
+    """Whether a safety answer is eligible to affect routing.
+
+    Absent answers preserve the v7 behaviour while the optional guard questions are rolled out.
+    Once either answer is present, an explicit negative or unresolved applicability blocks the
+    safety signal. This is the invariant that an unrelated call must not dispatch.
+    """
+    if scope in (SCOPE_UNRELATED, SCOPE_UNCLEAR):
+        return False
+    if safety_applicable in (SAFETY_NOT_APPLICABLE, SAFETY_UNCLEAR):
+        return False
+    return True
+
+
 # --------------------------------------------------------------------------- next action
 NEXT_ACTION_LABELS: Dict[str, str] = {
+    "ask_scope": "we need to clarify whether this concerns the dealership or a vehicle",
     "ask_vehicle": "we do not yet know what kind of vehicle this is",
     "ask_location": "we do not yet know which location the caller wants",
     "ask_time": "we do not yet know when the caller wants to come in",
@@ -197,8 +235,12 @@ def slot_applies(destination: Optional[str], slot: str) -> bool:
     return slot in REQUIRED_SLOTS
 
 
-def next_action_for(missing: List[str], destination: str, unsafe: float) -> str:
+def next_action_for(
+    missing: List[str], destination: Optional[str], unsafe: float, scope: Optional[str] = None
+) -> str:
     """The switchboard's next step, as policy over the classifier's understanding."""
+    if scope == SCOPE_UNCLEAR:
+        return "ask_scope"
     if destination in TRANSFER_DESTINATIONS or unsafe >= unsafe_threshold():
         return "offer_transfer"
     if not missing:
@@ -224,7 +266,13 @@ def unsafe_threshold() -> float:
 
 
 def decide(answers: Dict, missing: List[str]) -> Dict:
-    """Terminal routing outcome: destination + optional sub-queue -> queue, priority, handler."""
+    """Terminal routing outcome: destination + optional sub-queue -> queue, priority, handler.
+
+    The optional ``scope`` and ``safety_applicable`` answers are deliberately backward-compatible:
+    an old v7 answer set without them follows the historical policy. Once present, however, an
+    unrelated or unresolved scope is a hard safety veto. This is a policy invariant, not a
+    confidence heuristic.
+    """
 
     def pick(qid):
         ans = answers.get(qid)
@@ -240,6 +288,8 @@ def decide(answers: Dict, missing: List[str]) -> Dict:
         v = pick(qid)
         return float(v) if isinstance(v, (int, float)) else 0.0
 
+    scope = _answer_value(answers, "scope")
+    safety_applicable = _answer_value(answers, "safety_applicable")
     destination = pick("destination")
     if destination not in DESTINATIONS:
         destination = None
@@ -249,8 +299,25 @@ def decide(answers: Dict, missing: List[str]) -> Dict:
     unsafe = prob("is_safe_to_drive")
     needs_human = prob("needs_human")
 
+    # An explicit scope answer is stronger than a guessed destination. An unrelated call is a
+    # wrong-number-style Front Desk handoff; an unclear call is not allowed to terminate as a route.
+    if scope == SCOPE_UNRELATED:
+        destination = "non_customer"
+        subqueue = "wrong_number"
+        unsafe = 0.0
+    elif scope == SCOPE_UNCLEAR:
+        destination = None
+        subqueue = None
+        unsafe = 0.0
+
+    safety_allowed = scope_allows_safety(scope, safety_applicable)
+    unsafe_signal = unsafe >= unsafe_threshold() and safety_allowed
     flags: List[str] = list(PROFILE.flags_for(destination, subqueue))
-    if unsafe >= unsafe_threshold():
+    if scope == SCOPE_UNCLEAR:
+        flags.append("needs_clarification")
+    if scope == SCOPE_UNRELATED:
+        flags.append("out_of_scope")
+    if unsafe_signal:
         flags.append("unsafe_to_drive")
     if needs_human >= NEEDS_HUMAN_FLAG:
         flags.append("needs_human")
@@ -258,32 +325,38 @@ def decide(answers: Dict, missing: List[str]) -> Dict:
         flags.append("missing_info")
 
     # Roadside is a policy outcome, never a destination: a stranded caller is dispatched whichever
-    # department owns the work.
+    # department owns the work. A blocked safety signal cannot enter this branch.
     roadside = PROFILE.policy.get("roadside_flag", "roadside_dispatch")
-    if roadside in flags or unsafe >= unsafe_threshold():
+    if roadside in flags or unsafe_signal:
         queue = PROFILE.policy.get("roadside_queue", "Roadside / Towing")
         if "dispatch" not in flags:
             flags.append("dispatch")
+    elif scope in (SCOPE_UNRELATED, SCOPE_UNCLEAR):
+        queue = PROFILE.queue_for("front_desk", None)
     else:
         queue = PROFILE.queue_for(destination, subqueue)
 
-    priority = "HIGH" if (unsafe >= unsafe_threshold() or "dispatch" in flags) else "NORMAL"
+    priority = "HIGH" if (unsafe_signal or "dispatch" in flags) else "NORMAL"
 
     sub = PROFILE.subqueue(destination, subqueue)
     dest = PROFILE.destination(destination)
     handler = "human" if destination in TRANSFER_DESTINATIONS else "auto"
+    if scope in (SCOPE_UNRELATED, SCOPE_UNCLEAR):
+        handler = "human"
     if needs_human >= PROFILE.policy.get("needs_human_threshold", NEEDS_HUMAN_FLAG):
         handler = "human"
     for obj in (sub, dest):
         if obj is not None and getattr(obj, "handler", "route") == "human":
             handler = "human"
-    if unsafe >= unsafe_threshold():
+    if unsafe_signal:
         handler = "human"
 
     where = destination or "unknown"
     if subqueue:
         where += f"/{subqueue}"
     reasons = [
+        f"scope={scope or 'not_asked'}",
+        f"safety_applicable={safety_applicable or 'not_asked'}",
         f"destination={where}",
         f"is_safe_to_drive={unsafe:.2f}",
         f"needs_human={needs_human:.2f}",
@@ -297,6 +370,9 @@ def decide(answers: Dict, missing: List[str]) -> Dict:
         "flags": flags,
         "destination": destination,
         "subqueue": subqueue,
+        "scope": scope,
+        "safety_applicable": safety_applicable,
+        "safety_blocked": not safety_allowed,
         "reasons": reasons,
     }
 

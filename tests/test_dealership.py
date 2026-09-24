@@ -139,6 +139,101 @@ def test_non_customer_is_handled_by_a_human():
     assert r["queue"] == "Front Desk"
 
 
+def test_unrelated_scope_cannot_dispatch_even_when_the_old_answers_look_unsafe():
+    """The dog/off-topic failure is a policy invariant, not a confidence problem."""
+    answers = {
+        **_choice("destination", "service"),
+        **_choice("subqueue", "mechanical_diagnostic"),
+        **_choice("scope", "unrelated"),
+        "is_safe_to_drive": {"type": "noul", "noul": 1.0},
+    }
+    r = D.decide(answers, [])
+    assert r["queue"] == "Front Desk"
+    assert r["destination"] == "non_customer"
+    assert r["subqueue"] == "wrong_number"
+    assert r["handler"] == "human"
+    assert "dispatch" not in r["flags"]
+    assert "unsafe_to_drive" not in r["flags"]
+    assert "out_of_scope" in r["flags"]
+    assert r["safety_blocked"] is True
+
+
+def test_unclear_scope_asks_for_clarification_instead_of_ending_as_a_route():
+    answers = {
+        **_choice("destination", "service"),
+        **_choice("subqueue", "mechanical_diagnostic"),
+        **_choice("scope", "unclear"),
+        "is_safe_to_drive": {"type": "noul", "noul": 1.0},
+    }
+    r = D.decide(answers, [])
+    assert r["queue"] == "Front Desk"
+    assert r["handler"] == "human"
+    assert r["destination"] is None
+    assert "needs_clarification" in r["flags"]
+    assert "dispatch" not in r["flags"]
+    assert D.next_action_for([], "service", 1.0, scope="unclear") == "ask_scope"
+
+
+def test_safety_applicability_blocks_dispatch_without_requiring_a_scope_answer():
+    answers = {
+        **_choice("destination", "service"),
+        **_choice("subqueue", "mechanical_diagnostic"),
+        **_choice("safety_applicable", "not_applicable"),
+        "is_safe_to_drive": {"type": "noul", "noul": 1.0},
+    }
+    r = D.decide(answers, [])
+    assert r["queue"] == "Service Department"
+    assert "dispatch" not in r["flags"]
+    assert "unsafe_to_drive" not in r["flags"]
+    assert r["safety_blocked"] is True
+
+
+def test_applicable_scope_allows_the_normal_safety_path():
+    answers = {
+        **_choice("destination", "service"),
+        **_choice("subqueue", "mechanical_diagnostic"),
+        **_choice("scope", "dealership_business"),
+        **_choice("safety_applicable", "applicable"),
+        "is_safe_to_drive": {"type": "noul", "noul": 1.0},
+    }
+    r = D.decide(answers, [])
+    assert r["queue"] == "Roadside / Towing"
+    assert "dispatch" in r["flags"]
+    assert "unsafe_to_drive" in r["flags"]
+
+
+def test_absent_phase_a_answers_preserve_the_legacy_policy():
+    """The bundled v7 checkpoint has not been trained on the optional guard questions."""
+    answers = {
+        **_choice("destination", "service"),
+        **_choice("subqueue", "mechanical_diagnostic"),
+        "is_safe_to_drive": {"type": "noul", "noul": 1.0},
+    }
+    r = D.decide(answers, [])
+    assert r["queue"] == "Roadside / Towing"
+    assert "dispatch" in r["flags"]
+    assert r["scope"] is None
+    assert r["safety_applicable"] is None
+
+
+def test_scope_questions_live_in_the_profile():
+    p = profile()
+    assert set(p.scope_question()["scope"]["criteria"]) == {
+        "dealership_business",
+        "unrelated",
+        "unclear",
+    }
+    assert set(p.safety_applicability_question()["safety_applicable"]["criteria"]) == {
+        "applicable",
+        "not_applicable",
+        "unclear",
+    }
+    # The active v7 checkpoint has not seen these questions. Do not silently add them to the
+    # existing demo pass before a trained checkpoint and its evaluation exist.
+    assert "scope" not in D.PASS1_QUESTIONS
+    assert "safety_applicable" not in D.PASS1_QUESTIONS
+
+
 def test_missing_info_is_flagged():
     r = D.decide({**_choice("destination", "sales"), **_choice("subqueue", "new_vehicle")}, ["vehicle"])
     assert "missing_info" in r["flags"]

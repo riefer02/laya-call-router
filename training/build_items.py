@@ -21,6 +21,7 @@ Runs inside the Kaggle notebook (it needs the `laya` package). Locally we only u
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -91,6 +92,14 @@ def build_noul_item(tok, cfg, state, instructions, criteria, value):
         "target": [1.0 - y, y],
         "label": int(y),
     }
+
+
+def _sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def main() -> None:
@@ -219,13 +228,21 @@ def main() -> None:
 
     print(f"built {len(items)} training sequences ({skipped} skipped for option-budget/unknown label)")
     print("by task:", dict(Counter(i["task"] for i in items)))
+    if skipped and os.environ.get("JEV_STRICT_BUILD", "0") == "1":
+        raise SystemExit(f"strict build refused {skipped} skipped item(s)")
 
     torch.save(items, dst)
     print(f"saved {dst}")
 
     meta = {
         "source": src,
+        "source_sha256": _sha256(src),
         "store_profile": profile_path,
+        "store_profile_sha256": _sha256(profile_path),
+        "severity_source": sev_src if os.path.isfile(sev_src) else None,
+        "severity_sha256": _sha256(sev_src) if os.path.isfile(sev_src) else None,
+        "acceptance_source": acc_src if os.path.isfile(acc_src) else None,
+        "acceptance_sha256": _sha256(acc_src) if os.path.isfile(acc_src) else None,
         "n_utterances": len(rows),
         "n_items": len(items),
         "skipped": skipped,

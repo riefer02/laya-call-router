@@ -1,5 +1,21 @@
 # Next steps
 
+## Phase A status — local infrastructure, no generation or GPU
+
+Phase A is implemented locally. The optional scope and safety-applicability questions now live in
+the store profile and have policy tests, but they are not added to the active v7 pass because v7
+was not trained on them. The bundled v7 raw-logit diagnostic reproduces 71/81 joint routing and
+finds four option-order-sensitive destination cases; its ledger is in
+`experiments/phase-a-v7-diagnostics/`.
+
+The trainer now has seeded runtime controls, a single token-budget source, strict build mode,
+optional validation/calibration item files, validation history, a best-validation checkpoint, and
+a run manifest. A future run should set `JEV_REQUIRE_SPLITS=1`; the legacy calibration fallback is
+explicitly marked untrusted.
+
+The next implementation step is the contract-based synthetic dataset and split builder. It should
+be dry-run with fixtures before any paid teacher call or GPU submission.
+
 The current demo serves the v7 fine-tune, replays inspectable calls, and checks 13 scripted
 scenarios. The checkpoint is bundled through Git LFS. [LEARNINGS.md](LEARNINGS.md) records the
 experiments and corrections; [results/README.md](results/README.md) identifies the report files.

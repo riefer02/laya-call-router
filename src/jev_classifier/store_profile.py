@@ -43,6 +43,17 @@ DEFAULT_QUESTIONS: Dict[str, str] = {
         "Which of the times the agent just offered did the caller agree to? If they did not "
         "clearly accept one, choose 'unclear'."
     ),
+    "scope": (
+        "What is this call about? Choose dealership_business only when the caller is discussing "
+        "a vehicle, a dealership service, a purchase, a part, finance, or dealership policy. "
+        "Choose unrelated for a wrong number or a matter that is not about this dealership. "
+        "Choose unclear when the caller has not said enough to decide."
+    ),
+    "safety_applicability": (
+        "Does the caller describe a condition of a specific vehicle that could affect whether it "
+        "is safe to drive? Choose applicable only when there is a vehicle condition to assess, "
+        "not_applicable for routine or unrelated calls, and unclear when the context is insufficient."
+    ),
 }
 
 
@@ -185,6 +196,50 @@ class StoreProfile:
                     "subqueue", label=dest.label if dest else destination
                 ),
                 "criteria": {s.key: s.description for s in subs},
+            }
+        }
+
+    def scope_question(self) -> Dict[str, Any]:
+        return {
+            "scope": {
+                "type": "choice",
+                "instructions": self.question_text("scope"),
+                "criteria": {
+                    "dealership_business": (
+                        "the caller is discussing a vehicle, a dealership service, a purchase, "
+                        "a part, finance, or dealership policy"
+                    ),
+                    "unrelated": (
+                        "the caller is not discussing this dealership or a vehicle, such as a "
+                        "wrong number or an unrelated organisation"
+                    ),
+                    "unclear": (
+                        "the caller has not said enough to decide whether this concerns the "
+                        "dealership or a vehicle"
+                    ),
+                },
+            }
+        }
+
+    def safety_applicability_question(self) -> Dict[str, Any]:
+        return {
+            "safety_applicable": {
+                "type": "choice",
+                "instructions": self.question_text("safety_applicability"),
+                "criteria": {
+                    "applicable": (
+                        "the caller describes a condition of a specific vehicle that could "
+                        "affect whether it is safe to drive"
+                    ),
+                    "not_applicable": (
+                        "this is a routine booking, policy question, unrelated call, or other "
+                        "request with no vehicle-safety condition to assess"
+                    ),
+                    "unclear": (
+                        "the caller has not said enough to establish whether a vehicle-safety "
+                        "condition is present"
+                    ),
+                },
             }
         }
 
