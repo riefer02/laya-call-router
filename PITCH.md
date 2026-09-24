@@ -1,9 +1,9 @@
 # A small model you can inspect, train, and serve
 
-**jev-classifier is a car-dealership call-routing demo built around typed decisions.** Its
+**Laya Call Router is a car-dealership call-routing demo built around typed decisions and Laya.** Its
 fine-tuned Laya model chooses from answers supplied with each question. A separate call policy
 decides what to ask and when to book; the dialogue layer turns confirmed facts into plain replies.
-The debugger lets you replay a call and inspect the source and evidence for every step.
+The debugger lets you replay a call and inspect the source and evidence for every step. This is an independent research demo built on Laya, not an official Laya product.
 
 ## Why show this
 

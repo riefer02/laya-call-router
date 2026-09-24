@@ -39,7 +39,7 @@ from .scenarios import SCENARIO_BY_ID, SCENARIOS
 
 WEB_DIST = Path(__file__).resolve().parents[2] / "web" / "dist"
 
-app = FastAPI(title="jev-classifier", version=__version__)
+app = FastAPI(title="Laya Call Router", version=__version__)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -57,7 +57,7 @@ def _warm() -> None:
     argv = " ".join(sys.argv)
     if any(bad in argv for bad in ("--host 0.0.0.0", "--host ::", "--host 0.0.0.0/0")):
         print(
-            "\n  !! jev-classifier is bound to a non-loopback address.\n"
+            "\n  !! Laya Call Router is bound to a non-loopback address.\n"
             "     This service has no auth and will proxy key-backed calls. Use --host 127.0.0.1.\n"
         )
 

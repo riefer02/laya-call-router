@@ -1,10 +1,12 @@
-# jev-classifier
+# Laya Call Router
 
-An inspectable call-routing research demo for a car dealership. A fine-tuned Laya model reads a
+An inspectable call-routing research demo for a car dealership, built on Laya. A fine-tuned Laya model reads a
 caller's words and chooses typed answers, such as a department or vehicle type. Rules decide what
 to ask next, check available appointments, and file a booking. The debugger shows each step. The
 checkpoint, frozen training snapshot, evaluation cases, and lessons are here so you can run the example and
 adapt the process to your own domain.
+
+This is an independent research demo built on Laya; it is not an official Laya product.
 
 The demo uses **scripted text calls** so each decision can be replayed. Short reply templates use
 confirmed caller and store facts; the model chooses typed answers while the dialogue layer speaks.

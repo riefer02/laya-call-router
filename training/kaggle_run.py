@@ -131,7 +131,7 @@ def submit_kernel(owner: str) -> None:
     shutil.copy(ROOT / "notebooks" / NOTEBOOK, stage / NOTEBOOK)
     meta = {
         "id": f"{owner}/{KERNEL_SLUG}",
-        "title": "JEV Laya dealership fine-tune",
+        "title": "Laya dealership fine-tune",
         "code_file": NOTEBOOK,
         "language": "python",
         "kernel_type": "notebook",

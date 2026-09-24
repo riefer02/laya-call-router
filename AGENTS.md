@@ -2,7 +2,7 @@
 
 ## Orientation
 
-`jev-classifier` is an inspectable dealership call-routing research demo. Laya makes typed
+**Laya Call Router** is an inspectable dealership call-routing research demo built on Laya. Laya makes typed
 classification decisions. Application code owns the call policy, scheduling, dialogue, and booking
 workflow. The model must not be treated as the source of the dealership's business policy.
 

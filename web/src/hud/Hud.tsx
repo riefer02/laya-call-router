@@ -54,7 +54,7 @@ export default function Hud({ view, onView }: { view: View; onView: (v: View) =>
     <header className="flex items-center gap-5 border-b border-slate-800 bg-slate-950 px-4 py-2">
       <div className="flex items-baseline gap-2">
         <span className="text-violet-400">◈</span>
-        <span className="text-[13px] font-semibold text-slate-100">jev-classifier</span>
+        <span className="text-[13px] font-semibold text-slate-100">Laya Call Router</span>
         <span className="text-[10px] text-slate-500">See how each call is handled</span>
       </div>
 

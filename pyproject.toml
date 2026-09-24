@@ -1,7 +1,7 @@
 [project]
 name = "jev-classifier"
 version = "0.1.0"
-description = "Inspectable dealership call routing with a fine-tuned typed-decision model"
+description = "Laya Call Router: inspectable dealership call routing with a fine-tuned typed-decision model"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [

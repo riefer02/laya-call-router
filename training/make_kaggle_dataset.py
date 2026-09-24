@@ -56,7 +56,7 @@ def main() -> None:
 
     rows = sum(1 for _ in open(OUT / "synthetic.jsonl"))
     meta = {
-        "title": "JEV Dealership Routing Data",
+        "title": "Laya Call Router Dealership Routing Data",
         "id": f"{args.owner}/{args.slug}",
         "licenses": [{"name": "apache-2.0"}],
         "description": (
