@@ -17,7 +17,8 @@ interface RunState {
   events: RunEvent[];
   applied: number;
   playing: boolean;
-  speed: number; // events per second
+  speed: number; // events per second when timed playback is enabled
+  instantPlayback: boolean;
   runId: string | null;
   scenarioLabel: string;
   nodes: Record<string, AppliedNode>;
@@ -36,6 +37,7 @@ interface RunState {
   pause: () => void;
   toggle: () => void;
   setSpeed: (n: number) => void;
+  setInstantPlayback: (v: boolean) => void;
   setFollow: (v: boolean) => void;
   select: (id: string | null) => void;
   reset: () => void;
@@ -106,6 +108,7 @@ const initial = {
   applied: 0,
   playing: false,
   speed: 3,
+  instantPlayback: true,
   runId: null as string | null,
   scenarioLabel: "",
   nodes: {} as Record<string, AppliedNode>,
@@ -121,10 +124,11 @@ const initial = {
 export const useRun = create<RunState>((set, get) => ({
   ...initial,
 
-  load: (events, opts) =>
+  load: (events, opts) => {
     set((current) => ({
       ...initial,
       speed: current.speed,
+      instantPlayback: current.instantPlayback,
       follow: current.follow,
       events,
       runId: opts?.runId ?? null,
@@ -134,7 +138,11 @@ export const useRun = create<RunState>((set, get) => ({
           ?.scenario?.label ??
         "",
       playing: true,
-    })),
+    }));
+    // The backend has already finished the call when events arrive. Instant mode reveals that
+    // completed result immediately; timed mode keeps the reveal clock for deliberate inspection.
+    if (get().instantPlayback) get().applyAll();
+  },
 
   step: () => {
     const s = get();
@@ -170,10 +178,38 @@ export const useRun = create<RunState>((set, get) => ({
   },
   pause: () => set({ playing: false }),
   toggle: () => set({ playing: !get().playing }),
-  setSpeed: (n) => set({ speed: n }),
+  setSpeed: (n) => set({ speed: n, instantPlayback: false }),
+  setInstantPlayback: (v) => {
+    const s = get();
+    if (v) {
+      s.applyAll();
+      set({ instantPlayback: true, playing: false });
+    } else if (s.instantPlayback) {
+      // Switching to timed inspection starts a fresh reveal so the first event is not skipped.
+      set({
+        instantPlayback: false,
+        applied: 0,
+        playing: s.events.length > 0,
+        nodes: {},
+        edges: {},
+        turns: [],
+        routing: null,
+        summary: null,
+        activeId: null,
+      });
+    } else {
+      set({ playing: s.applied < s.events.length });
+    }
+  },
   setFollow: (v) => set({ follow: v }),
   select: (id) => set({ selected: id }),
-  reset: () => set((current) => ({ ...initial, speed: current.speed, follow: current.follow })),
+  reset: () =>
+    set((current) => ({
+      ...initial,
+      speed: current.speed,
+      instantPlayback: current.instantPlayback,
+      follow: current.follow,
+    })),
 }));
 
 /** Counts for the HUD, derived from what has been revealed so far. */

@@ -49,11 +49,13 @@ export default function Controls() {
   const applied = useRun((s) => s.applied);
   const total = useRun((s) => s.events.length);
   const speed = useRun((s) => s.speed);
+  const instantPlayback = useRun((s) => s.instantPlayback);
   const load = useRun((s) => s.load);
   const step = useRun((s) => s.step);
   const applyAll = useRun((s) => s.applyAll);
   const toggle = useRun((s) => s.toggle);
   const setSpeed = useRun((s) => s.setSpeed);
+  const setInstantPlayback = useRun((s) => s.setInstantPlayback);
   const follow = useRun((s) => s.follow);
   const setFollow = useRun((s) => s.setFollow);
   const reset = useRun((s) => s.reset);
@@ -138,25 +140,34 @@ export default function Controls() {
       <Btn onClick={applyAll} disabled={total === 0 || done} title="reveal everything">
         ⏩ Show all
       </Btn>
+      <Btn
+        onClick={() => setInstantPlayback(!instantPlayback)}
+        active={instantPlayback}
+        title={instantPlayback ? "instant reveal is on; click for timed inspection" : "switch to timed inspection"}
+      >
+        ⚡ Instant
+      </Btn>
       <Btn onClick={reset} disabled={total === 0}>
         ↺ Reset
       </Btn>
 
-      <label className="ml-1 flex items-center gap-2 text-[10px] text-slate-400">
-        speed
-        <input
-          id="playback-speed"
-          name="playback-speed"
-          aria-label="playback speed"
-          type="range"
-          min={1}
-          max={20}
-          value={speed}
-          onChange={(e) => setSpeed(Number(e.target.value))}
-          className="w-24 accent-violet-500"
-        />
-        <span className="w-6 font-mono">{speed}×</span>
-      </label>
+      {!instantPlayback && (
+        <label className="ml-1 flex items-center gap-2 text-[10px] text-slate-400">
+          speed
+          <input
+            id="playback-speed"
+            name="playback-speed"
+            aria-label="playback speed"
+            type="range"
+            min={1}
+            max={20}
+            value={speed}
+            onChange={(e) => setSpeed(Number(e.target.value))}
+            className="w-24 accent-violet-500"
+          />
+          <span className="w-6 font-mono">{speed}×</span>
+        </label>
+      )}
 
       <Btn
         onClick={() => fitView({ padding: 0.12, minZoom: 0.22, maxZoom: 1, duration: 400 })}
