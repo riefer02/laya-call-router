@@ -11,7 +11,7 @@ This is an independent research demo built on Laya; it is not an official Laya p
 The demo uses **scripted text calls** so each decision can be replayed. Short reply templates use
 confirmed caller and store facts; the model chooses typed answers while the dialogue layer speaks.
 
-![Call-routing debugger](docs/overview.png)
+![Sales call replay showing the appointment booking and decision graph](docs/overview-sales.png)
 
 ## See a call
 
@@ -31,6 +31,19 @@ repository. This development runner uses MLX on macOS with Apple Silicon; the ch
 separate artifact that can be served from another compatible runtime later. You also need Python
 3.12, `uv`, and Node.js. The current demo is not a Linux/Windows runtime.
 
+For a one-command boot, run:
+
+```bash
+./scripts/dev.sh
+```
+
+It fetches missing LFS weights, runs `uv sync`, installs and builds the frontend if needed, enables
+the Git hooks, runs the setup check, and serves the app at <http://127.0.0.1:8765>. On reruns it
+skips the weight download, frontend install, and build when those are already present or current.
+Pass `--open` to open the browser, `--rebuild` to force a frontend rebuild, `--no-serve` to set up
+without starting the server, or `--port 9000` (also `PORT=9000`) to choose a port. The script is a
+thin wrapper; the same steps by hand are:
+
 ```bash
 git lfs pull
 uv sync
@@ -39,6 +52,9 @@ git config core.hooksPath .githooks
 uv run python scripts/doctor.py
 uv run uvicorn jev_classifier.api:app --port 8765
 ```
+
+The setup check reports whether optional Kaggle authentication appears configured; it does not
+display credential values or change authentication settings.
 
 The `core.hooksPath` setting enables the repository's secret-scanning and Git LFS hooks. It is
 local Git configuration, so run it once after cloning.
